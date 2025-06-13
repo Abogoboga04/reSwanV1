@@ -1,0 +1,34 @@
+{
+    "1": {
+        "name": "Gold Badge",
+        "price": 100,
+        "description": "A shiny gold badge.",
+        "type": "badge",
+        "role_id": null,
+        "exp": 0
+    },
+    "2": {
+        "name": "Silver Badge",
+        "price": 50,
+        "description": "A shiny silver badge.",
+        "type": "badge",
+        "role_id": null,
+        "exp": 0
+    },
+    "3": {
+        "name": "VIP Role",
+        "price": 500,
+        "description": "Exclusive role for VIP members.",
+        "type": "role",
+        "role_id": "123456789012345678",
+        "exp": 0
+    },
+    "4": {
+        "name": "Extra EXP",
+        "price": 250,
+        "description": "Gain 100 extra experience points.",
+        "type": "exp",
+        "role_id": null,
+        "exp": 100
+    }
+}
