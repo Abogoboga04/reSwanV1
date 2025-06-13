@@ -22,8 +22,8 @@
         },
         "5": {
             "description": "kirim 1 pesan di server",
-            "reward_exp": 5900,
-            "reward_coins": 5000
+            "reward_exp": 50,
+            "reward_coins": 5
         }
     }
 }
