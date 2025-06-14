@@ -11,7 +11,7 @@ YTDL_OPTIONS = {
     'extract_flat': 'in_playlist'
 }
 FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 1',  # Mengurangi waktu reconnect
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn -b:a 128k'  # Menurunkan bitrate audio menjadi 128 kbps untuk kualitas medium
 }
 
@@ -53,6 +53,10 @@ class QuizView(discord.ui.View):
         self.voice_client = voice_client
         self.on_answer = on_answer
         self.message = None
+
+        letters = ["A", "B", "C", "D"]
+        for i, option in enumerate(options):
+            self.add_item(QuizButton(option, letters[i], self))
 
 class MusicQuiz(commands.Cog):
     SCORES_FILE = "scores.json"
@@ -102,8 +106,6 @@ class MusicQuiz(commands.Cog):
         # Jika bot belum terhubung, gabungkan ke channel
         if not self.voice_client or not self.voice_client.is_connected():
             self.voice_client = await channel.connect()
-            self.queue = []  # Reset antrean saat bergabung
-            self.is_playing = False  # Reset status pemutaran
             return True
 
         # Jika bot sudah terhubung, periksa apakah pengguna berada di channel yang sama
@@ -137,7 +139,6 @@ class MusicQuiz(commands.Cog):
             await self.voice_client.disconnect()
             self.voice_client = None
             self.queue.clear()  # Kosongkan antrean saat keluar
-            self.is_playing = False  # Reset status pemutaran
             await ctx.send("👋 Bot keluar dari voice channel.")
 
     @commands.command(name="resstop")
