@@ -1,9 +1,12 @@
 import discord
 from discord.ext import commands
-import json, random, asyncio, os
+import json
+import random
+import asyncio
+import os
 import yt_dlp
-import aiohttp
 
+# Opsi untuk YTDL
 ytdl_opts = {
     'format': 'bestaudio/best',
     'cookiefile': 'cookies.txt',  # <- ini penting
@@ -12,13 +15,12 @@ ytdl_opts = {
     'noplaylist': True,
 }
 
-}
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn -b:a 128k'  # Menurunkan bitrate audio menjadi 128 kbps untuk kualitas medium
 }
 
-ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
+ytdl = yt_dlp.YoutubeDL(ytdl_opts)
 
 class MusicQueueItem:
     def __init__(self, url, title):
@@ -77,7 +79,7 @@ class MusicQuiz(commands.Cog):
     def load_questions(self):
         with open("questions.json", "r", encoding="utf-8") as f:
             data = json.load(f)
-            self.questions = data["questions"]
+            self.questions = data.get("questions", [])
 
     def load_scores(self):
         if not os.path.exists(self.SCORES_FILE):
