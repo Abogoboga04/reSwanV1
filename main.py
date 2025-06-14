@@ -50,6 +50,7 @@ async def load_cogs():
     await bot.load_extension("cogs.shop")
     await bot.load_extension("cogs.moderation")
     await bot.load_extension("cogs.repeat")
+    await bot.load_extension("cogs.backup") 
 
 # Gunakan setup_hook agar loop dan tasks bisa jalan
 @bot.event
