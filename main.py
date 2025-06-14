@@ -1,11 +1,25 @@
 import discord
 from discord.ext import commands
 import aiohttp
+import base64
 import os
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 
+def save_cookies_from_env():
+    encoded = os.getenv("COOKIES_BASE64")
+    if not encoded:
+        raise ValueError("Environment variable COOKIES_BASE64 not found.")
+    
+    try:
+        decoded = base64.b64decode(encoded)
+        with open("cookies.txt", "wb") as f:
+            f.write(decoded)
+        print("✅ File cookies.txt berhasil dibuat dari environment variable.")
+    except Exception as e:
+        print(f"❌ Gagal decode cookies: {e}")
+        
 # Import fungsi keep_alive jika Anda menggunakan Replit
 from keep_alive import keep_alive
 
@@ -56,6 +70,7 @@ async def load_cogs():
 @bot.event
 async def setup_hook():
     await load_cogs()
+save_cookies_from_env()
     
 # Jalankan di Replit
 keep_alive()
