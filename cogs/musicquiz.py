@@ -195,7 +195,7 @@ class MusicQuiz(commands.Cog):
 
         self.quiz_active = False
 
-    @commands.command(name="leaderboard")
+    @commands.command(name="leaderboardd")
     async def show_leaderboard(self, ctx):
         sorted_scores = sorted(self.quiz_scores.items(), key=lambda x: x[1], reverse=True)[:10]
         if not sorted_scores:
