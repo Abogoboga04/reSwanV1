@@ -1,0 +1,269 @@
+{
+    "questions": [
+        {
+            "question": "Apa ibu kota Indonesia?",
+            "options": ["Jakarta", "Bali", "Bandung", "Surabaya"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penulis buku 'Harry Potter'?",
+            "options": ["J.K. Rowling", "J.R.R. Tolkien", "Agatha Christie", "Stephen King"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa warna bendera Jepang?",
+            "options": ["Merah dan Putih", "Biru dan Putih", "Hijau dan Kuning", "Hitam dan Putih"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa presiden pertama Indonesia?",
+            "options": ["Soeharto", "Soekarno", "Habibie", "Gus Dur"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama hewan yang dikenal sebagai 'Raja Hutan'?",
+            "options": ["Harimau", "Singa", "Kucing", "Anjing"],
+            "answer": "B"
+        },
+        {
+            "question": "Berapa banyak planet di tata surya kita?",
+            "options": ["7", "8", "9", "10"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama gunung tertinggi di dunia?",
+            "options": ["Kilimanjaro", "Everest", "Merapi", "Fuji"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa ibukota Australia?",
+            "options": ["Sydney", "Canberra", "Melbourne", "Brisbane"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa penemu telepon?",
+            "options": ["Alexander Graham Bell", "Thomas Edison", "Nikola Tesla", "Albert Einstein"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa warna daun pada tanaman?",
+            "options": ["Merah", "Biru", "Hijau", "Kuning"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama kontinen terbesar di dunia?",
+            "options": ["Asia", "Afrika", "Amerika Utara", "Eropa"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa alat musik yang memiliki tuts?",
+            "options": ["Gitar", "Biola", "Piano", "Drum"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama planet yang dikenal dengan cincin?",
+            "options": ["Mars", "Venus", "Jupiter", "Saturnus"],
+            "answer": "D"
+        },
+        {
+            "question": "Berapa jumlah hari dalam satu tahun?",
+            "options": ["365", "360", "366", "370"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa tokoh superhero yang dikenal sebagai 'Batman'?",
+            "options": ["Clark Kent", "Bruce Wayne", "Peter Parker", "Tony Stark"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan fotosintesis?",
+            "options": ["Proses tumbuhan membuat makanan", "Proses hewan bernafas", "Proses manusia makan", "Proses air menjadi uap"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama hewan yang bisa terbang?",
+            "options": ["Kucing", "Anjing", "Burung", "Kelinci"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama ibu kota Prancis?",
+            "options": ["London", "Berlin", "Paris", "Madrid"],
+            "answer": "C"
+        },
+        {
+            "question": "Siapa penulis novel 'Laskar Pelangi'?",
+            "options": ["Andrea Hirata", "Soe Hok Gie", "Habiburrahman El Shirazy", "Tere Liye"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa simbol kimia untuk air?",
+            "options": ["H2O", "O2", "CO2", "NaCl"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama alat untuk mengukur suhu?",
+            "options": ["Termometer", "Barometer", "Hidrometer", "Altimeter"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'ekosistem'?",
+            "options": ["Komunitas hewan", "Lingkungan hidup tumbuhan", "Hubungan antara makhluk hidup dan lingkungan", "Proses fotosintesis"],
+            "answer": "C"
+        },
+        {
+            "question": "Siapa yang menulis lagu 'Bintang di Surga'?",
+            "options": ["Peterpan", "Sheila on 7", "Pashmina", "Glenn Fredly"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama pahlawan nasional yang dikenal dengan 'Jenderal Sudirman'?",
+            "options": ["Bung Karno", "Jenderal Soedirman", "R.A. Kartini", "Sultan Hasanuddin"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'global warming'?",
+            "options": ["Pemanasan global", "Penurunan suhu", "Kenaikan curah hujan", "Perubahan iklim"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama suku yang tinggal di Papua?",
+            "options": ["Dayak", "Asmat", "Batak", "Sunda"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa penemu mesin uap?",
+            "options": ["James Watt", "Isaac Newton", "Albert Einstein", "Nikola Tesla"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa warna bendera Italia?",
+            "options": ["Hijau, Putih, Merah", "Merah, Putih, Biru", "Hitam, Putih, Merah", "Biru, Kuning, Merah"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa yang dikenal sebagai 'Bapak Proklamator' Indonesia?",
+            "options": ["Bung Hatta", "Bung Karno", "Soeharto", "R.A. Kartini"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama ilmu yang mempelajari tentang bumi?",
+            "options": ["Geografi", "Astronomi", "Biologi", "Fisika"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'demokrasi'?",
+            "options": ["Pemerintahan oleh rakyat", "Pemerintahan oleh satu orang", "Pemerintahan oleh militer", "Pemerintahan oleh elit"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'sumber daya alam'?",
+            "options": ["Barang-barang buatan manusia", "Sumber daya yang ada di alam", "Sumber daya yang tidak terbarukan", "Sumber daya yang terbatas"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama hewan yang dikenal sebagai mamalia laut?",
+            "options": ["Kucing", "Anjing", "Paus", "Burung"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama ilmiah dari hewan kucing?",
+            "options": ["Canis lupus", "Felis catus", "Equus ferus", "Balaenoptera musculus"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'sosiologi'?",
+            "options": ["Ilmu tentang hewan", "Ilmu tentang manusia dan masyarakat", "Ilmu tentang tumbuhan", "Ilmu tentang fisika"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa penemu listrik?",
+            "options": ["Thomas Edison", "Nikola Tesla", "Benjamin Franklin", "Albert Einstein"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama presiden Indonesia yang ke-3?",
+            "options": ["B.J. Habibie", "Abdurrahman Wahid", "Soeharto", "Susilo Bambang Yudhoyono"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama tari tradisional dari Bali?",
+            "options": ["Saman", "Kecak", "Jaipong", "Zapin"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa tokoh yang dikenal sebagai Bapak Pendidikan Nasional?",
+            "options": ["Ki Hajar Dewantara", "Bung Karno", "B.J. Habibie", "R.A. Kartini"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama planet merah?",
+            "options": ["Mars", "Venus", "Jupiter", "Merkurius"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama makanan khas Indonesia yang terbuat dari beras?",
+            "options": ["Nasi", "Roti", "Pasta", "Sereal"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama gunung berapi yang terkenal di Indonesia?",
+            "options": ["Merapi", "Semeru", "Rinjani", "Krakatau"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'internet'?",
+            "options": ["Jaringan komputer", "Sistem transportasi", "Sistem pemerintahan", "Sistem pendidikan"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama pulau terbesar di Indonesia?",
+            "options": ["Sumatra", "Jawa", "Kalimantan", "Sulawesi"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'cuaca'?",
+            "options": ["Kondisi atmosfer di tempat tertentu", "Perubahan iklim", "Gelombang laut", "Suhu bumi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama hewan yang bisa hidup di air dan darat?",
+            "options": ["Ikan", "Amfibi", "Reptil", "Burung"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'olahraga'?",
+            "options": ["Aktivitas fisik yang dilakukan untuk kesehatan", "Aktivitas seni", "Aktivitas belajar", "Aktivitas bermain"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama alat musik tradisional Indonesia yang terbuat dari bambu?",
+            "options": ["Angklung", "Gamelan", "Suling", "Kecapi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'listrik statis'?",
+            "options": ["Listrik yang mengalir", "Listrik yang tidak mengalir", "Listrik dari baterai", "Listrik dari generator"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama makanan khas Jepang yang terkenal?",
+            "options": ["Sushi", "Pizza", "Ramen", "Nasi Goreng"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa warna bendera Indonesia?",
+            "options": ["Merah dan Putih", "Merah dan Kuning", "Putih dan Biru", "Hijau dan Putih"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'kebudayaan'?",
+            "options": ["Nilai dan norma dalam masyarakat", "Aktivitas ekonomi", "Politik pemerintahan", "Sistem pendidikan"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penemu vaksin polio?",
+            "options": ["Jonas Salk", "Albert Sabin", "Louis Pasteur", "Edward Jenner"],
+            "answer": "A"
+        }
+    ]
+}

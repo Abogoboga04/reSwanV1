@@ -4,4 +4,3 @@ aiohttp
 Pillow
 python-dotenv
 PyNaCl
-ffmpeg
