@@ -68,7 +68,7 @@ def ensure_data_files():
 def load_data(guild_id):
     ensure_data_files()
     try:
-        with open(DATA_FILE, "r") as f:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             return data.get(guild_id, {})
     except (json.JSONDecodeError, FileNotFoundError):
@@ -77,7 +77,7 @@ def load_data(guild_id):
 def save_data(guild_id, data):
     ensure_data_files()
     try:
-        with open(DATA_FILE, "r") as f:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
             all_data = json.load(f)
     except (json.JSONDecodeError, FileNotFoundError):
         all_data = {}
@@ -89,7 +89,7 @@ def save_data(guild_id, data):
 def load_bank_data():
     ensure_data_files()
     try:
-        with open(BANK_FILE, "r") as f:
+        with open(BANK_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, FileNotFoundError):
         return {}
@@ -193,7 +193,6 @@ class Leveling(commands.Cog):
                 print(f"Error in voice task: {e}")
 
         return voice_task
-
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
@@ -212,28 +211,45 @@ class Leveling(commands.Cog):
                 "exp": 0,
                 "weekly_exp": 0,
                 "level": 0,
-                "badges": []
+                "badges": [],
+                "last_active": None,
+                "booster": {}
             }
 
-        # Tambah EXP dan RSWN per pesan
-        data[user_id]["exp"] += self.EXP_PER_MESSAGE
-        bank_data = load_bank_data()
+        booster = data[user_id].get("booster", {})
+        multiplier = 1
+        expires = booster.get("expires_at")
 
+        if expires:
+            try:
+                if datetime.utcnow() < datetime.fromisoformat(expires):
+                  multiplier = booster.get("exp_multiplier", 1)
+                else:
+                  data[user_id]["booster"] = {}
+            except Exception as e:
+             print(f"[BOOSTER ERROR] Gagal parsing expires_at: {e}")
+            data[user_id]["booster"] = {}
+
+        exp_gain = int(self.EXP_PER_MESSAGE * multiplier)
+        rswn_gain = int(self.RSWN_PER_MESSAGE * multiplier)
+
+        data[user_id]["exp"] += exp_gain
+        data[user_id]["weekly_exp"] += exp_gain
+        data[user_id]["last_active"] = datetime.utcnow().isoformat()
+           # Simpan gold ke bank
+        bank_data = load_bank_data()
         if user_id not in bank_data:
             bank_data[user_id] = {"balance": 0, "debt": 0}
+        bank_data[user_id]["balance"] += rswn_gain
 
-        bank_data[user_id]["balance"] += self.RSWN_PER_MESSAGE
-
-        logging.info(f"User {user_id} sebelum RSWN: {bank_data[user_id]['balance']}")
-        bank_data[user_id]["balance"] += self.RSWN_PER_MESSAGE
-        logging.info(f"User {user_id} setelah RSWN: {bank_data[user_id]['balance']}")
+         # Logging console
+        print(f"[ACTIVITY] {message.author} dapat +{exp_gain} EXP & +{rswn_gain} RSWN (x{multiplier} booster)")
 
         # Cek level baru
         new_level = calculate_level(data[user_id]["exp"])
         if new_level > data[user_id]["level"]:
             data[user_id]["level"] = new_level
             await self.level_up(message.author, message.guild, message.channel, new_level, data)
-
         save_data(guild_id, data)
         save_bank_data(bank_data)
 
@@ -303,7 +319,7 @@ class Leveling(commands.Cog):
         """Ambil quest harian"""
         guild_id = str(ctx.guild.id)
         try:
-            with open(f"data/daily_quest_{guild_id}.json", "r") as f:
+            with open(f"data/daily_quest_{guild_id}.json", "r", encoding="utf-8") as f:
                 daily_quest = json.load(f)
             await ctx.send(f"🎯 Quest Harian: {daily_quest['description']}")
         except FileNotFoundError:
