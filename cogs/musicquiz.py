@@ -4,11 +4,14 @@ import json, random, asyncio, os
 import yt_dlp
 import aiohttp
 
-YTDL_OPTIONS = {
+ytdl_opts = {
     'format': 'bestaudio/best',
+    'cookiefile': 'cookies.txt',  # <- ini penting
     'quiet': True,
-    'default_search': 'ytsearch',
-    'extract_flat': 'in_playlist'
+    'outtmpl': 'downloads/%(title)s.%(ext)s',
+    'noplaylist': True,
+}
+
 }
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
