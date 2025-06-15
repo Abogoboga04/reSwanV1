@@ -785,6 +785,5 @@
       "options": ["Atrium kiri", "Atrium kanan", "Ventrikel kanan", "Ventrikel kiri"],
       "answer": "A"
     },
-    {
-      "question": "Apa nama bagian jantung pemompa darah ke paru-paru?",
-      "options": ["Ventrikel kanan", "Vent
+  ]
+}
