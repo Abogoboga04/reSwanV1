@@ -689,7 +689,7 @@
             "question": "Siapa yang dikenal sebagai pelukis 'Mona Lisa'?",
             "options": ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Claude Monet"],
             "answer": "C"
-        }
+        }, 
         {
             "question": "Apa ibu kota Indonesia?",
             "options": ["Jakarta", "Bali", "Bandung", "Surabaya"],
