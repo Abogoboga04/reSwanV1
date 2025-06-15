@@ -125,13 +125,13 @@ class MusicQuiz(commands.Cog):
             self.voice_client.stop()  # Hentikan musik yang sedang diputar
 
         # Memutar musik kuis
-        quiz_music_source = discord.FFmpegPCMAudio("https://raw.githubusercontent.com/Abogoboga04/reSwanV1/main/assets/quiz.mp3", **FFMPEG_OPTIONS)
+        quiz_music_source = discord.FFmpegPCMAudio("https://raw.githubusercontent.com/Abogoboga04/reSwanV1/main/assets/10sec.mp3", **FFMPEG_OPTIONS)
         self.voice_client.play(quiz_music_source)  # Mulai memutar musik kuis
 
     async def restart_music(self):
         if self.voice_client.is_playing():
             self.voice_client.stop()  # Hentikan musik yang sedang diputar
-        quiz_music_source = discord.FFmpegPCMAudio("https://raw.githubusercontent.com/Abogoboga04/reSwanV1/main/assets/quiz.mp3", **FFMPEG_OPTIONS)
+        quiz_music_source = discord.FFmpegPCMAudio("https://raw.githubusercontent.com/Abogoboga04/reSwanV1/main/assets/10sec.mp3", **FFMPEG_OPTIONS)
         self.voice_client.play(quiz_music_source)  # Putar ulang musik kuis
 
     @commands.command(name="resp")
