@@ -208,7 +208,7 @@ class Shop(commands.Cog):
         state = "🟢 TERBUKA" if status["is_open"] else "🔴 TERTUTUP"
         await ctx.send(f"Toko sekarang telah diatur ke: **{state}**")
         
-        @commands.command(name="additem")
+    @commands.command(name="additem")
     @commands.has_permissions(administrator=True)
     async def add_item(self, ctx, category: str, name: str, price: int, description: str, emoji: str, role_id: int = None):
         """Menambahkan item baru ke toko (Admin Only)."""
