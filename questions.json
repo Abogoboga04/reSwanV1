@@ -1,6 +1,251 @@
 {
     "questions": [
         {
+            "question": "Apa nama planet yang dikenal sebagai 'Bintang Pagi'?",
+            "options": ["Venus", "Mars", "Jupiter", "Merkurius"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama ilmiah dari manusia?",
+            "options": ["Homo sapiens", "Homo erectus", "Homo habilis", "Homo neanderthalensis"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penemu teori relativitas?",
+            "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Nikola Tesla"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama sistem pemerintahan di mana kekuasaan dipegang oleh rakyat?",
+            "options": ["Monarki", "Oligarki", "Demokrasi", "Diktator"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama alat yang digunakan untuk mengukur tekanan udara?",
+            "options": ["Termometer", "Barometer", "Hidrometer", "Anemometer"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa yang dikenal sebagai Bapak Ilmu Pengetahuan Modern?",
+            "options": ["Isaac Newton", "Albert Einstein", "Aristoteles", "Galileo Galilei"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa simbol kimia untuk karbon?",
+            "options": ["C", "Ca", "Co", "Cr"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama benua terkecil di dunia?",
+            "options": ["Oceania", "Eropa", "Antartika", "Asia"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama lagu kebangsaan Indonesia?",
+            "options": ["Indonesia Raya", "Garuda Pancasila", "Rayuan Pulau Kelapa", "Bagimu Negeri"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'sistem pencernaan'?",
+            "options": ["Proses pengolahan makanan", "Proses pernapasan", "Proses peredaran darah", "Proses ekskresi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama pulau yang terkenal dengan sebutan 'Pulau Dewata'?",
+            "options": ["Bali", "Lombok", "Sumatra", "Jawa"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa yang menulis novel '1984'?",
+            "options": ["George Orwell", "Aldous Huxley", "Ray Bradbury", "F. Scott Fitzgerald"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama bunga yang menjadi simbol cinta?",
+            "options": ["Mawar", "Melati", "Bunga Matahari", "Anggrek"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama makanan yang terbuat dari fermentasi susu?",
+            "options": ["Yoghurt", "Susu", "Keju", "Mentega"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'biomassa'?",
+            "options": ["Energi dari bahan organik", "Energi dari matahari", "Energi dari air", "Energi dari batu bara"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penemu lampu pijar?",
+            "options": ["Thomas Edison", "Alexander Graham Bell", "Nikola Tesla", "Albert Einstein"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama alat yang digunakan untuk melihat benda kecil?",
+            "options": ["Mikroskop", "Teleskop", "Kamera", "Binokular"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama ibukota Thailand?",
+            "options": ["Bangkok", "Hanoi", "Kuala Lumpur", "Manila"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa warna bendera Perancis?",
+            "options": ["Merah, Putih, Biru", "Hijau, Putih, Merah", "Merah, Kuning, Hijau", "Biru, Putih, Hitam"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama festival musik terbesar di dunia yang diadakan di Coachella Valley?",
+            "options": ["Glastonbury", "Coachella", "Lollapalooza", "Tomorrowland"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa penulis novel 'Pride and Prejudice'?",
+            "options": ["Jane Austen", "Charlotte Brontë", "Mary Shelley", "Emily Brontë"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'ekonomi pasar'?",
+            "options": ["Sistem ekonomi yang ditentukan oleh pasar", "Sistem ekonomi yang direncanakan oleh pemerintah", "Sistem ekonomi campuran", "Sistem ekonomi tradisional"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama perjanjian yang mengakhiri Perang Dunia I?",
+            "options": ["Perjanjian Versailles", "Perjanjian Paris", "Perjanjian Trianon", "Perjanjian Saint-Germain"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'kesehatan mental'?",
+            "options": ["Kesehatan fisik", "Kesehatan jiwa", "Kesehatan sosial", "Kesehatan spiritual"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa yang dikenal sebagai Bapak Teknologi Informasi?",
+            "options": ["Bill Gates", "Steve Jobs", "Tim Berners-Lee", "Mark Zuckerberg"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama sistem organ yang bertanggung jawab untuk mengedarkan darah?",
+            "options": ["Sistem pencernaan", "Sistem pernapasan", "Sistem peredaran darah", "Sistem saraf"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama bahasa resmi di Brasil?",
+            "options": ["Spanyol", "Portugis", "Prancis", "Inggris"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'biologi'?",
+            "options": ["Ilmu tentang manusia", "Ilmu tentang hewan", "Ilmu tentang tumbuhan", "Ilmu tentang kehidupan"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa nama gunung tertinggi di Indonesia?",
+            "options": ["Gunung Merapi", "Gunung Rinjani", "Gunung Semeru", "Gunung Jayawijaya"],
+            "answer": "D"
+        },
+        {
+            "question": "Siapa yang menciptakan lagu 'Imagine'?",
+            "options": ["John Lennon", "Paul McCartney", "Elton John", "David Bowie"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'sustainability'?",
+            "options": ["Ketahanan pangan", "Keberlanjutan", "Konservasi energi", "Penggunaan sumber daya"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa penemu vaksin cacar?",
+            "options": ["Louis Pasteur", "Edward Jenner", "Jonas Salk", "Albert Sabin"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama laut yang terletak di antara Afrika dan Eropa?",
+            "options": ["Laut Merah", "Laut Tengah", "Laut Karibia", "Laut Hitam"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa simbol kimia untuk besi?",
+            "options": ["Fe", "B", "Ir", "Bi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'kebudayaan'?",
+            "options": ["Nilai dan norma dalam masyarakat", "Proses pertumbuhan ekonomi", "Proses perubahan iklim", "Proses pendidikan"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'teknologi'?",
+            "options": ["Ilmu tentang alam", "Ilmu tentang mesin", "Ilmu tentang komputer", "Ilmu tentang manusia"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama makanan khas Italia yang terbuat dari pasta?",
+            "options": ["Pizza", "Spaghetti", "Sushi", "Taco"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'perubahan iklim'?",
+            "options": ["Perubahan cuaca jangka pendek", "Perubahan suhu bumi dalam jangka waktu lama", "Perubahan musim", "Perubahan jenis tanaman"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama alat musik yang terkenal dari India?",
+            "options": ["Sitar", "Gitar", "Piano", "Biola"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penulis novel 'To Kill a Mockingbird'?",
+            "options": ["Harper Lee", "F. Scott Fitzgerald", "Ernest Hemingway", "Mark Twain"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama tradisi merayakan tahun baru di Tiongkok?",
+            "options": ["Diwali", "Holi", "Tet", "Ramadan"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'antropologi'?",
+            "options": ["Ilmu tentang hewan", "Ilmu tentang manusia dan budaya", "Ilmu tentang tumbuhan", "Ilmu tentang geografi"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama ibukota Kanada?",
+            "options": ["Toronto", "Vancouver", "Ottawa", "Montreal"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'fenomena alam'?",
+            "options": ["Peristiwa di alam yang dapat diamati", "Proses ilmiah", "Teori sains", "Kejadian buatan manusia"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama organ yang bertanggung jawab untuk memompa darah?",
+            "options": ["Paru-paru", "Jantung", "Hati", "Ginjal"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'seni rupa'?",
+            "options": ["Karya seni yang dapat dilihat", "Karya seni yang dapat didengar", "Karya seni yang dapat dirasakan", "Karya seni yang dapat dibaca"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'globalisasi'?",
+            "options": ["Proses integrasi antar negara", "Proses pemisahan negara", "Proses pengembangan lokal", "Proses pertumbuhan ekonomi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama satelit alami Bumi?",
+            "options": ["Mars", "Venus", "Bulan", "Merkurius"],
+            "answer": "C"
+        },
+        {
+            "question": "Siapa yang dikenal sebagai pelukis 'Mona Lisa'?",
+            "options": ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Claude Monet"],
+            "answer": "C"
+        }
+        {
             "question": "Apa ibu kota Indonesia?",
             "options": ["Jakarta", "Bali", "Bandung", "Surabaya"],
             "answer": "A"
