@@ -2,788 +2,788 @@
   "questions": [
     {
       "question": "Apa ibu kota Indonesia?",
-      "options": ["Jakarta", "Bali", "Bandung", "Surabaya"],
-      "answer": "A"
+      "options": ["Bandung", "Jakarta", "Bali", "Surabaya"],
+      "answer": "B"
     },
     {
       "question": "Berapa jumlah provinsi di Indonesia?",
-      "options": ["34", "32", "36", "38"],
-      "answer": "A"
+      "options": ["36", "34", "38", "32"],
+      "answer": "B"
     },
     {
       "question": "Apa nama benua terbesar di dunia?",
-      "options": ["Asia", "Afrika", "Amerika", "Eropa"],
-      "answer": "A"
+      "options": ["Amerika", "Asia", "Afrika", "Eropa"],
+      "answer": "B"
     },
     {
       "question": "Apa nama samudera terluas di dunia?",
-      "options": ["Pasifik", "Atlantik", "Hindia", "Arktik"],
-      "answer": "A"
+      "options": ["Hindia", "Pasifik", "Atlantik", "Arktik"],
+      "answer": "B"
     },
     {
       "question": "Apa nama gunung tertinggi di Indonesia?",
-      "options": ["Puncak Jaya", "Kerinci", "Rinjani", "Semeru"],
-      "answer": "A"
+      "options": ["Kerinci", "Semeru", "Puncak Jaya", "Rinjani"],
+      "answer": "C"
     },
     {
       "question": "Apa nama sungai terpanjang di dunia?",
-      "options": ["Nil", "Amazon", "Yangtze", "Mississippi"],
-      "answer": "B"
+      "options": ["Yangtze", "Amazon", "Mississippi", "Nil"],
+      "answer": "D"
     },
     {
       "question": "Apa nama ibukota Malaysia?",
-      "options": ["Kuala Lumpur", "Jakarta", "Bangkok", "Singapura"],
-      "answer": "A"
+      "options": ["Jakarta", "Singapura", "Kuala Lumpur", "Bangkok"],
+      "answer": "C"
     },
     {
       "question": "Apa nama mata uang Jepang?",
-      "options": ["Yen", "Dollar", "Euro", "Pound"],
-      "answer": "A"
+      "options": ["Dollar", "Pound", "Yen", "Euro"],
+      "answer": "C"
     },
     {
       "question": "Apa nama alat musik tradisional Jawa?",
-      "options": ["Gamelan", "Angklung", "Sasando", "Kolintang"],
-      "answer": "A"
+      "options": ["Kolintang", "Sasando", "Gamelan", "Angklung"],
+      "answer": "C"
     },
     {
       "question": "Apa nama lagu kebangsaan Indonesia?",
-      "options": ["Indonesia Raya", "Garuda Pancasila", "Bagimu Negeri", "Halo-Halo Bandung"],
-      "answer": "A"
+      "options": ["Garuda Pancasila", "Halo-Halo Bandung", "Indonesia Raya", "Bagimu Negeri"],
+      "answer": "C"
     },
     {
       "question": "Apa warna bendera Indonesia?",
-      "options": ["Merah-Putih", "Merah-Kuning", "Putih-Biru", "Hijau-Kuning"],
-      "answer": "A"
+      "options": ["Putih-Biru", "Merah-Kuning", "Merah-Putih", "Hijau-Kuning"],
+      "answer": "C"
     },
     {
       "question": "Apa nama tokoh proklamator Indonesia?",
-      "options": ["Soekarno-Hatta", "Soeharto-Habibie", "Gus Dur-Megawati", "Jokowi-Prabowo"],
-      "answer": "A"
+      "options": ["Jokowi-Prabowo", "Gus Dur-Megawati", "Soekarno-Hatta", "Soeharto-Habibie"],
+      "answer": "C"
     },
     {
       "question": "Apa nama ibukota Australia?",
-      "options": ["Canberra", "Sydney", "Melbourne", "Brisbane"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama planet terdekat dengan matahari?",
-      "options": ["Merkurius", "Venus", "Bumi", "Mars"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama satelit alami Bumi?",
-      "options": ["Bulan", "Mars", "Venus", "Jupiter"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama hewan terbesar di dunia?",
-      "options": ["Paus Biru", "Gajah", "Jerapah", "Hiu Paus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bunga nasional Indonesia?",
-      "options": ["Melati", "Mawar", "Anggrek", "Tulip"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama makanan pokok Indonesia?",
-      "options": ["Nasi", "Roti", "Kentang", "Jagung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama ibukota Inggris?",
-      "options": ["London", "Manchester", "Liverpool", "Birmingham"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama presiden Amerika Serikat pertama?",
-      "options": ["George Washington", "Abraham Lincoln", "Thomas Jefferson", "John F. Kennedy"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama benua terkecil di dunia?",
-      "options": ["Australia", "Eropa", "Antartika", "Amerika Selatan"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama ibukota Mesir?",
-      "options": ["Kairo", "Alexandria", "Luxor", "Giza"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama hewan khas Australia?",
-      "options": ["Kanguru", "Koala", "Beruang", "Singa"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama ibukota China?",
-      "options": ["Beijing", "Shanghai", "Hong Kong", "Guangzhou"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama alat untuk mengukur suhu?",
-      "options": ["Termometer", "Barometer", "Hidrometer", "Speedometer"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama alat untuk melihat benda kecil?",
-      "options": ["Mikroskop", "Teleskop", "Periskop", "Kaleidoskop"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama proses fotosintesis pada tumbuhan?",
-      "options": ["Membuat makanan", "Bernapas", "Berkembang biak", "Tumbuh"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ pernapasan manusia?",
-      "options": ["Paru-paru", "Jantung", "Hati", "Ginjal"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ pemompa darah?",
-      "options": ["Jantung", "Paru-paru", "Otak", "Lambung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama lapisan terluar bumi?",
-      "options": ["Kerak", "Mantel", "Inti", "Atmosfer"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama proses daur air?",
-      "options": ["Siklus hidrologi", "Siklus karbon", "Siklus nitrogen", "Siklus fosfor"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama alat untuk mengukur tekanan udara?",
-      "options": ["Barometer", "Termometer", "Hidrometer", "Anemometer"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama alat untuk mengukur kecepatan angin?",
-      "options": ["Anemometer", "Barometer", "Termometer", "Hidrometer"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama zat hijau daun?",
-      "options": ["Klorofil", "Klorin", "Klorida", "Kloroplas"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama proses perubahan wujud dari padat ke cair?",
-      "options": ["Mencair", "Membeku", "Menguap", "Menyublim"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama proses perubahan wujud dari cair ke gas?",
-      "options": ["Menguap", "Membeku", "Mencair", "Menyublim"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama satuan dasar panjang?",
-      "options": ["Meter", "Gram", "Liter", "Detik"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama satuan dasar massa?",
-      "options": ["Gram", "Meter", "Liter", "Detik"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama satuan dasar waktu?",
-      "options": ["Detik", "Meter", "Gram", "Liter"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama satuan dasar suhu?",
-      "options": ["Kelvin", "Meter", "Gram", "Liter"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama planet terbesar di tata surya?",
-      "options": ["Jupiter", "Saturnus", "Neptunus", "Uranus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama planet dengan cincin?",
-      "options": ["Saturnus", "Jupiter", "Neptunus", "Uranus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bintang terdekat dengan bumi?",
-      "options": ["Matahari", "Sirius", "Alpha Centauri", "Betelgeuse"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama galaksi kita?",
-      "options": ["Bimasakti", "Andromeda", "Sombrero", "Triangulum"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama fenomena pasang surut air laut?",
-      "options": ["Pasang surut", "Gelombang", "Arus", "Tsunami"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama lapisan pelindung bumi dari sinar UV?",
-      "options": ["Ozon", "Nitrogen", "Oksigen", "Karbon dioksida"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama gas terbanyak di atmosfer bumi?",
-      "options": ["Nitrogen", "Oksigen", "Karbon dioksida", "Helium"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama proses pembuatan makanan oleh tumbuhan?",
-      "options": ["Fotosintesis", "Respirasi", "Transpirasi", "Evaporasi"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian tumbuhan yang menyerap air?",
-      "options": ["Akar", "Batang", "Daun", "Bunga"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian bunga yang menghasilkan serbuk sari?",
-      "options": ["Benang sari", "Putik", "Mahkota", "Kelopak"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama hewan yang mengalami metamorfosis sempurna?",
-      "options": ["Kupu-kupu", "Kecoak", "Belalang", "Jangkrik"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama hewan yang bernapas dengan paru-paru?",
-      "options": ["Kucing", "Ikan", "Katak", "Ular"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama hewan yang termasuk mamalia laut?",
-      "options": ["Lumba-lumba", "Hiu", "Pari", "Gurita"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama hewan yang termasuk reptil?",
-      "options": ["Buaya", "Katak", "Ikan", "Burung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama hewan yang termasuk amfibi?",
-      "options": ["Katak", "Ular", "Kadal", "Buaya"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian sel yang mengatur aktivitas sel?",
-      "options": ["Nukleus", "Mitokondria", "Kloroplas", "Ribosom"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian sel yang menghasilkan energi?",
-      "options": ["Mitokondria", "Nukleus", "Kloroplas", "Ribosom"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian tumbuhan yang melakukan fotosintesis?",
-      "options": ["Daun", "Batang", "Akar", "Bunga"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama sistem peredaran darah manusia?",
-      "options": ["Sistem kardiovaskular", "Sistem pernapasan", "Sistem pencernaan", "Sistem saraf"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama sistem pencernaan manusia?",
-      "options": ["Sistem gastrointestinal", "Sistem pernapasan", "Sistem peredaran darah", "Sistem saraf"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama sistem pernapasan manusia?",
-      "options": ["Sistem respirasi", "Sistem pencernaan", "Sistem peredaran darah", "Sistem saraf"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ terbesar dalam tubuh manusia?",
-      "options": ["Kulit", "Hati", "Paru-paru", "Otak"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ terberat dalam tubuh manusia?",
-      "options": ["Hati", "Kulit", "Paru-paru", "Otak"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang terpanjang dalam tubuh manusia?",
-      "options": ["Tulang paha", "Tulang lengan", "Tulang rusuk", "Tulang belakang"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian mata yang mengatur jumlah cahaya masuk?",
-      "options": ["Iris", "Retina", "Kornea", "Lensa"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian telinga yang menangkap suara?",
-      "options": ["Gendang telinga", "Koklea", "Saluran telinga", "Tulang pendengaran"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian hidung yang menangkap bau?",
-      "options": ["Epitel olfaktori", "Lubang hidung", "Sinus", "Tulang hidung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama bagian lidah yang mengecap rasa?",
-      "options": ["Pengecap", "Papila", "Ujung lidah", "Akar lidah"],
+      "options": ["Melbourne", "Canberra", "Brisbane", "Sydney"],
       "answer": "B"
     },
     {
-      "question": "Apa nama bagian kulit yang menghasilkan keringat?",
-      "options": ["Kelenjar keringat", "Folikel rambut", "Lapisan epidermis", "Lapisan dermis"],
-      "answer": "A"
+      "question": "Apa nama planet terdekat dengan matahari?",
+      "options": ["Venus", "Mars", "Bumi", "Merkurius"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama bagian otak yang mengatur keseimbangan?",
-      "options": ["Otak kecil", "Otak besar", "Batang otak", "Otak tengah"],
-      "answer": "A"
+      "question": "Apa nama satelit alami Bumi?",
+      "options": ["Venus", "Jupiter", "Bulan", "Mars"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama bagian jantung yang memompa darah ke seluruh tubuh?",
-      "options": ["Ventrikel kiri", "Ventrikel kanan", "Atrium kiri", "Atrium kanan"],
-      "answer": "A"
+      "question": "Apa nama hewan terbesar di dunia?",
+      "options": ["Jerapah", "Hiu Paus", "Paus Biru", "Gajah"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama pembuluh darah yang membawa darah dari jantung?",
-      "options": ["Arteri", "Vena", "Kapiler", "Aorta"],
-      "answer": "A"
+      "question": "Apa nama bunga nasional Indonesia?",
+      "options": ["Tulip", "Anggrek", "Melati", "Mawar"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama pembuluh darah yang membawa darah ke jantung?",
-      "options": ["Vena", "Arteri", "Kapiler", "Aorta"],
-      "answer": "A"
+      "question": "Apa nama makanan pokok Indonesia?",
+      "options": ["Kentang", "Jagung", "Roti", "Nasi"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sel darah yang membawa oksigen?",
-      "options": ["Eritrosit", "Leukosit", "Trombosit", "Plasma"],
-      "answer": "A"
+      "question": "Apa nama ibukota Inggris?",
+      "options": ["Liverpool", "Birmingham", "London", "Manchester"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama sel darah yang melawan penyakit?",
-      "options": ["Leukosit", "Eritrosit", "Trombosit", "Plasma"],
-      "answer": "A"
+      "question": "Apa nama presiden Amerika Serikat pertama?",
+      "options": ["John F. Kennedy", "Thomas Jefferson", "Abraham Lincoln", "George Washington"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama bagian darah yang membantu pembekuan?",
-      "options": ["Trombosit", "Eritrosit", "Leukosit", "Plasma"],
-      "answer": "A"
+      "question": "Apa nama benua terkecil di dunia?",
+      "options": ["Antartika", "Eropa", "Amerika Selatan", "Australia"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama bagian sistem saraf pusat?",
-      "options": ["Otak dan sumsum tulang belakang", "Saraf tepi", "Saraf otonom", "Saraf sensorik"],
-      "answer": "A"
+      "question": "Apa nama ibukota Mesir?",
+      "options": ["Alexandria", "Giza", "Kairo", "Luxor"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama bagian sistem saraf tepi?",
-      "options": ["Saraf-saraf di luar sistem saraf pusat", "Otak", "Sumsum tulang belakang", "Saraf otonom"],
-      "answer": "A"
+      "question": "Apa nama hewan khas Australia?",
+      "options": ["Singa", "Beruang", "Koala", "Kanguru"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama bagian sistem saraf otonom?",
-      "options": ["Saraf yang mengatur organ dalam", "Saraf motorik", "Saraf sensorik", "Saraf kranial"],
-      "answer": "A"
+      "question": "Apa nama ibukota China?",
+      "options": ["Hong Kong", "Guangzhou", "Beijing", "Shanghai"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama bagian sistem endokrin?",
-      "options": ["Kelenjar penghasil hormon", "Kelenjar keringat", "Kelenjar limfa", "Kelenjar minyak"],
-      "answer": "A"
+      "question": "Apa nama alat untuk mengukur suhu?",
+      "options": ["Speedometer", "Hidrometer", "Termometer", "Barometer"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama kelenjar terbesar dalam sistem endokrin?",
-      "options": ["Pankreas", "Tiroid", "Hipofisis", "Adrenal"],
-      "answer": "A"
+      "question": "Apa nama alat untuk melihat benda kecil?",
+      "options": ["Periskop", "Mikroskop", "Kaleidoskop", "Teleskop"],
+      "answer": "B"
     },
     {
-      "question": "Apa nama hormon pertumbuhan?",
-      "options": ["Somatotropin", "Insulin", "Tiroksin", "Adrenalin"],
-      "answer": "A"
+      "question": "Apa nama proses fotosintesis pada tumbuhan?",
+      "options": ["Bernapas", "Tumbuh", "Membuat makanan", "Berkembang biak"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama hormon pengatur gula darah?",
-      "options": ["Insulin", "Somatotropin", "Tiroksin", "Adrenalin"],
-      "answer": "A"
+      "question": "Apa nama organ pernapasan manusia?",
+      "options": ["Hati", "Ginjal", "Paru-paru", "Jantung"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama hormon stres?",
-      "options": ["Adrenalin", "Insulin", "Somatotropin", "Tiroksin"],
-      "answer": "A"
+      "question": "Apa nama organ pemompa darah?",
+      "options": ["Lambung", "Otak", "Jantung", "Paru-paru"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama sistem kekebalan tubuh?",
-      "options": ["Sistem imun", "Sistem limfatik", "Sistem peredaran darah", "Sistem endokrin"],
-      "answer": "A"
+      "question": "Apa nama lapisan terluar bumi?",
+      "options": ["Inti", "Mantel", "Atmosfer", "Kerak"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sel kekebalan tubuh?",
-      "options": ["Limfosit", "Eritrosit", "Trombosit", "Neutrofil"],
-      "answer": "A"
+      "question": "Apa nama proses daur air?",
+      "options": ["Siklus nitrogen", "Siklus fosfor", "Siklus hidrologi", "Siklus karbon"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama protein yang melawan penyakit?",
-      "options": ["Antibodi", "Enzim", "Hormon", "Hemoglobin"],
-      "answer": "A"
+      "question": "Apa nama alat untuk mengukur tekanan udara?",
+      "options": ["Termometer", "Barometer", "Anemometer", "Hidrometer"],
+      "answer": "B"
     },
     {
-      "question": "Apa nama sistem pembuangan limbah tubuh?",
-      "options": ["Sistem ekskresi", "Sistem pencernaan", "Sistem pernapasan", "Sistem peredaran darah"],
-      "answer": "A"
+      "question": "Apa nama alat untuk mengukur kecepatan angin?",
+      "options": ["Barometer", "Anemometer", "Termometer", "Hidrometer"],
+      "answer": "B"
     },
     {
-      "question": "Apa nama organ utama sistem ekskresi?",
-      "options": ["Ginjal", "Hati", "Paru-paru", "Kulit"],
-      "answer": "A"
+      "question": "Apa nama zat hijau daun?",
+      "options": ["Klorida", "Kloroplas", "Klorofil", "Klorin"],
+      "answer": "C"
     },
     {
-      "question": "Apa nama zat sisa yang dibuang ginjal?",
-      "options": ["Urea", "Karbon dioksida", "Oksigen", "Glukosa"],
-      "answer": "A"
+      "question": "Apa nama proses perubahan wujud dari padat ke cair?",
+      "options": ["Menguap", "Membeku", "Menyublim", "Mencair"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sistem reproduksi pria?",
-      "options": ["Sistem reproduksi maskulin", "Sistem reproduksi feminin", "Sistem endokrin", "Sistem ekskresi"],
-      "answer": "A"
+      "question": "Apa nama proses perubahan wujud dari cair ke gas?",
+      "options": ["Membeku", "Menyublim", "Mencair", "Menguap"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sistem reproduksi wanita?",
-      "options": ["Sistem reproduksi feminin", "Sistem reproduksi maskulin", "Sistem endokrin", "Sistem ekskresi"],
-      "answer": "A"
+      "question": "Apa nama satuan dasar panjang?",
+      "options": ["Liter", "Detik", "Gram", "Meter"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sel reproduksi pria?",
-      "options": ["Sperma", "Ovum", "Zigot", "Embrio"],
-      "answer": "A"
+      "question": "Apa nama satuan dasar massa?",
+      "options": ["Liter", "Detik", "Meter", "Gram"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sel reproduksi wanita?",
-      "options": ["Ovum", "Sperma", "Zigot", "Embrio"],
-      "answer": "A"
+      "question": "Apa nama satuan dasar waktu?",
+      "options": ["Liter", "Gram", "Meter", "Detik"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama proses pembuahan sel telur?",
-      "options": ["Fertilisasi", "Ovulasi", "Menstruasi", "Implantasi"],
-      "answer": "A"
+      "question": "Apa nama satuan dasar suhu?",
+      "options": ["Liter", "Meter", "Gram", "Kelvin"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tahap awal perkembangan manusia setelah pembuahan?",
-      "options": ["Zigot", "Embrio", "Fetus", "Bayi"],
-      "answer": "A"
+      "question": "Apa nama planet terbesar di tata surya?",
+      "options": ["Uranus", "Neptunus", "Saturnus", "Jupiter"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sistem rangka manusia?",
-      "options": ["Sistem skeletal", "Sistem otot", "Sistem saraf", "Sistem peredaran darah"],
-      "answer": "A"
+      "question": "Apa nama planet dengan cincin?",
+      "options": ["Uranus", "Neptunus", "Jupiter", "Saturnus"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sistem otot manusia?",
-      "options": ["Sistem muskular", "Sistem skeletal", "Sistem saraf", "Sistem peredaran darah"],
-      "answer": "A"
+      "question": "Apa nama bintang terdekat dengan bumi?",
+      "options": ["Alpha Centauri", "Betelgeuse", "Sirius", "Matahari"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama otot terbesar di tubuh manusia?",
-      "options": ["Otot gluteus", "Otot bisep", "Otot jantung", "Otot diafragma"],
-      "answer": "A"
+      "question": "Apa nama galaksi kita?",
+      "options": ["Triangulum", "Andromeda", "Sombrero", "Bimasakti"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama otot jantung?",
-      "options": ["Miokardium", "Gluteus", "Bisep", "Diafragma"],
-      "answer": "A"
+      "question": "Apa nama fenomena pasang surut air laut?",
+      "options": ["Gelombang", "Arus", "Tsunami", "Pasang surut"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama otot pernapasan utama?",
-      "options": ["Diafragma", "Interkostal", "Abdominal", "Pectoralis"],
-      "answer": "A"
+      "question": "Apa nama lapisan pelindung bumi dari sinar UV?",
+      "options": ["Nitrogen", "Oksigen", "Karbon dioksida", "Ozon"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sendi yang tidak bisa bergerak?",
-      "options": ["Sinartrosis", "Diartrosis", "Amfiartrosis", "Artrodia"],
-      "answer": "A"
+      "question": "Apa nama gas terbanyak di atmosfer bumi?",
+      "options": ["Helium", "Oksigen", "Karbon dioksida", "Nitrogen"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sendi engsel?",
-      "options": ["Ginglymus", "Artrodia", "Enarthrosis", "Sutura"],
-      "answer": "A"
+      "question": "Apa nama proses pembuatan makanan oleh tumbuhan?",
+      "options": ["Transpirasi", "Respirasi", "Evaporasi", "Fotosintesis"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama sendi peluru?",
-      "options": ["Enarthrosis", "Ginglymus", "Artrodia", "Sutura"],
-      "answer": "A"
+      "question": "Apa nama bagian tumbuhan yang menyerap air?",
+      "options": ["Batang", "Bunga", "Daun", "Akar"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang tengkorak?",
-      "options": ["Kranium", "Mandibula", "Klavikula", "Skapula"],
-      "answer": "A"
+      "question": "Apa nama bagian bunga yang menghasilkan serbuk sari?",
+      "options": ["Putik", "Mahkota", "Kelopak", "Benang sari"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang belakang?",
-      "options": ["Vertebra", "Kosta", "Sternum", "Sakrum"],
-      "answer": "A"
+      "question": "Apa nama hewan yang mengalami metamorfosis sempurna?",
+      "options": ["Belalang", "Kecoak", "Jangkrik", "Kupu-kupu"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang rusuk?",
-      "options": ["Kosta", "Vertebra", "Sternum", "Sakrum"],
-      "answer": "A"
+      "question": "Apa nama hewan yang bernapas dengan paru-paru?",
+      "options": ["Ular", "Ikan", "Katak", "Kucing"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang dada?",
-      "options": ["Sternum", "Vertebra", "Kosta", "Sakrum"],
-      "answer": "A"
+      "question": "Apa nama hewan yang termasuk mamalia laut?",
+      "options": ["Hiu", "Pari", "Gurita", "Lumba-lumba"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang panggul?",
-      "options": ["Pelvis", "Femur", "Tibia", "Fibula"],
-      "answer": "A"
+      "question": "Apa nama hewan yang termasuk reptil?",
+      "options": ["Burung", "Katak", "Ikan", "Buaya"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang lengan atas?",
-      "options": ["Humerus", "Radius", "Ulna", "Karpal"],
-      "answer": "A"
+      "question": "Apa nama hewan yang termasuk amfibi?",
+      "options": ["Buaya", "Ular", "Kadal", "Katak"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang lengan bawah bagian luar?",
-      "options": ["Radius", "Ulna", "Humerus", "Karpal"],
-      "answer": "A"
+      "question": "Apa nama bagian sel yang mengatur aktivitas sel?",
+      "options": ["Kloroplas", "Mitokondria", "Ribosom", "Nukleus"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang lengan bawah bagian dalam?",
-      "options": ["Ulna", "Radius", "Humerus", "Karpal"],
-      "answer": "A"
+      "question": "Apa nama bagian sel yang menghasilkan energi?",
+      "options": ["Ribosom", "Nukleus", "Kloroplas", "Mitokondria"],
+      "answer": "D"
     },
     {
-      "question": "Apa nama tulang pergelangan tangan?",
-      "options": ["Karpal", "Metakarpal", "Falang", "Tarsal"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang telapak tangan?",
-      "options": ["Metakarpal", "Karpal", "Falang", "Tarsal"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang jari tangan?",
-      "options": ["Falang", "Metakarpal", "Karpal", "Tarsal"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang paha?",
-      "options": ["Femur", "Tibia", "Fibula", "Patela"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang betis?",
-      "options": ["Fibula", "Tibia", "Femur", "Patela"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang kering?",
-      "options": ["Tibia", "Fibula", "Femur", "Patela"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang tempurung lutut?",
-      "options": ["Patela", "Femur", "Tibia", "Fibula"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang pergelangan kaki?",
-      "options": ["Tarsal", "Metatarsal", "Falang", "Karpal"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang telapak kaki?",
-      "options": ["Metatarsal", "Tarsal", "Falang", "Karpal"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama tulang jari kaki?",
-      "options": ["Falang", "Metatarsal", "Tarsal", "Karpal"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama sistem pencernaan manusia?",
-      "options": ["Sistem gastrointestinal", "Sistem pernapasan", "Sistem peredaran darah", "Sistem saraf"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ pertama sistem pencernaan?",
-      "options": ["Mulut", "Kerongkongan", "Lambung", "Usus halus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama saluran setelah mulut?",
-      "options": ["Faring", "Kerongkongan", "Lambung", "Usus halus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama saluran setelah faring?",
-      "options": ["Kerongkongan", "Lambung", "Usus halus", "Usus besar"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ pencernaan berbentuk kantong?",
-      "options": ["Lambung", "Usus halus", "Usus besar", "Rektum"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ pencernaan terpanjang?",
-      "options": ["Usus halus", "Usus besar", "Lambung", "Kerongkongan"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ pencernaan setelah usus halus?",
-      "options": ["Usus besar", "Rektum", "Anus", "Lambung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama organ penyimpan feses?",
-      "options": ["Rektum", "Usus besar", "Anus", "Lambung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama lubang pembuangan feses?",
-      "options": ["Anus", "Rektum", "Usus besar", "Lambung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama kelenjar pencernaan terbesar?",
-      "options": ["Hati", "Pankreas", "Kelenjar ludah", "Kelenjar lambung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama kelenjar pencernaan penghasil insulin?",
-      "options": ["Pankreas", "Hati", "Kelenjar ludah", "Kelenjar lambung"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama enzim pencernaan di mulut?",
-      "options": ["Amilase", "Pepsin", "Lipase", "Tripsin"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama enzim pencernaan di lambung?",
-      "options": ["Pepsin", "Amilase", "Lipase", "Tripsin"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama enzim pencernaan di pankreas?",
-      "options": ["Tripsin", "Amilase", "Pepsin", "Lipase"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama sistem pernapasan manusia?",
-      "options": ["Sistem respirasi", "Sistem pencernaan", "Sistem peredaran darah", "Sistem saraf"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama saluran pernapasan pertama?",
-      "options": ["Hidung", "Tenggorokan", "Trakea", "Bronkus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama saluran setelah hidung?",
-      "options": ["Faring", "Laring", "Trakea", "Bronkus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama saluran setelah faring?",
-      "options": ["Laring", "Trakea", "Bronkus", "Bronkiolus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama saluran setelah laring?",
-      "options": ["Trakea", "Bronkus", "Bronkiolus", "Alveolus"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama cabang trakea?",
-      "options": ["Bronkus", "Bronkiolus", "Alveolus", "Diafragma"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama cabang bronkus?",
-      "options": ["Bronkiolus", "Alveolus", "Diafragma", "Pleura"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama ujung bronkiolus?",
-      "options": ["Alveolus", "Diafragma", "Pleura", "Trakea"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama otot pernapasan utama?",
-      "options": ["Diafragma", "Interkostal", "Abdominal", "Pectoralis"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama selaput paru-paru?",
-      "options": ["Pleura", "Perikardium", "Peritoneum", "Meninges"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama proses pertukaran gas?",
-      "options": ["Respirasi", "Fotosintesis", "Transpirasi", "Evaporasi"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama gas yang dihirup?",
-      "options": ["Oksigen", "Karbon dioksida", "Nitrogen", "Hidrogen"],
-      "answer": "A"
-    },
-    {
-      "question": "Apa nama gas yang dikeluarkan?",
-      "options": ["Karbon dioksida", "Oksigen", "Nitrogen", "Hidrogen"],
-      "answer": "A"
+      "question": "Apa nama bagian tumbuhan yang melakukan fotosintesis?",
+      "options": ["Batang", "Bunga", "Akar", "Daun"],
+      "answer": "D"
     },
     {
       "question": "Apa nama sistem peredaran darah manusia?",
-      "options": ["Sistem kardiovaskular", "Sistem pernapasan", "Sistem pencernaan", "Sistem saraf"],
-      "answer": "A"
+      "options": ["Sistem saraf", "Sistem pernapasan", "Sistem pencernaan", "Sistem kardiovaskular"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem pencernaan manusia?",
+      "options": ["Sistem saraf", "Sistem pernapasan", "Sistem peredaran darah", "Sistem gastrointestinal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem pernapasan manusia?",
+      "options": ["Sistem saraf", "Sistem pencernaan", "Sistem peredaran darah", "Sistem respirasi"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ terbesar dalam tubuh manusia?",
+      "options": ["Otak", "Hati", "Paru-paru", "Kulit"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ terberat dalam tubuh manusia?",
+      "options": ["Otak", "Kulit", "Paru-paru", "Hati"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang terpanjang dalam tubuh manusia?",
+      "options": ["Tulang rusuk", "Tulang lengan", "Tulang belakang", "Tulang paha"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian mata yang mengatur jumlah cahaya masuk?",
+      "options": ["Retina", "Kornea", "Lensa", "Iris"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian telinga yang menangkap suara?",
+      "options": ["Koklea", "Saluran telinga", "Tulang pendengaran", "Gendang telinga"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian hidung yang menangkap bau?",
+      "options": ["Lubang hidung", "Sinus", "Tulang hidung", "Epitel olfaktori"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian lidah yang mengecap rasa?",
+      "options": ["Papila", "Ujung lidah", "Akar lidah", "Pengecap"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian kulit yang menghasilkan keringat?",
+      "options": ["Folikel rambut", "Lapisan epidermis", "Lapisan dermis", "Kelenjar keringat"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian otak yang mengatur keseimbangan?",
+      "options": ["Otak besar", "Batang otak", "Otak tengah", "Otak kecil"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian jantung yang memompa darah ke seluruh tubuh?",
+      "options": ["Atrium kanan", "Ventrikel kanan", "Atrium kiri", "Ventrikel kiri"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama pembuluh darah yang membawa darah dari jantung?",
+      "options": ["Vena", "Kapiler", "Aorta", "Arteri"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama pembuluh darah yang membawa darah ke jantung?",
+      "options": ["Arteri", "Kapiler", "Aorta", "Vena"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sel darah yang membawa oksigen?",
+      "options": ["Leukosit", "Trombosit", "Plasma", "Eritrosit"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sel darah yang melawan penyakit?",
+      "options": ["Trombosit", "Eritrosit", "Plasma", "Leukosit"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian darah yang membantu pembekuan?",
+      "options": ["Leukosit", "Eritrosit", "Plasma", "Trombosit"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian sistem saraf pusat?",
+      "options": ["Saraf tepi", "Saraf otonom", "Saraf sensorik", "Otak dan sumsum tulang belakang"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian sistem saraf tepi?",
+      "options": ["Otak", "Sumsum tulang belakang", "Saraf otonom", "Saraf-saraf di luar sistem saraf pusat"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian sistem saraf otonom?",
+      "options": ["Saraf motorik", "Saraf sensorik", "Saraf kranial", "Saraf yang mengatur organ dalam"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama bagian sistem endokrin?",
+      "options": ["Kelenjar keringat", "Kelenjar limfa", "Kelenjar minyak", "Kelenjar penghasil hormon"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama kelenjar terbesar dalam sistem endokrin?",
+      "options": ["Hipofisis", "Tiroid", "Adrenal", "Pankreas"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama hormon pertumbuhan?",
+      "options": ["Insulin", "Tiroksin", "Adrenalin", "Somatotropin"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama hormon pengatur gula darah?",
+      "options": ["Tiroksin", "Somatotropin", "Adrenalin", "Insulin"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama hormon stres?",
+      "options": ["Tiroksin", "Insulin", "Somatotropin", "Adrenalin"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem kekebalan tubuh?",
+      "options": ["Sistem limfatik", "Sistem peredaran darah", "Sistem endokrin", "Sistem imun"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sel kekebalan tubuh?",
+      "options": ["Neutrofil", "Eritrosit", "Trombosit", "Limfosit"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama protein yang melawan penyakit?",
+      "options": ["Enzim", "Hormon", "Hemoglobin", "Antibodi"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem pembuangan limbah tubuh?",
+      "options": ["Sistem pencernaan", "Sistem pernapasan", "Sistem peredaran darah", "Sistem ekskresi"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ utama sistem ekskresi?",
+      "options": ["Paru-paru", "Hati", "Kulit", "Ginjal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama zat sisa yang dibuang ginjal?",
+      "options": ["Glukosa", "Karbon dioksida", "Oksigen", "Urea"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem reproduksi pria?",
+      "options": ["Sistem reproduksi feminin", "Sistem endokrin", "Sistem ekskresi", "Sistem reproduksi maskulin"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem reproduksi wanita?",
+      "options": ["Sistem reproduksi maskulin", "Sistem endokrin", "Sistem ekskresi", "Sistem reproduksi feminin"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sel reproduksi pria?",
+      "options": ["Ovum", "Zigot", "Embrio", "Sperma"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sel reproduksi wanita?",
+      "options": ["Sperma", "Zigot", "Embrio", "Ovum"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama proses pembuahan sel telur?",
+      "options": ["Ovulasi", "Menstruasi", "Implantasi", "Fertilisasi"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tahap awal perkembangan manusia setelah pembuahan?",
+      "options": ["Embrio", "Fetus", "Bayi", "Zigot"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem rangka manusia?",
+      "options": ["Sistem otot", "Sistem saraf", "Sistem peredaran darah", "Sistem skeletal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem otot manusia?",
+      "options": ["Sistem skeletal", "Sistem saraf", "Sistem peredaran darah", "Sistem muskular"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama otot terbesar di tubuh manusia?",
+      "options": ["Otot jantung", "Otot bisep", "Otot diafragma", "Otot gluteus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama otot jantung?",
+      "options": ["Bisep", "Gluteus", "Diafragma", "Miokardium"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama otot pernapasan utama?",
+      "options": ["Interkostal", "Abdominal", "Pectoralis", "Diafragma"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sendi yang tidak bisa bergerak?",
+      "options": ["Diartrosis", "Amfiartrosis", "Artrodia", "Sinartrosis"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sendi engsel?",
+      "options": ["Artrodia", "Enarthrosis", "Sutura", "Ginglymus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sendi peluru?",
+      "options": ["Ginglymus", "Artrodia", "Sutura", "Enarthrosis"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang tengkorak?",
+      "options": ["Mandibula", "Klavikula", "Skapula", "Kranium"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang belakang?",
+      "options": ["Kosta", "Sternum", "Sakrum", "Vertebra"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang rusuk?",
+      "options": ["Vertebra", "Sternum", "Sakrum", "Kosta"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang dada?",
+      "options": ["Vertebra", "Kosta", "Sakrum", "Sternum"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang panggul?",
+      "options": ["Femur", "Tibia", "Fibula", "Pelvis"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang lengan atas?",
+      "options": ["Ulna", "Radius", "Karpal", "Humerus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang lengan bawah bagian luar?",
+      "options": ["Ulna", "Humerus", "Karpal", "Radius"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang lengan bawah bagian dalam?",
+      "options": ["Radius", "Humerus", "Karpal", "Ulna"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang pergelangan tangan?",
+      "options": ["Metakarpal", "Falang", "Tarsal", "Karpal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang telapak tangan?",
+      "options": ["Karpal", "Falang", "Tarsal", "Metakarpal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang jari tangan?",
+      "options": ["Metakarpal", "Karpal", "Tarsal", "Falang"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang paha?",
+      "options": ["Tibia", "Fibula", "Patela", "Femur"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang betis?",
+      "options": ["Tibia", "Femur", "Patela", "Fibula"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang kering?",
+      "options": ["Fibula", "Femur", "Patela", "Tibia"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang tempurung lutut?",
+      "options": ["Femur", "Tibia", "Fibula", "Patela"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang pergelangan kaki?",
+      "options": ["Metatarsal", "Falang", "Karpal", "Tarsal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang telapak kaki?",
+      "options": ["Tarsal", "Falang", "Karpal", "Metatarsal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama tulang jari kaki?",
+      "options": ["Metatarsal", "Tarsal", "Karpal", "Falang"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem pencernaan manusia?",
+      "options": ["Sistem saraf", "Sistem pernapasan", "Sistem peredaran darah", "Sistem gastrointestinal"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ pertama sistem pencernaan?",
+      "options": ["Kerongkongan", "Lambung", "Usus halus", "Mulut"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama saluran setelah mulut?",
+      "options": ["Kerongkongan", "Lambung", "Usus halus", "Faring"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama saluran setelah faring?",
+      "options": ["Trakea", "Bronkus", "Bronkiolus", "Kerongkongan"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ pencernaan berbentuk kantong?",
+      "options": ["Usus halus", "Usus besar", "Rektum", "Lambung"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ pencernaan terpanjang?",
+      "options": ["Usus besar", "Lambung", "Kerongkongan", "Usus halus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ pencernaan setelah usus halus?",
+      "options": ["Rektum", "Anus", "Lambung", "Usus besar"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama organ penyimpan feses?",
+      "options": ["Usus besar", "Anus", "Lambung", "Rektum"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama lubang pembuangan feses?",
+      "options": ["Rektum", "Usus besar", "Lambung", "Anus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama kelenjar pencernaan terbesar?",
+      "options": ["Pankreas", "Kelenjar ludah", "Kelenjar lambung", "Hati"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama kelenjar pencernaan penghasil insulin?",
+      "options": ["Hati", "Kelenjar ludah", "Kelenjar lambung", "Pankreas"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama enzim pencernaan di mulut?",
+      "options": ["Pepsin", "Lipase", "Tripsin", "Amilase"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama enzim pencernaan di lambung?",
+      "options": ["Lipase", "Amilase", "Tripsin", "Pepsin"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama enzim pencernaan di pankreas?",
+      "options": ["Amilase", "Pepsin", "Lipase", "Tripsin"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem pernapasan manusia?",
+      "options": ["Sistem saraf", "Sistem pencernaan", "Sistem peredaran darah", "Sistem respirasi"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama saluran pernapasan pertama?",
+      "options": ["Tenggorokan", "Trakea", "Bronkus", "Hidung"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama saluran setelah hidung?",
+      "options": ["Laring", "Trakea", "Bronkus", "Faring"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama saluran setelah faring?",
+      "options": ["Trakea", "Bronkus", "Bronkiolus", "Laring"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama saluran setelah laring?",
+      "options": ["Bronkus", "Bronkiolus", "Alveolus", "Trakea"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama cabang trakea?",
+      "options": ["Bronkiolus", "Alveolus", "Diafragma", "Bronkus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama cabang bronkus?",
+      "options": ["Alveolus", "Diafragma", "Pleura", "Bronkiolus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama ujung bronkiolus?",
+      "options": ["Diafragma", "Pleura", "Trakea", "Alveolus"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama otot pernapasan utama?",
+      "options": ["Interkostal", "Abdominal", "Pectoralis", "Diafragma"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama selaput paru-paru?",
+      "options": ["Perikardium", "Peritoneum", "Meninges", "Pleura"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama proses pertukaran gas?",
+      "options": ["Fotosintesis", "Transpirasi", "Evaporasi", "Respirasi"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama gas yang dihirup?",
+      "options": ["Karbon dioksida", "Nitrogen", "Hidrogen", "Oksigen"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama gas yang dikeluarkan?",
+      "options": ["Oksigen", "Nitrogen", "Hidrogen", "Karbon dioksida"],
+      "answer": "D"
+    },
+    {
+      "question": "Apa nama sistem peredaran darah manusia?",
+      "options": ["Sistem saraf", "Sistem pernapasan", "Sistem pencernaan", "Sistem kardiovaskular"],
+      "answer": "D"
     },
     {
       "question": "Apa nama organ utama sistem peredaran darah?",
-      "options": ["Jantung", "Paru-paru", "Hati", "Ginjal"],
-      "answer": "A"
+      "options": ["Paru-paru", "Hati", "Ginjal", "Jantung"],
+      "answer": "D"
     },
     {
       "question": "Apa nama pembuluh darah dari jantung?",
-      "options": ["Arteri", "Vena", "Kapiler", "Aorta"],
-      "answer": "A"
+      "options": ["Vena", "Kapiler", "Aorta", "Arteri"],
+      "answer": "D"
     },
     {
       "question": "Apa nama pembuluh darah ke jantung?",
-      "options": ["Vena", "Arteri", "Kapiler", "Aorta"],
-      "answer": "A"
+      "options": ["Arteri", "Kapiler", "Aorta", "Vena"],
+      "answer": "D"
     },
     {
       "question": "Apa nama pembuluh darah terkecil?",
-      "options": ["Kapiler", "Arteri", "Vena", "Aorta"],
-      "answer": "A"
+      "options": ["Arteri", "Vena", "Aorta", "Kapiler"],
+      "answer": "D"
     },
     {
       "question": "Apa nama pembuluh darah terbesar?",
-      "options": ["Aorta", "Vena cava", "Arteri pulmonalis", "Vena pulmonalis"],
-      "answer": "A"
+      "options": ["Vena cava", "Arteri pulmonalis", "Vena pulmonalis", "Aorta"],
+      "answer": "D"
     },
     {
       "question": "Apa nama bagian jantung penerima darah dari tubuh?",
-      "options": ["Atrium kanan", "Atrium kiri", "Ventrikel kanan", "Ventrikel kiri"],
-      "answer": "A"
+      "options": ["Ventrikel kanan", "Atrium kiri", "Ventrikel kiri", "Atrium kanan"],
+      "answer": "D"
     },
     {
       "question": "Apa nama bagian jantung penerima darah dari paru-paru?",
-      "options": ["Atrium kiri", "Atrium kanan", "Ventrikel kanan", "Ventrikel kiri"],
-      "answer": "A"
+      "options": ["Ventrikel kanan", "Atrium kanan", "Ventrikel kiri", "Atrium kiri"],
+      "answer": "D"
     }
-    ]
-}
+  ]
+        }
