@@ -1,6 +1,451 @@
 {
     "questions": [
         {
+            "question": "Apa yang bisa terbang tanpa sayap?",
+            "options": ["Burung", "Pesawat", "Kipas Angin", "Bulan"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang selalu datang tetapi tidak pernah tiba?",
+            "options": ["Besok", "Hari ini", "Kemarin", "Malam"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kamu temukan di tengah-tengah laut?",
+            "options": ["Hiu", "Kapal", "Huruf 'L'", "Pulau"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang lebih berat dari 1 ton tapi tidak bisa diangkat?",
+            "options": ["Batu", "Banjir", "Kelemahan", "Banjir"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang dapat kamu pecahkan tapi tidak bisa disentuh?",
+            "options": ["Rahasia", "Piring", "Cermin", "Kaca"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang tidak memiliki bentuk tetapi bisa diambil?",
+            "options": ["Bau", "Cahaya", "Suara", "Waktu"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang selalu ada di depanmu tetapi tidak bisa dilihat?",
+            "options": ["Masa depan", "Angin", "Cahaya", "Bintang"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa mengisi ruangan tetapi tidak memiliki berat?",
+            "options": ["Cahaya", "Batu", "Udara", "Air"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa berlari tapi tidak memiliki kaki?",
+            "options": ["Air", "Kucing", "Anjing", "Ular"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa terbang di malam hari tetapi bukan burung?",
+            "options": ["Kelelawar", "Pesawat", "Bintang", "Bulan"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa yang bisa menebak masa depan?",
+            "options": ["Dukun", "Buku", "Kartu", "Orang Pintar"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kamu pegang tanpa menyentuhnya?",
+            "options": ["Janji", "Rasa", "Cinta", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang tidak bisa berbicara tetapi bisa memberitahu kamu banyak hal?",
+            "options": ["Buku", "Hewan", "Orang", "Cahaya"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang selalu bergerak tetapi tidak pernah pergi?",
+            "options": ["Jam", "Air", "Angin", "Bumi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kamu gunakan untuk menulis tetapi tidak bisa dihapus?",
+            "options": ["Pena", "Tinta", "Kertas", "Buku"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang tidak bisa dilihat tetapi bisa dirasakan?",
+            "options": ["Cinta", "Kebencian", "Kemarahan", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang bisa dipotong tetapi tidak bisa dikembalikan?",
+            "options": ["Roti", "Ruang", "Waktu", "Kertas"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang tidak bisa ditangkap tetapi bisa ditangkap?",
+            "options": ["Berita", "Rasa", "Cinta", "Semua jawaban benar"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang lebih cepat, suara atau cahaya?",
+            "options": ["Suara", "Cahaya", "Sama", "Tidak ada yang lebih cepat"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang bisa kamu simpan dalam kantong tetapi tidak bisa dilihat?",
+            "options": ["Waktu", "Air", "Kaya", "Cinta"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kamu alami tetapi tidak bisa kamu lihat?",
+            "options": ["Kebahagiaan", "Keberuntungan", "Kesedihan", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang selalu dibutuhkan tetapi tidak pernah bisa cukup?",
+            "options": ["Uang", "Cinta", "Waktu", "Perhatian"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang bisa mengubah segalanya tapi tidak bisa disentuh?",
+            "options": ["Waktu", "Cinta", "Berita", "Semua jawaban benar"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kamu dengar tetapi tidak bisa dilihat?",
+            "options": ["Musik", "Suara", "Kicauan Burung", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang bisa membuatmu berlari tetapi tidak bisa bergerak?",
+            "options": ["Ketakutan", "Cinta", "Kemarahan", "Semua jawaban benar"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa menghilang dengan cepat?",
+            "options": ["Cinta", "Waktu", "Rasa", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang bisa tumbuh tanpa air?",
+            "options": ["Ide", "Bunga", "Pohon", "Semua jawaban benar"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kau berikan tanpa menyentuhnya?",
+            "options": ["Uang", "Cinta", "Waktu", "Berita"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang bisa kau simpan dalam hatimu?",
+            "options": ["Cinta", "Kebencian", "Keberanian", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang bisa membuatmu bahagia tetapi tidak bisa dibeli?",
+            "options": ["Cinta", "Uang", "Mobil", "Rumah"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang membuatmu merasa bebas tetapi tidak bisa dilihat?",
+            "options": ["Angin", "Cinta", "Mimpi", "Semua jawaban benar"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang selalu ada tetapi tidak pernah terlihat?",
+            "options": ["Angin", "Cahaya", "Waktu", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang bisa mengisi hatimu?",
+            "options": ["Cinta", "Dosa", "Kemarahan", "Kesedihan"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang tidak bisa dihapus tetapi bisa diingat?",
+            "options": ["Kenangan", "Kesalahan", "Buku", "Semua jawaban benar"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa membuatmu tersenyum?",
+            "options": ["Cinta", "Makanan", "Uang", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang bisa kau ciptakan tetapi tidak bisa kau hancurkan?",
+            "options": ["Ide", "Cinta", "Mimpi", "Semua jawaban benar"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kau ambil tetapi tidak bisa kau kembalikan?",
+            "options": ["Waktu", "Uang", "Barang", "Semua jawaban benar"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang bisa kau temukan di bawah bantal?",
+            "options": ["Tidur", "Mimpi", "Cinta", "Semua jawaban benar"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang bisa kau buat dengan dua tangan?",
+            "options": ["Makanan", "Karya Seni", "Cinta", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa yang bisa kau lihat di langit tetapi tidak bisa kau sentuh?",
+            "options": ["Bintang", "Bulan", "Matahari", "Semua jawaban benar"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa nama planet yang dikenal sebagai 'Bintang Pagi'?",
+            "options": ["Venus", "Mars", "Jupiter", "Merkurius"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama ilmiah dari manusia?",
+            "options": ["Homo sapiens", "Homo erectus", "Homo habilis", "Homo neanderthalensis"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penemu teori relativitas?",
+            "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Nikola Tesla"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama sistem pemerintahan di mana kekuasaan dipegang oleh rakyat?",
+            "options": ["Monarki", "Oligarki", "Demokrasi", "Diktator"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama alat yang digunakan untuk mengukur tekanan udara?",
+            "options": ["Termometer", "Barometer", "Hidrometer", "Anemometer"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa yang dikenal sebagai Bapak Ilmu Pengetahuan Modern?",
+            "options": ["Isaac Newton", "Albert Einstein", "Aristoteles", "Galileo Galilei"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa simbol kimia untuk karbon?",
+            "options": ["C", "Ca", "Co", "Cr"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama benua terkecil di dunia?",
+            "options": ["Oceania", "Eropa", "Antartika", "Asia"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama lagu kebangsaan Indonesia?",
+            "options": ["Indonesia Raya", "Garuda Pancasila", "Rayuan Pulau Kelapa", "Bagimu Negeri"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'sistem pencernaan'?",
+            "options": ["Proses pengolahan makanan", "Proses pernapasan", "Proses peredaran darah", "Proses ekskresi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama pulau yang terkenal dengan sebutan 'Pulau Dewata'?",
+            "options": ["Bali", "Lombok", "Sumatra", "Jawa"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa yang menulis novel '1984'?",
+            "options": ["George Orwell", "Aldous Huxley", "Ray Bradbury", "F. Scott Fitzgerald"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama bunga yang menjadi simbol cinta?",
+            "options": ["Mawar", "Melati", "Bunga Matahari", "Anggrek"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama makanan yang terbuat dari fermentasi susu?",
+            "options": ["Yoghurt", "Susu", "Keju", "Mentega"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'biomassa'?",
+            "options": ["Energi dari bahan organik", "Energi dari matahari", "Energi dari air", "Energi dari batu bara"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penemu lampu pijar?",
+            "options": ["Thomas Edison", "Alexander Graham Bell", "Nikola Tesla", "Albert Einstein"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama alat yang digunakan untuk melihat benda kecil?",
+            "options": ["Mikroskop", "Teleskop", "Kamera", "Binokular"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama ibukota Thailand?",
+            "options": ["Bangkok", "Hanoi", "Kuala Lumpur", "Manila"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa warna bendera Perancis?",
+            "options": ["Merah, Putih, Biru", "Hijau, Putih, Merah", "Merah, Kuning, Hijau", "Biru, Putih, Hitam"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama festival musik terbesar di dunia yang diadakan di Coachella Valley?",
+            "options": ["Glastonbury", "Coachella", "Lollapalooza", "Tomorrowland"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa penulis novel 'Pride and Prejudice'?",
+            "options": ["Jane Austen", "Charlotte Brontë", "Mary Shelley", "Emily Brontë"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'ekonomi pasar'?",
+            "options": ["Sistem ekonomi yang ditentukan oleh pasar", "Sistem ekonomi yang direncanakan oleh pemerintah", "Sistem ekonomi campuran", "Sistem ekonomi tradisional"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama perjanjian yang mengakhiri Perang Dunia I?",
+            "options": ["Perjanjian Versailles", "Perjanjian Paris", "Perjanjian Trianon", "Perjanjian Saint-Germain"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'kesehatan mental'?",
+            "options": ["Kesehatan fisik", "Kesehatan jiwa", "Kesehatan sosial", "Kesehatan spiritual"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa yang dikenal sebagai Bapak Teknologi Informasi?",
+            "options": ["Bill Gates", "Steve Jobs", "Tim Berners-Lee", "Mark Zuckerberg"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama sistem organ yang bertanggung jawab untuk mengedarkan darah?",
+            "options": ["Sistem pencernaan", "Sistem pernapasan", "Sistem peredaran darah", "Sistem saraf"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa nama bahasa resmi di Brasil?",
+            "options": ["Spanyol", "Portugis", "Prancis", "Inggris"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'biologi'?",
+            "options": ["Ilmu tentang manusia", "Ilmu tentang hewan", "Ilmu tentang tumbuhan", "Ilmu tentang kehidupan"],
+            "answer": "D"
+        },
+        {
+            "question": "Apa nama gunung tertinggi di Indonesia?",
+            "options": ["Gunung Merapi", "Gunung Rinjani", "Gunung Semeru", "Gunung Jayawijaya"],
+            "answer": "D"
+        },
+        {
+            "question": "Siapa yang menciptakan lagu 'Imagine'?",
+            "options": ["John Lennon", "Paul McCartney", "Elton John", "David Bowie"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'sustainability'?",
+            "options": ["Ketahanan pangan", "Keberlanjutan", "Konservasi energi", "Penggunaan sumber daya"],
+            "answer": "B"
+        },
+        {
+            "question": "Siapa penemu vaksin cacar?",
+            "options": ["Louis Pasteur", "Edward Jenner", "Jonas Salk", "Albert Sabin"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama laut yang terletak di antara Afrika dan Eropa?",
+            "options": ["Laut Merah", "Laut Tengah", "Laut Karibia", "Laut Hitam"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa simbol kimia untuk besi?",
+            "options": ["Fe", "B", "Ir", "Bi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'kebudayaan'?",
+            "options": ["Nilai dan norma dalam masyarakat", "Proses pertumbuhan ekonomi", "Proses perubahan iklim", "Proses pendidikan"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'teknologi'?",
+            "options": ["Ilmu tentang alam", "Ilmu tentang mesin", "Ilmu tentang komputer", "Ilmu tentang manusia"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama makanan khas Italia yang terbuat dari pasta?",
+            "options": ["Pizza", "Spaghetti", "Sushi", "Taco"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'perubahan iklim'?",
+            "options": ["Perubahan cuaca jangka pendek", "Perubahan suhu bumi dalam jangka waktu lama", "Perubahan musim", "Perubahan jenis tanaman"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama alat musik yang terkenal dari India?",
+            "options": ["Sitar", "Gitar", "Piano", "Biola"],
+            "answer": "A"
+        },
+        {
+            "question": "Siapa penulis novel 'To Kill a Mockingbird'?",
+            "options": ["Harper Lee", "F. Scott Fitzgerald", "Ernest Hemingway", "Mark Twain"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama tradisi merayakan tahun baru di Tiongkok?",
+            "options": ["Diwali", "Holi", "Tet", "Ramadan"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'antropologi'?",
+            "options": ["Ilmu tentang hewan", "Ilmu tentang manusia dan budaya", "Ilmu tentang tumbuhan", "Ilmu tentang geografi"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa nama ibukota Kanada?",
+            "options": ["Toronto", "Vancouver", "Ottawa", "Montreal"],
+            "answer": "C"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'fenomena alam'?",
+            "options": ["Peristiwa di alam yang dapat diamati", "Proses ilmiah", "Teori sains", "Kejadian buatan manusia"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama organ yang bertanggung jawab untuk memompa darah?",
+            "options": ["Paru-paru", "Jantung", "Hati", "Ginjal"],
+            "answer": "B"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'seni rupa'?",
+            "options": ["Karya seni yang dapat dilihat", "Karya seni yang dapat didengar", "Karya seni yang dapat dirasakan", "Karya seni yang dapat dibaca"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa yang dimaksud dengan 'globalisasi'?",
+            "options": ["Proses integrasi antar negara", "Proses pemisahan negara", "Proses pengembangan lokal", "Proses pertumbuhan ekonomi"],
+            "answer": "A"
+        },
+        {
+            "question": "Apa nama satelit alami Bumi?",
+            "options": ["Mars", "Venus", "Bulan", "Merkurius"],
+            "answer": "C"
+        },
+        {
+            "question": "Siapa yang dikenal sebagai pelukis 'Mona Lisa'?",
+            "options": ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Claude Monet"],
+            "answer": "C"
+        }
+        {
             "question": "Apa nama planet yang dikenal sebagai 'Bintang Pagi'?",
             "options": ["Venus", "Mars", "Jupiter", "Merkurius"],
             "answer": "A"
