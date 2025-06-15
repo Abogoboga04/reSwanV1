@@ -207,6 +207,37 @@ class Shop(commands.Cog):
 
         state = "🟢 TERBUKA" if status["is_open"] else "🔴 TERTUTUP"
         await ctx.send(f"Toko sekarang telah diatur ke: **{state}**")
+        
+        @commands.command(name="additem")
+    @commands.has_permissions(administrator=True)
+    async def add_item(self, ctx, category: str, name: str, price: int, description: str, emoji: str, role_id: int = None):
+        """Menambahkan item baru ke toko (Admin Only)."""
+        shop_data = load_json(SHOP_FILE)
+
+        # Validasi kategori
+        if category not in shop_data:
+            await ctx.send("⚠️ Kategori tidak valid. Gunakan 'badges', 'exp', atau 'roles'.")
+            return
+
+        new_item = {
+            "name": name,
+            "price": price,
+            "description": description,
+            "emoji": emoji
+        }
+
+        # Jika kategori adalah 'roles', tambahkan role_id
+        if category == "roles" and role_id is not None:
+            new_item["role_id"] = role_id
+        elif category == "roles":
+            await ctx.send("⚠️ Harap masukkan role_id untuk kategori 'roles'.")
+            return
+
+        shop_data[category].append(new_item)
+        save_json(SHOP_FILE, shop_data)
+
+        await ctx.send(f"✅ Item baru telah ditambahkan ke kategori **{category}**: **{name}** seharga **{price}** RSWN! 🎉")
+
 
 
 async def setup(bot):
