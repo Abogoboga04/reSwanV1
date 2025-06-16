@@ -6,4 +6,4 @@ python-dotenv
 PyNaCl
 yt-dlp>=2023.7.6
 ffmpeg-python
-
+lyricsgenius
