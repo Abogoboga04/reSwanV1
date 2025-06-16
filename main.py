@@ -153,7 +153,6 @@ async def load_cogs():
         await bot.load_extension("cogs.backup")
         await bot.load_extension("cogs.quizz")
         await bot.load_extension("cogs.music")
-        await bot.load_extension("cogs.inventory")
         await bot.load_extensions("cogs.itemmanage")
         print("✅ Semua cogs berhasil dimuat.")
     except Exception as e:
