@@ -82,10 +82,14 @@ async def backupnow(ctx):
                     print(f"❌ Gagal membaca file {filename} dari config/")
 
     # Simpan data backup ke dalam koleksi MongoDB
-    if backup_data:
-        try:
-            collection.insert_one({"backup": backup_data})
-            print(f"✅ Data backup berhasil disimpan ke MongoDB: {backup_data}")
+if backup_data:
+    try:
+        print(f"✅ Data yang akan disimpan ke MongoDB: {backup_data}")  # Logging data sebelum disimpan
+        result = collection.insert_one({"backup": backup_data})
+        
+        # Cek apakah data disimpan dengan sukses
+        if result.inserted_id:
+            print(f"✅ Data backup berhasil disimpan ke MongoDB dengan ID: {result.inserted_id}")
 
             # Kirim data ke pengguna dengan ID tertentu
             user_id = 1000737066822410311  # Ganti dengan ID pengguna kamu
@@ -93,11 +97,13 @@ async def backupnow(ctx):
             await user.send(f"Backup Data: {json.dumps(backup_data, indent=4)}")
             print(f"✅ Data backup berhasil dikirim ke DM pengguna dengan ID {user_id}.")
             await ctx.send("✅ Data backup berhasil disimpan dan dikirim ke DM!")
-        except Exception as e:
-            await ctx.send("❌ Gagal menyimpan data ke MongoDB.")
-            print(f"❌ Gagal menyimpan data ke MongoDB: {e}")
-    else:
-        await ctx.send("❌ Tidak ada data untuk dibackup.")
+        else:
+            await ctx.send("❌ Gagal menyimpan data ke MongoDB, ID tidak ditemukan.")
+    except Exception as e:
+        await ctx.send("❌ Gagal menyimpan data ke MongoDB.")
+        print(f"❌ Gagal menyimpan data ke MongoDB: {e}")  # Cetak kesalahan spesifik
+else:
+    await ctx.send("❌ Tidak ada data untuk dibackup.")
 
 # Muat semua cog yang ada
 async def load_cogs():
