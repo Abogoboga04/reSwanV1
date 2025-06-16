@@ -1,28 +1,89 @@
 {
-  "badges": [
-    {
-      "name": "Master Badge",
-      "price": 1500,
-      "description": "Lencana elit untuk pengguna legendaris.",
-      "emoji": "🏅"
-    }
-  ],
-  "exp": [
-    {
-      "name": "EXP Boost x2",
-      "price": 1000,
-      "description": "ngeboost EXP mu x2 dalam pesan dan voice.",
-      "exp": 20,
-      "emoji": "⚡"
-    }
-  ],
-  "roles": [
-    {
-      "name": "VIP Role",
-      "price": 1000,
-      "description": "Akses eksklusif ke channel VIP.",
-      "emoji": "👑",
-      "role_id": 123456789012345678
-    }
-  ]
+    "badges": [
+        {
+            "name": "Master Badge",
+            "price": 1500,
+            "description": "Lencana elit untuk pengguna legendaris.",
+            "emoji": "\ud83c\udfc5",
+            "stock": "unlimited",
+            "image_url": null
+        },
+        {
+            "name": "Avatar A1",
+            "price": 1000,
+            "description": "Avatar eksklusif",
+            "emoji": "\ud83d\uddbc",
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A1.png",
+            "stock": 1
+        },
+        {
+            "name": "Avatar A2",
+            "price": 1000,
+            "description": "Avatar eksklusif",
+            "emoji": "\ud83d\uddbc\ufe0f",
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A2.png",
+            "stock": 1
+        },
+        {
+            "name": "Avatar A3",
+            "price": 1000,
+            "description": "Avatar eksklusif",
+            "emoji": "\ud83d\uddbc\ufe0f",
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A3.png",
+            "stock": 1
+        },
+        {
+            "name": "Avatar A4",
+            "price": 1000,
+            "description": "Avatar eksklusif",
+            "emoji": "\ud83d\uddbc\ufe0f",
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A4.png",
+            "stock": 1
+        },
+        {
+            "name": "Avatar A5",
+            "price": 1000,
+            "description": "Avatar eksklusif",
+            "emoji": "\ud83d\uddbc\ufe0f",
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A5.png",
+            "stock": 1
+        },
+        {
+            "name": "Avatar A6",
+            "price": 1000,
+            "description": "Avatar eksklusif",
+            "emoji": "\ud83d\uddbc\ufe0f",
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A6.png",
+            "stock": 1
+        },
+        {
+            "name": "Avatar A7",
+            "price": 1000,
+            "description": "Avatar eksklusif",
+            "emoji": "\ud83d\uddbc\ufe0f",
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A7.png",
+            "stock": 1
+        },
+    ],
+    "exp": [
+        {
+            "name": "EXP Boost x2",
+            "price": 1000,
+            "description": "ngeboost EXP mu x2 dalam pesan dan voice.",
+            "emoji": "\u26a1",
+            "stock": "unlimited",
+            "image_url": null
+        }
+    ],
+    "roles": [
+        {
+            "name": "VIP Role",
+            "price": 1000,
+            "description": "Akses eksklusif ke channel VIP.",
+            "emoji": "\ud83d\udc51",
+            "role_id": 123456789012345678,
+            "stock": 10,
+            "image_url": null
+        }
+    ]
 }
