@@ -6,6 +6,11 @@ import random
 import logging
 import asyncio
 from datetime import datetime
+from PIL import Image, ImageDraw
+import requests
+from io import BytesIO
+import aiohttp
+
 
 # ========== KONFIGURASI UTAMA ==========
 DATA_FILE = "data/level_data.json"
@@ -50,9 +55,59 @@ LEVEL_BADGES = {
 
 LEVEL_ANNOUNCE_CHANNEL_ID = 1255275460926111775  # Ganti dengan ID channel pengumuman
 
+LEVEL_DATA_PATH = "data/level_data.json"
+
+def load_data(guild_id):
+    if not os.path.exists(LEVEL_DATA_PATH):
+        return {}
+    with open(LEVEL_DATA_PATH, "r") as f:
+        all_data = json.load(f)
+    return all_data.get(guild_id, {})
+
+def save_data(guild_id, data):
+    if os.path.exists(LEVEL_DATA_PATH):
+        with open(LEVEL_DATA_PATH, "r") as f:
+            all_data = json.load(f)
+    else:
+        all_data = {}
+
+    all_data[guild_id] = data
+
+    with open(LEVEL_DATA_PATH, "w") as f:
+        json.dump(all_data, f, indent=2)
 # ========== FUNGSI UTILITAS ==========
 def calculate_level(exp):
     return exp // 1000
+
+def load_data(guild_id):
+    # Implementasi untuk memuat data dari file JSON
+    pass
+
+def save_data(guild_id, data):
+    # Implementasi untuk menyimpan data ke file JSON
+    pass
+
+async def crop_avatar_to_circle(user: discord.User):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(user.display_avatar.url) as resp:
+            avatar_bytes = await resp.read()
+
+    with Image.open(BytesIO(avatar_bytes)).convert("RGBA") as img:
+        size = (256, 256)
+        img = img.resize(size)
+
+        mask = Image.new("L", size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0) + size, fill=255)
+
+        output = Image.new("RGBA", size)
+        output.paste(img, (0, 0), mask)
+
+        buffer = BytesIO()
+        output.save(buffer, format="PNG")
+        buffer.seek(0)
+        return buffer  # <--- ini penting: kembalikan buffe
+    
 
 def ensure_data_files():
     os.makedirs("data", exist_ok=True)
@@ -220,18 +275,35 @@ class Leveling(commands.Cog):
         multiplier = 1
         expires = booster.get("expires_at")
 
+        # Memeriksa apakah booster aktif
+        expires = booster.get("expires_at")
+        print(f"User ID: {user_id}, Expires At: {expires}")  # Debugging expires_at
+
         if expires:
             try:
+                # Cek apakah booster belum expired
                 if datetime.utcnow() < datetime.fromisoformat(expires):
-                  multiplier = booster.get("exp_multiplier", 1)
+                    multiplier = booster.get("exp_multiplier", 1)
+                    print(f"Booster aktif! Multiplier: {multiplier}")  # Debugging multiplier
                 else:
-                  data[user_id]["booster"] = {}
+                    print("Booster sudah expired!")  # Debugging expired
+                    data[user_id]["booster"] = {}  # Reset booster jika sudah expired
             except Exception as e:
-             print(f"[BOOSTER ERROR] Gagal parsing expires_at: {e}")
-            data[user_id]["booster"] = {}
+                print(f"[BOOSTER ERROR] Gagal parsing expires_at: {e}")
+                data[user_id]["booster"] = {}  # Reset jika ada kesalahan parsing
 
         exp_gain = int(self.EXP_PER_MESSAGE * multiplier)
-        rswn_gain = int(self.RSWN_PER_MESSAGE * multiplier)
+        data[user_id]["exp"] += exp_gain
+        print(f"User ID: {user_id}, EXP yang didapat: {exp_gain}, Total EXP: {data[user_id]['exp']}")  # Debugging EXP
+        # Hitung RSWN
+        rswn_gain = int(self.RSWN_PER_MESSAGE * multiplier)  # Hitung RSWN dengan multiplier
+        bank_data = load_bank_data()
+        if user_id not in bank_data:
+            bank_data[user_id] = {"balance": 0, "debt": 0}
+
+        bank_data[user_id]["balance"] += rswn_gain  # Tambahkan RSWN ke saldo
+        print(f"User ID: {user_id}, RSWN yang didapat: {rswn_gain}, Total Saldo: {bank_data[user_id]['balance']}")  # Debugging RSWN
+
 
         data[user_id]["exp"] += exp_gain
         data[user_id]["weekly_exp"] += exp_gain
@@ -637,28 +709,58 @@ class Leveling(commands.Cog):
         """Tampilkan rank pengguna saat ini"""
         user_id = str(ctx.author.id)
         guild_id = str(ctx.guild.id)
-        data = load_data(guild_id)
 
-        if user_id not in data:
-            # Jika pengguna belum memiliki data, inisialisasi data mereka
-            data[user_id] = {
-                "exp": 0,
-                "level": 0,
-                "weekly_exp": 0,
-                "badges": []
-            }
-            save_data(guild_id, data)
+        # Load data level
+        if not os.path.exists("data/level_data.json"):
+            with open("data/level_data.json", "w") as f:
+                json.dump({}, f)
 
-        user_data = data[user_id]
-        badges = " ".join(user_data["badges"]) if user_data.get("badges") else "Tidak ada"
+        with open("data/level_data.json", "r") as f:
+            data = json.load(f)
+
+        guild_data = data.setdefault(guild_id, {})
+        user_data = guild_data.setdefault(user_id, {
+            "exp": 0,
+            "level": 0,
+            "weekly_exp": 0,
+            "badges": [],
+            "image_url": None
+        })
+
+        # Save data setelah setdefault
+        with open("data/level_data.json", "w") as f:
+            json.dump(data, f, indent=2)
+
+        badge_list = user_data.get("badges", [])
+        badge_display = [badge for badge in badge_list if not str(badge).startswith("http")]
+        badges = " ".join(badge_display) if badge_display else "Tidak ada"
+
+        custom_image_url = user_data.get("image_url") or ctx.author.avatar.url
+
+       # Cek validitas URL
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(custom_image_url) as resp:
+                    if resp.status != 200:
+                        custom_image_url = ctx.author.avatar.url
+                    image_data = BytesIO(await resp.read())
+        except Exception:
+            custom_image_url = ctx.author.avatar.url
+            async with aiohttp.ClientSession() as session:
+                async with session.get(custom_image_url) as resp:
+                    image_data = BytesIO(await resp.read())
+
         embed = discord.Embed(title=f"📊 Rank {ctx.author.display_name}", color=discord.Color.purple())
-        embed.set_thumbnail(url=ctx.author.avatar.url)  # Set thumbnail dengan foto profil pengguna
+        embed.set_thumbnail(url="attachment://avatar.png")
         embed.add_field(name="Level", value=user_data["level"], inline=True)
-        embed.add_field(name="EXP", value=user_data["exp"], inline=True)
         embed.add_field(name="Saldo", value=f"{load_bank_data().get(user_id, {}).get('balance', 0)} 🪙RSWN", inline=True)
+        embed.add_field(name="EXP", value=user_data["exp"], inline=True)
         embed.add_field(name="Badges", value=badges, inline=True)
+        
 
-        await ctx.send(embed=embed)
+      
+
+        await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
     @commands.command()
     @commands.has_permissions(administrator=True)
