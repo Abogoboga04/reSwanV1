@@ -7,16 +7,27 @@ import functools
 from discord import FFmpegPCMAudio
 from discord.utils import get
 from lyricsgenius import Genius
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 
 # Konfigurasi Genius API untuk lirik
 GENIUS_API_TOKEN = os.getenv("GENIUS_API")
 genius = Genius(GENIUS_API_TOKEN)
+
+# Spotify API setup
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
+    client_id=SPOTIFY_CLIENT_ID,
+    client_secret=SPOTIFY_CLIENT_SECRET
+))
 
 # YTDL dan FFMPEG opsi
 ytdl_opts = {
     'format': 'bestaudio[ext=m4a]/bestaudio/best',
     'cookiefile': 'cookies.txt',
     'quiet': True,
+    'default_search': 'ytsearch',  # ⬅️ Tambahkan ini
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
     'postprocessors': [{
@@ -25,6 +36,7 @@ ytdl_opts = {
         'preferredquality': '192',
     }],
 }
+
 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -85,17 +97,37 @@ class Music(commands.Cog):
             await ctx.send("Kamu harus berada di voice channel dulu.")
 
     @commands.command(name="resp")
-    async def play(self, ctx, *, url):
+    async def play(self, ctx, *, query):
         if not ctx.voice_client:
             await ctx.invoke(self.join)
             if not ctx.voice_client:
                 return
+
+        urls = []
+
+        if "open.spotify.com" in query:
+            if "track" in query:
+                track = spotify.track(query)
+                search_query = f"{track['name']} {track['artists'][0]['name']}"
+                urls.append(search_query)
+            elif "playlist" in query:
+                results = spotify.playlist_tracks(query)
+                for item in results['items']:
+                    track = item['track']
+                    search_query = f"{track['name']} {track['artists'][0]['name']}"
+                    urls.append(search_query)
+            else:
+                return await ctx.send("Spotify link tidak dikenali.")
+        else:
+            urls.append(query)
+
         queue = self.get_queue(ctx.guild.id)
-        queue.append(url)
+        queue.extend(urls)
+
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
         else:
-            await ctx.send("Ditambahkan ke antrian.")
+            await ctx.send(f"Ditambahkan ke antrian: {len(urls)} lagu.")
 
     @commands.command(name="resskip")
     async def skip(self, ctx):
