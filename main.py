@@ -82,28 +82,49 @@ async def backupnow(ctx):
                     print(f"❌ Gagal membaca file {filename} dari config/")
 
     # Simpan data backup ke dalam koleksi MongoDB
-if backup_data:
-    try:
-        print(f"✅ Data yang akan disimpan ke MongoDB: {backup_data}")  # Logging data sebelum disimpan
-        result = collection.insert_one({"backup": backup_data})
-        
-        # Cek apakah data disimpan dengan sukses
-        if result.inserted_id:
-            print(f"✅ Data backup berhasil disimpan ke MongoDB dengan ID: {result.inserted_id}")
+    if backup_data:
+        try:
+            print(f"✅ Data yang akan disimpan ke MongoDB: {backup_data}")  # Logging data sebelum disimpan
+            result = collection.insert_one({"backup": backup_data})
+            
+            if result.inserted_id:
+                print(f"✅ Data backup berhasil disimpan ke MongoDB dengan ID: {result.inserted_id}")
 
-            # Kirim data ke pengguna dengan ID tertentu
-            user_id = 1000737066822410311  # Ganti dengan ID pengguna kamu
-            user = await bot.fetch_user(user_id)
-            await user.send(f"Backup Data: {json.dumps(backup_data, indent=4)}")
-            print(f"✅ Data backup berhasil dikirim ke DM pengguna dengan ID {user_id}.")
-            await ctx.send("✅ Data backup berhasil disimpan dan dikirim ke DM!")
+                # Kirim data ke pengguna dengan ID tertentu
+                user_id = 1000737066822410311  # Ganti dengan ID pengguna kamu
+                user = await bot.fetch_user(user_id)
+                await user.send(f"Backup Data: {json.dumps(backup_data, indent=4)}")
+                print(f"✅ Data backup berhasil dikirim ke DM pengguna dengan ID {user_id}.")
+                await ctx.send("✅ Data backup berhasil disimpan dan dikirim ke DM!")
+            else:
+                await ctx.send("❌ Gagal menyimpan data ke MongoDB, ID tidak ditemukan.")
+        except Exception as e:
+            await ctx.send("❌ Gagal menyimpan data ke MongoDB.")
+            print(f"❌ Gagal menyimpan data ke MongoDB: {e}")
+    else:
+        await ctx.send("❌ Tidak ada data untuk dibackup.")
+
+# Command untuk mengirim data backup ke DM
+@bot.command()
+async def sendbackup(ctx):
+    user_id = 1000737066822410311  # Ganti dengan ID pengguna yang ingin kamu kirimi data
+    user = await bot.fetch_user(user_id)
+
+    try:
+        # Ambil data terbaru dari MongoDB
+        stored_data = collection.find_one(sort=[('_id', -1)])  # Ambil data terbaru
+        if stored_data:
+            # Kirim data dalam format JSON
+            await user.send(f"Backup Data: {json.dumps(stored_data['backup'], indent=4)}")
+            await ctx.send("✅ Data backup terbaru berhasil dikirim ke DM!")
+            print(f"✅ DM berhasil dikirim kepada {user.name} dengan data dari MongoDB.")
         else:
-            await ctx.send("❌ Gagal menyimpan data ke MongoDB, ID tidak ditemukan.")
+            await ctx.send("❌ Tidak ada data backup yang tersedia.")
+            print(f"❌ Tidak ada data backup yang ditemukan untuk {user.name}.")
+    
     except Exception as e:
-        await ctx.send("❌ Gagal menyimpan data ke MongoDB.")
-        print(f"❌ Gagal menyimpan data ke MongoDB: {e}")  # Cetak kesalahan spesifik
-else:
-    await ctx.send("❌ Tidak ada data untuk dibackup.")
+        await ctx.send("❌ Gagal mengirim DM atau mengambil data dari MongoDB.")
+        print(f"❌ Gagal mengirim DM atau mengambil data dari MongoDB: {e}")
 
 # Muat semua cog yang ada
 async def load_cogs():
