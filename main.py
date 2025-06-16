@@ -130,7 +130,6 @@ async def sendbackup(ctx):
     except Exception as e:
         await ctx.send("❌ Gagal mengirim DM atau mengambil data dari MongoDB.")
         print(f"❌ Gagal mengirim DM atau mengambil data dari MongoDB: {e}")
-
 # Muat semua cog yang ada
 async def load_cogs():
     try:
