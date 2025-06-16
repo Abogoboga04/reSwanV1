@@ -3,11 +3,14 @@ from discord.ext import commands
 import json
 import os
 from datetime import datetime, timedelta
+import aiohttp
 
 SHOP_FILE = 'data/shop_items.json'
 LEVEL_FILE = 'data/level_data.json'
 BANK_FILE = 'data/bank_data.json'
 SHOP_STATUS_FILE = 'data/shop_status.json'
+COLLAGE_FILE = 'data/shop_collage.json'
+INVENTORY_FILE = 'data/inventory.json'
 
 
 def load_json(path):
@@ -40,7 +43,9 @@ class PurchaseDropdown(discord.ui.Select):
         self.guild_id = str(guild_id)
         options = []
         for item in items:
-            label = f"{item.get('emoji', '')} {item['name']} — 💰{item['price']}"
+            label = f"{item.get('name')} — 💰{item['price']}"
+            if item.get('stock', 'unlimited') != 'unlimited':
+                label += f" | Stock: {item['stock']}"
             options.append(discord.SelectOption(
                 label=label[:100],
                 value=item['name'],
@@ -55,10 +60,17 @@ class PurchaseDropdown(discord.ui.Select):
             await interaction.response.send_message("Item tidak ditemukan.", ephemeral=True)
             return
 
+        if item.get("stock", "unlimited") != "unlimited" and item["stock"] <= 0:
+            await interaction.response.send_message("Stock item ini sudah habis!", ephemeral=True)
+            return
+
         level_data = load_json(LEVEL_FILE)
         bank_data = load_json(BANK_FILE)
+        inventory_data = load_json(INVENTORY_FILE)
+
         user_data = level_data.setdefault(self.guild_id, {}).setdefault(self.user_id, {})
         bank_user = bank_data.setdefault(self.user_id, {"balance": 0, "debt": 0})
+        inventory_user = inventory_data.setdefault(self.user_id, [])
 
         if self.category == "badges" and item['emoji'] in user_data.get("badges", []):
             await interaction.response.send_message("Kamu sudah memiliki badge ini.", ephemeral=True)
@@ -81,10 +93,25 @@ class PurchaseDropdown(discord.ui.Select):
             await interaction.response.send_message("Saldo RSWN kamu tidak cukup!", ephemeral=True)
             return
 
-        # Proses pembelian
         bank_user['balance'] -= item['price']
+
         if self.category == "badges":
             user_data.setdefault("badges", []).append(item['emoji'])
+            if item.get("image_url"):
+                user_data["image_url"] = item["image_url"]
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(item["image_url"]) as resp:
+                            if resp.status == 200:
+                                avatar_bytes = await resp.read()
+                                file = discord.File(fp=discord.BytesIO(avatar_bytes), filename="avatar.png")
+                                await interaction.user.send(
+                                    content="Selamat pembelian avatar kamu berhasil, jika kamu mau pasang sebagai profil Discord nih aku kasih file nya ya",
+                                    file=file
+                                )
+                except Exception as e:
+                    print(f"Gagal kirim DM avatar: {e}")
+
         elif self.category == "roles":
             user_data.setdefault("purchased_roles", []).append(item['name'])
             role_id = item.get("role_id")
@@ -92,6 +119,7 @@ class PurchaseDropdown(discord.ui.Select):
                 role = interaction.guild.get_role(int(role_id))
                 if role:
                     await interaction.user.add_roles(role, reason="Pembelian dari shop")
+
         elif self.category == "exp":
             user_data["booster"] = {
                 "exp_multiplier": 2,
@@ -100,8 +128,22 @@ class PurchaseDropdown(discord.ui.Select):
             }
             user_data["last_exp_purchase"] = datetime.utcnow().isoformat()
 
+        inventory_user.append(item)
+
+        if item.get("stock", "unlimited") != "unlimited":
+            item["stock"] -= 1
+
         save_json(LEVEL_FILE, level_data)
         save_json(BANK_FILE, bank_data)
+        save_json(INVENTORY_FILE, inventory_data)
+
+        shop_data = load_json(SHOP_FILE)
+        for cat in shop_data:
+            for i in shop_data[cat]:
+                if i['name'] == item['name']:
+                    i.update(item)
+        save_json(SHOP_FILE, shop_data)
+
         await interaction.response.send_message(f"✅ Kamu telah membeli `{item['name']}` seharga {item['price']} RSWN!", ephemeral=True)
 
 
@@ -131,7 +173,7 @@ class ShopCategorySelect(discord.ui.Select):
         category = self.values[0]
         items = self.shop_data.get(category, [])
         embed = discord.Embed(
-            title=f"🛍️ {category.title()} Shop",
+            title=f"🛒 {category.title()} Shop",
             description=f"Pilih item dari kategori **{category}** untuk dibeli.",
             color=discord.Color.orange()
         )
@@ -139,11 +181,19 @@ class ShopCategorySelect(discord.ui.Select):
             embed.description = "Tidak ada item dalam kategori ini."
         else:
             for item in items:
-                embed.add_field(
-                    name=f"{item.get('emoji', '')} {item['name']} — 💰{item['price']}",
-                    value=item.get('description', '*Tidak ada deskripsi*'),
-                    inline=False
-                )
+                stock_str = "∞" if item.get("stock", "unlimited") == "unlimited" else str(item["stock"])
+                name = item['name']
+                price = item['price']
+                desc = item.get('description', '*Tidak ada deskripsi*')
+                field_name = f"{name} — 💰{price} | Stok: {stock_str}"
+                embed.add_field(name=field_name, value=desc, inline=False)
+
+        if category == "badges":
+            if os.path.exists(COLLAGE_FILE):
+                collage_data = load_json(COLLAGE_FILE)
+                collage_url = collage_data.get("collage_url")
+                if collage_url:
+                    embed.set_image(url=collage_url)
 
         view = discord.ui.View(timeout=60)
         view.add_item(PurchaseDropdown(category, items, self.user_id, self.guild_id))
@@ -160,7 +210,7 @@ class BackToCategoryButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title="🛒 reSwan Shop",
+            title="💼 reSwan Shop",
             description="Pilih kategori di bawah untuk melihat item yang tersedia.",
             color=discord.Color.blurple()
         )
@@ -175,14 +225,13 @@ class Shop(commands.Cog):
 
     @commands.command(name="shop")
     async def shop(self, ctx):
-        """Menampilkan toko dengan UI interaktif."""
         status = load_shop_status()
         if not status.get("is_open", True):
             return await ctx.send("⚠️ Toko sedang *ditutup* oleh admin. Silakan kembali lagi nanti.")
 
         shop_data = load_json(SHOP_FILE)
         embed = discord.Embed(
-            title="🛒 reSwan Shop",
+            title="💼 reSwan Shop",
             description="Pilih kategori di bawah untuk melihat item yang tersedia.",
             color=discord.Color.blurple()
         )
@@ -192,7 +241,7 @@ class Shop(commands.Cog):
 
         try:
             await ctx.message.delete()
-        except discord.Forbidden:
+        except (discord.NotFound, discord.Forbidden):
             pass
 
         await ctx.send(embed=embed, view=view)
@@ -200,44 +249,51 @@ class Shop(commands.Cog):
     @commands.command(name="toggleshop")
     @commands.has_permissions(administrator=True)
     async def toggle_shop(self, ctx):
-        """Menutup atau membuka toko (Admin Only)."""
         status = load_shop_status()
         status["is_open"] = not status.get("is_open", True)
         save_shop_status(status)
 
         state = "🟢 TERBUKA" if status["is_open"] else "🔴 TERTUTUP"
         await ctx.send(f"Toko sekarang telah diatur ke: **{state}**")
-        
+
     @commands.command(name="additem")
     @commands.has_permissions(administrator=True)
-    async def add_item(self, ctx, category: str, name: str, price: int, description: str, emoji: str, role_id: int = None):
-        """Menambahkan item baru ke toko (Admin Only)."""
+    async def add_item(self, ctx, category: str, name: str, price: int, description: str, *args):
         shop_data = load_json(SHOP_FILE)
 
-        # Validasi kategori
         if category not in shop_data:
             await ctx.send("⚠️ Kategori tidak valid. Gunakan 'badges', 'exp', atau 'roles'.")
             return
 
-        new_item = {
+        emoji_or_url = args[0] if len(args) > 0 else ""
+        stock = args[1] if len(args) > 1 else "unlimited"
+        optional = args[2] if len(args) > 2 else None
+
+        item = {
             "name": name,
             "price": price,
             "description": description,
-            "emoji": emoji
+            "emoji": emoji_or_url,
+            "stock": int(stock) if stock != "unlimited" else "unlimited"
         }
 
-        # Jika kategori adalah 'roles', tambahkan role_id
-        if category == "roles" and role_id is not None:
-            new_item["role_id"] = role_id
-        elif category == "roles":
-            await ctx.send("⚠️ Harap masukkan role_id untuk kategori 'roles'.")
-            return
+        if category == "roles":
+            if optional is None:
+                return await ctx.send("⚠️ Harap masukkan role_id untuk kategori roles.")
+            item["role_id"] = int(optional)
 
-        shop_data[category].append(new_item)
+        if category == "badges" and optional:
+            item["image_url"] = optional
+
+        shop_data[category].append(item)
         save_json(SHOP_FILE, shop_data)
+        await ctx.send(f"✅ Item baru ditambahkan ke kategori **{category}**: **{name}** seharga **{price}** RSWN! 🎉")
 
-        await ctx.send(f"✅ Item baru telah ditambahkan ke kategori **{category}**: **{name}** seharga **{price}** RSWN! 🎉")
-
+    @commands.command(name="addcollage")
+    @commands.has_permissions(administrator=True)
+    async def add_collage(self, ctx, url: str):
+        save_json(COLLAGE_FILE, {"collage_url": url})
+        await ctx.send("✅ Gambar kolase berhasil diperbarui!")
 
 
 async def setup(bot):
