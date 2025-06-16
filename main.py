@@ -113,15 +113,20 @@ async def sendbackup(ctx):
     try:
         # Ambil data terbaru dari MongoDB
         stored_data = collection.find_one(sort=[('_id', -1)])  # Ambil data terbaru
-        if stored_data:
+        print(f"✅ Data yang diambil dari MongoDB: {stored_data}")  # Logging untuk debugging
+
+        if stored_data and 'backup' in stored_data:
             # Kirim data dalam format JSON
             await user.send(f"Backup Data: {json.dumps(stored_data['backup'], indent=4)}")
             await ctx.send("✅ Data backup terbaru berhasil dikirim ke DM!")
             print(f"✅ DM berhasil dikirim kepada {user.name} dengan data dari MongoDB.")
         else:
-            await ctx.send("❌ Tidak ada data backup yang tersedia.")
+            await ctx.send("❌ Tidak ada data backup yang tersedia atau struktur data tidak valid.")
             print(f"❌ Tidak ada data backup yang ditemukan untuk {user.name}.")
-    
+
+    except discord.Forbidden:
+        await ctx.send("❌ Gagal mengirim DM, pastikan saya dapat mengirim DM kepada pengguna ini.")
+        print(f"❌ Gagal mengirim DM ke {user.name}, pengaturan privasi mungkin membatasi.")
     except Exception as e:
         await ctx.send("❌ Gagal mengirim DM atau mengambil data dari MongoDB.")
         print(f"❌ Gagal mengirim DM atau mengambil data dari MongoDB: {e}")
