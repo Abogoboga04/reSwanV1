@@ -5,13 +5,17 @@
             "level": 2,
             "weekly_exp": 2215,
             "badges": [
-                "\ud83d\udc23",
-                "\ud83c\udfc5"
+                "🐣",
+                "🏅"
             ],
             "last_active": "2025-06-14T03:55:11.097822",
-            "booster": {},
+            "booster": {
+                "exp_multiplier": 2,
+                "voice_multiplier": 2,
+                "expires_at": "2025-06-16T13:25:36.833539"
+            },
             "last_completed_quest": null,
-            "last_exp_purchase": "2025-06-13T05:40:19.212950",
+            "last_exp_purchase": "2025-06-16T12:55:36.833552",
             "purchased_roles": [
                 "VIP Role"
             ]
@@ -21,7 +25,7 @@
             "level": 0,
             "weekly_exp": 15,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": "2025-06-14T03:28:07.001463",
@@ -34,7 +38,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -49,7 +53,7 @@
             "weekly_exp": 735,
             "level": 1,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "last_completed_quest": "2025-06-11T22:07:18.516574",
             "booster": {},
@@ -62,7 +66,7 @@
             "weekly_exp": 840,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "last_completed_quest": "2025-06-11T22:16:55.231672",
             "booster": {},
@@ -75,7 +79,7 @@
             "weekly_exp": 770,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -88,7 +92,7 @@
             "weekly_exp": 900,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -101,7 +105,7 @@
             "weekly_exp": 575,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -114,7 +118,7 @@
             "weekly_exp": 635,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "last_completed_quest": "2025-06-11T22:16:38.847422",
             "booster": {},
@@ -125,41 +129,43 @@
     },
     "765138959625486357": {
         "1000737066822410311": {
-            "exp": 22792,
+            "exp": 26112,
             "level": 22,
-            "weekly_exp": 22282,
+            "weekly_exp": 24337,
             "badges": [
-                "\ud83d\udc23",
-                "\ud83c\udfc5"
+                "🐣",
+                "🏅",
+                "🖼️"
             ],
-            "last_active": "2025-06-14T04:23:32.475208",
+            "last_active": "2025-06-16T17:40:41.463083",
             "last_completed_quest": "2025-06-12T09:58:52.788404",
             "booster": {},
-            "last_exp_purchase": null,
+            "last_exp_purchase": "2025-06-16T15:26:58.724575",
             "purchased_roles": [
                 "VIP Role"
-            ]
+            ],
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A2.png"
         },
         "1244261449329807478": {
-            "exp": 36260,
+            "exp": 38150,
             "level": 36,
-            "weekly_exp": 36145,
+            "weekly_exp": 37645,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
-            "last_active": "2025-06-13T15:54:59.038079",
+            "last_active": "2025-06-16T17:41:35.899548",
             "last_completed_quest": "2025-06-12T13:37:21.311859",
             "booster": {},
             "last_exp_purchase": null,
             "purchased_roles": []
         },
         "1042100948861993081": {
-            "exp": 22180,
+            "exp": 22800,
             "level": 22,
             "last_active": "2025-06-13T13:07:20.745499",
-            "weekly_exp": 22150,
+            "weekly_exp": 22770,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": null,
@@ -167,12 +173,12 @@
             "purchased_roles": []
         },
         "453215843258597389": {
-            "exp": 17415,
+            "exp": 18245,
             "level": 17,
-            "last_active": "2025-06-13T13:14:54.445954",
-            "weekly_exp": 17165,
+            "last_active": "2025-06-16T17:23:05.809004",
+            "weekly_exp": 17855,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": "2025-06-13T13:14:45.924649",
@@ -180,13 +186,13 @@
             "purchased_roles": []
         },
         "902523090314096640": {
-            "exp": 11005,
+            "exp": 12780,
             "level": 11,
-            "last_active": "2025-06-13T14:11:12.344538",
-            "weekly_exp": 11005,
+            "last_active": "2025-06-16T16:15:32.222957",
+            "weekly_exp": 11875,
             "badges": [
-                "\u00f0\u0178\u00a5\u02c6",
-                "\ud83d\udc23"
+                "ðŸ¥ˆ",
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": null,
@@ -194,13 +200,13 @@
             "purchased_roles": []
         },
         "759964298465247254": {
-            "exp": 10905,
+            "exp": 11645,
             "level": 10,
-            "last_active": "2025-06-11T23:54:26.274687",
-            "weekly_exp": 10905,
+            "last_active": "2025-06-16T17:43:00.634074",
+            "weekly_exp": 11575,
             "badges": [
-                "\u00f0\u0178\u00a5\u02c6",
-                "\ud83d\udc23"
+                "ðŸ¥ˆ",
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": null,
@@ -213,7 +219,7 @@
             "last_active": "2025-06-11T23:54:43.522903",
             "weekly_exp": 7900,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": null,
@@ -221,26 +227,28 @@
             "purchased_roles": []
         },
         "581870007986683919": {
-            "exp": 22157,
+            "exp": 26162,
             "level": 22,
-            "last_active": "2025-06-14T04:27:32.326162",
-            "weekly_exp": 15767,
+            "last_active": "2025-06-16T16:21:58.507493",
+            "weekly_exp": 17637,
             "badges": [
-                "\ud83d\udc23"
+                "🐣",
+                "🖼"
             ],
             "last_completed_quest": "2025-06-14T04:26:25.567190",
             "booster": {},
             "last_exp_purchase": "2025-06-13T13:25:47.499598",
-            "purchased_roles": []
+            "purchased_roles": [],
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A1.png"
         },
         "771662040502763531": {
-            "exp": 5300,
+            "exp": 6405,
             "level": 5,
-            "last_active": "2025-06-14T04:22:11.639814",
-            "weekly_exp": 5150,
+            "last_active": "2025-06-16T15:20:18.106248",
+            "weekly_exp": 5825,
             "badges": [
-                "\ud83d\udc23",
-                "\ud83e\udd49"
+                "🐣",
+                "🥉"
             ],
             "booster": {},
             "last_completed_quest": "2025-06-14T04:13:40.443554",
@@ -253,7 +261,7 @@
             "last_active": "2025-06-13T05:23:23.869445",
             "weekly_exp": 3920,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": null,
@@ -261,12 +269,12 @@
             "purchased_roles": []
         },
         "1307175243630248011": {
-            "exp": 3900,
+            "exp": 4005,
             "level": 3,
-            "last_active": "2025-06-11T23:56:50.567227",
-            "weekly_exp": 3900,
+            "last_active": "2025-06-16T17:34:14.592212",
+            "weekly_exp": 3995,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": null,
@@ -274,12 +282,12 @@
             "purchased_roles": []
         },
         "1197143497074036808": {
-            "exp": 2995,
+            "exp": 4245,
             "level": 2,
-            "last_active": "2025-06-13T16:43:57.380351",
-            "weekly_exp": 2915,
+            "last_active": "2025-06-16T17:40:05.592282",
+            "weekly_exp": 3830,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_completed_quest": "2025-06-14T04:25:57.715660",
@@ -291,7 +299,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -304,7 +312,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -317,7 +325,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -330,7 +338,7 @@
             "level": 11,
             "weekly_exp": 11020,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -343,7 +351,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -356,7 +364,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -369,7 +377,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -382,7 +390,7 @@
             "weekly_exp": 45,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -395,7 +403,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -408,7 +416,7 @@
             "weekly_exp": 0,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -421,7 +429,7 @@
             "weekly_exp": 470,
             "level": 0,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -430,11 +438,11 @@
             "purchased_roles": []
         },
         "1247167268857712682": {
-            "exp": 1935,
-            "weekly_exp": 1935,
+            "exp": 1945,
+            "weekly_exp": 1945,
             "level": 1,
             "badges": [
-                "\ud83d\udc23"
+                "🐣"
             ],
             "booster": {},
             "last_active": null,
@@ -444,7 +452,7 @@
         },
         "1307737338570346607": {
             "badges": [
-                "\ud83c\udfc5"
+                "🏅"
             ],
             "exp": 0,
             "level": 0,
@@ -486,6 +494,28 @@
             "badges": [],
             "last_active": "2025-06-14T04:14:45.235068",
             "booster": {}
+        },
+        "1379067641997824121": {
+            "exp": 160,
+            "weekly_exp": 80,
+            "level": 0,
+            "badges": [],
+            "last_active": "2025-06-16T14:35:10.841803",
+            "booster": {}
+        },
+        "1164925963595956305": {
+            "exp": 20,
+            "weekly_exp": 10,
+            "level": 0,
+            "badges": [],
+            "last_active": "2025-06-16T14:31:42.256819",
+            "booster": {}
+        },
+        "1335955738614435851": {
+            "exp": 10,
+            "weekly_exp": 10,
+            "level": 0,
+            "badges": []
         }
     }
 }
