@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import os
+import io
 from datetime import datetime, timedelta
 import aiohttp
 
@@ -104,7 +105,8 @@ class PurchaseDropdown(discord.ui.Select):
                         async with session.get(item["image_url"]) as resp:
                             if resp.status == 200:
                                 avatar_bytes = await resp.read()
-                                file = discord.File(fp=discord.BytesIO(avatar_bytes), filename="avatar.png")
+                                file = discord.File(fp=io.BytesIO(avatar_bytes), filename="avatar.png")
+
                                 await interaction.user.send(
                                     content="Selamat pembelian avatar kamu berhasil, jika kamu mau pasang sebagai profil Discord nih aku kasih file nya ya",
                                     file=file
