@@ -1,68 +1,52 @@
 {
     "badges": [
         {
-            "name": "Master Badge",
-            "price": 1500,
-            "description": "Lencana elit untuk pengguna legendaris.",
-            "emoji": "\ud83c\udfc5",
-            "stock": "unlimited",
+            "name": "Avatar Admin limited",
+            "price": 500000,
+            "description": "Kalau gak mampu jangan beli yak de yak",
+            "emoji": null,
+            "stock": 1,
             "image_url": null
         },
         {
-            "name": "Avatar A1",
-            "price": 1000,
-            "description": "Avatar eksklusif",
-            "emoji": "\ud83d\uddbc",
-            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A1.png",
-            "stock": 1
+            "name": "Avatar A",
+            "price": 1250,
+            "description": "Limited edition yak de yak",
+            "emoji": null,
+            "stock": 1,
+            "image_url": null
         },
         {
-            "name": "Avatar A2",
-            "price": 1000,
-            "description": "Avatar eksklusif",
-            "emoji": "\ud83d\uddbc\ufe0f",
-            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A2.png",
-            "stock": 1
+            "name": "Avatar Skuy",
+            "price": 1250,
+            "description": "Avatar calm",
+            "emoji": "💀",
+            "stock": 0,
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A10.png"
         },
         {
-            "name": "Avatar A3",
-            "price": 1000,
-            "description": "Avatar eksklusif",
-            "emoji": "\ud83d\uddbc\ufe0f",
-            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A3.png",
-            "stock": 1
+            "name": "Avatar wadon",
+            "price": 1250,
+            "description": "Limited edition england",
+            "emoji": null,
+            "stock": 1,
+            "image_url": null
         },
         {
-            "name": "Avatar A4",
-            "price": 1000,
-            "description": "Avatar eksklusif",
-            "emoji": "\ud83d\uddbc\ufe0f",
-            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A4.png",
-            "stock": 1
+            "name": "Avatar Cheess",
+            "price": 1550,
+            "description": "Limited edition selfie",
+            "emoji": null,
+            "stock": 0,
+            "image_url": null
         },
         {
-            "name": "Avatar A5",
-            "price": 1000,
-            "description": "Avatar eksklusif",
-            "emoji": "\ud83d\uddbc\ufe0f",
-            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A5.png",
-            "stock": 1
-        },
-        {
-            "name": "Avatar A6",
-            "price": 1000,
-            "description": "Avatar eksklusif",
-            "emoji": "\ud83d\uddbc\ufe0f",
-            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A6.png",
-            "stock": 1
-        },
-        {
-            "name": "Avatar A7",
-            "price": 1000,
-            "description": "Avatar eksklusif",
-            "emoji": "\ud83d\uddbc\ufe0f",
-            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A7.png",
-            "stock": 1
+            "name": "Avatar Uuuhhhhhh",
+            "price": 999,
+            "description": "Limited edition Japanese school",
+            "emoji": null,
+            "stock": 1,
+            "image_url": null
         }
     ],
     "exp": [
@@ -70,7 +54,7 @@
             "name": "EXP Boost x2",
             "price": 1000,
             "description": "ngeboost EXP mu x2 dalam pesan dan voice.",
-            "emoji": "\u26a1",
+            "emoji": "⚡",
             "stock": "unlimited",
             "image_url": null
         }
@@ -80,9 +64,9 @@
             "name": "VIP Role",
             "price": 1000,
             "description": "Akses eksklusif ke channel VIP.",
-            "emoji": "\ud83d\udc51",
+            "emoji": "👑",
             "role_id": 123456789012345678,
-            "stock": 10,
+            "stock": 9,
             "image_url": null
         }
     ]
