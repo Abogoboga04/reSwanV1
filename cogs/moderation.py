@@ -49,45 +49,55 @@ class AutoSetup(commands.Cog):
             json.dump(self.filters, f, indent=2)
 
     @commands.Cog.listener()
-async def on_raw_reaction_add(self, payload):
-    if payload.guild_id is None:
-        return
+    async def on_raw_reaction_add(self, payload):
+        if payload.guild_id is None:
+            return
 
-    guild_id = str(payload.guild_id)
-    message_id = str(payload.message_id)
-    emoji = str(payload.emoji)
+        guild_id = str(payload.guild_id)
+        message_id = str(payload.message_id)
+        emoji = str(payload.emoji)
 
-    # CEK apakah guild_id ada
-    if guild_id not in self.settings:
-        return
+        # CEK apakah guild_id ada
+        if guild_id not in self.settings:
+            return
 
-    # CEK apakah ada reaction_roles di guild ini
-    if "reaction_roles" not in self.settings[guild_id]:
-        return
+        # CEK apakah ada reaction_roles di guild ini
+        if "reaction_roles" not in self.settings[guild_id]:
+            return
 
-    # CEK apakah message ID cocok
-    if message_id not in self.settings[guild_id]["reaction_roles"]:
-        return
+        # CEK apakah message ID cocok
+        if message_id not in self.settings[guild_id]["reaction_roles"]:
+            return
 
-    # Ambil role_id dari emoji
-    role_id = self.settings[guild_id]["reaction_roles"][message_id].get(emoji)
-    if not role_id:
-        print(f"[SKIP] Emoji {emoji} gak cocok di msg {message_id}")
-        return
+        # Ambil role_id dari emoji
+        role_id = self.settings[guild_id]["reaction_roles"][message_id].get(emoji)
+        if not role_id:
+            print(f"[SKIP] Emoji {emoji} gak cocok di msg {message_id}")
+            return
 
-    guild = self.bot.get_guild(payload.guild_id)
-    member = guild.get_member(payload.user_id)
+        guild = self.bot.get_guild(payload.guild_id)
+        member = guild.get_member(payload.user_id)
 
-    if not member or member.bot:
-        return
+        if not member or member.bot:
+            return
 
-    role = discord.utils.get(guild.roles, id=role_id)
-    if role:
-        try:
-            await member.add_roles(role, reason="Reaction role")
-            print(f"[✅] Berhasil kasih role '{role.name}' ke {member.name}")
-        except discord.Forbidden:
-            print(f"[❌] Gagal kasih role '{role.name}' ke {member.name} (cek permission)")
+        role = discord.utils.get(guild.roles, id=role_id)
+        if role:
+            try:
+                await member.add_roles(role, reason="Reaction role")
+                print(f"[✅] Berhasil kasih role '{role.name}' ke {member.name}")
+            except discord.Forbidden:
+                print(f"[❌] Gagal kasih role '{role.name}' ke {member.name} (cek permission)")
+
+
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        role_name = self.settings.get("auto_role")
+        if role_name:
+            role = discord.utils.get(member.guild.roles, name=role_name)
+            if role:
+                await member.add_roles(role)
 
     @commands.command(name="setreactionrole", help="Atur role berdasarkan reaksi pada pesan tertentu.")
     @commands.has_permissions(manage_roles=True)
@@ -108,15 +118,6 @@ async def on_raw_reaction_add(self, payload):
         self.save_settings()
 
         await ctx.send(f"✅ Role **{role.name}** akan diberikan saat react {emoji} di pesan ID `{message_id}`.")
-
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member):
-        role_name = self.settings.get("auto_role")
-        if role_name:
-            role = discord.utils.get(member.guild.roles, name=role_name)
-            if role:
-                await member.add_roles(role)
 
         # Kirim pesan sambutan dengan embed
         welcome_channel_id = self.settings.get("welcome_channel")
