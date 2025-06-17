@@ -733,7 +733,6 @@ class Leveling(commands.Cog):
 
         badge_list = user_data.get("badges", [])
         badge_display = [badge for badge in badge_list if not str(badge).startswith("http")]
-        badges = " ".join(badge_display) if badge_display else "Tidak ada"
 
         custom_image_url = user_data.get("image_url") or ctx.author.avatar.url
 
