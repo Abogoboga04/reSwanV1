@@ -1,0 +1,15 @@
+{
+  "auto_role": null,
+  "welcome_channel": null,
+  "welcome_message": "Selamat datang di server kami, {user}!",
+  "reaction_roles": {},
+  "channel_configs": {},
+  "mute_status": false,
+  "hide_status": false,
+  "1379458566452154438": {
+    "disallow_bot": false,
+    "disallow_links": false,
+    "disallow_media": false,
+    "disallow_prefix": false
+  }
+}
