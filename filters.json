@@ -1,0 +1,9 @@
+{
+  "bad_words": [
+    "Anjing"
+  ],
+  "link_patterns": [
+    "steamcommunity.com",
+    "50$"
+  ]
+}
