@@ -733,6 +733,8 @@ class Leveling(commands.Cog):
 
         badge_list = user_data.get("badges", [])
         badge_display = [badge for badge in badge_list if not str(badge).startswith("http")]
+        badges = " ".join(str(b) for b in badge_display if b is not None) if badge_display else "Tidak ada"
+
 
         custom_image_url = user_data.get("image_url") or ctx.author.avatar.url
 
@@ -754,7 +756,7 @@ class Leveling(commands.Cog):
         embed.add_field(name="Level", value=user_data["level"], inline=True)
         embed.add_field(name="Saldo", value=f"{load_bank_data().get(user_id, {}).get('balance', 0)} 🪙RSWN", inline=True)
         embed.add_field(name="EXP", value=user_data["exp"], inline=True)
-        embed.add_field(name="Badges", value=badges, inline=True)
+        
         
 
       
