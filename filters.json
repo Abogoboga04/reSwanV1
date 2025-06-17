@@ -1,6 +1,7 @@
 {
   "bad_words": [
-    "Anjing"
+    "Anjing",
+    "babi"
   ],
   "link_patterns": [
     "steamcommunity.com"
