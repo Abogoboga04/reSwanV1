@@ -6,7 +6,7 @@
             "description": "Kalau gak mampu jangan beli yak de yak",
             "emoji": null,
             "stock": 1,
-            "image_url": null
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A8.png"
         },
         {
             "name": "Avatar A",
@@ -14,7 +14,7 @@
             "description": "Limited edition yak de yak",
             "emoji": null,
             "stock": 1,
-            "image_url": null
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A11.png"
         },
         {
             "name": "Avatar Skuy",
@@ -30,15 +30,15 @@
             "description": "Limited edition england",
             "emoji": null,
             "stock": 1,
-            "image_url": null
+            "image_url": " https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/C1.png"
         },
         {
-            "name": "Avatar Cheess",
-            "price": 1550,
-            "description": "Limited edition selfie",
-            "emoji": null,
-            "stock": 0,
-            "image_url": null
+            "name": "Chesss",
+            "price": 1500,
+            "description": "Limited edition",
+            "emoji": "👩",
+            "stock": 1,
+            "image_url": " https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/C2.png"
         },
         {
             "name": "Avatar Uuuhhhhhh",
@@ -46,7 +46,7 @@
             "description": "Limited edition Japanese school",
             "emoji": null,
             "stock": 1,
-            "image_url": null
+            "image_url": " https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/C3.png
         }
     ],
     "exp": [
