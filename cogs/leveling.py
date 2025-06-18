@@ -710,56 +710,62 @@ class Leveling(commands.Cog):
         user_id = str(ctx.author.id)
         guild_id = str(ctx.guild.id)
 
-        # Load data level
-        if not os.path.exists("data/level_data.json"):
+        # Load data level dengan penanganan kesalahan
+        try:
+            if not os.path.exists("data/level_data.json"):
+                with open("data/level_data.json", "w") as f:
+                    json.dump({}, f)
+
+            with open("data/level_data.json", "r") as f:
+                data = json.load(f)
+
+            guild_data = data.setdefault(guild_id, {})
+            user_data = guild_data.setdefault(user_id, {
+                "exp": 0,
+                "level": 0,
+                "weekly_exp": 0,
+                "badges": [],
+                "image_url": None
+            })
+
+            # Save data setelah setdefault
             with open("data/level_data.json", "w") as f:
-                json.dump({}, f)
+                json.dump(data, f, indent=2)
 
-        with open("data/level_data.json", "r") as f:
-            data = json.load(f)
+        except json.JSONDecodeError:
+            await ctx.send("Terjadi kesalahan saat memuat data level. File mungkin rusak.")
+            return
+        except Exception as e:
+            await ctx.send(f"Terjadi kesalahan: {str(e)}")
+            return
 
-        guild_data = data.setdefault(guild_id, {})
-        user_data = guild_data.setdefault(user_id, {
-            "exp": 0,
-            "level": 0,
-            "weekly_exp": 0,
-            "badges": [],
-            "image_url": None
-        })
-
-        # Save data setelah setdefault
-        with open("data/level_data.json", "w") as f:
-            json.dump(data, f, indent=2)
-
+        # Mengambil dan menyaring badge
         badge_list = user_data.get("badges", [])
-        badge_display = [badge for badge in badge_list if not str(badge).startswith("http")]
-        badges = " ".join(user_data.get("badges", [])) or "Tidak ada"
+        badge_display = [badge for badge in badge_list if badge is not None and not str(badge).startswith("http")]
+        badges = " ".join(badge_display) or "Tidak ada"
 
+        # Mengambil URL gambar
+        custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
 
-        custom_image_url = user_data.get("image_url") or ctx.author.avatar.url
-
-       # Cek validitas URL
+        # Cek validitas URL gambar
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(custom_image_url) as resp:
                     if resp.status != 200:
-                        custom_image_url = ctx.author.avatar.url
+                        custom_image_url = str(ctx.author.avatar.url)
                     image_data = BytesIO(await resp.read())
         except Exception:
-            custom_image_url = ctx.author.avatar.url
+            custom_image_url = str(ctx.author.avatar.url)
             async with aiohttp.ClientSession() as session:
                 async with session.get(custom_image_url) as resp:
                     image_data = BytesIO(await resp.read())
 
+        # Membuat embed untuk menampilkan informasi
         embed = discord.Embed(title=f"📊 Rank {ctx.author.display_name}", color=discord.Color.purple())
         embed.set_thumbnail(url="attachment://avatar.png")
         embed.add_field(name="Level", value=user_data["level"], inline=True)
         embed.add_field(name="Saldo", value=f"{load_bank_data().get(user_id, {}).get('balance', 0)} 🪙RSWN", inline=True)
         embed.add_field(name="EXP", value=user_data["exp"], inline=True)
-        
-        
-
-      
 
         await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
