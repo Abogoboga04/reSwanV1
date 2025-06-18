@@ -5,10 +5,7 @@
             "level": 2,
             "weekly_exp": 5775,
             "badges": [
-                "🐣",
-                "🏅",
-                "💀",
-                "👩"
+                "🐣"
             ],
             "last_active": "2025-06-17T23:59:11.736066",
             "booster": {},
@@ -147,10 +144,7 @@
             "level": 40011,
             "weekly_exp": 100025851,
             "badges": [
-                "🐣",
-                "🏅",
-                "🖼️",
-                "💀"
+                "🐣"
             ],
             "last_active": "2025-06-18T04:19:17.674158",
             "last_completed_quest": "2025-06-12T09:58:52.788404",
@@ -264,7 +258,6 @@
             "weekly_exp": 6310,
             "badges": [
                 "🐣",
-                "🥉",
             ],
             "booster": {},
             "last_completed_quest": "2025-06-18T04:15:22.479446",
@@ -272,6 +265,7 @@
             "purchased_roles": [
                 "VIP Role"
             ]
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/C2.png"
         },
         "1264970850277396503": {
             "exp": 3940,
