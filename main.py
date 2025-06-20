@@ -156,12 +156,8 @@ async def load_cogs():
         await bot.load_extension("cogs.emojiquiz")
         await bot.load_extension("cogs.hangmann")
         print("✅ Semua cogs berhasil dimuat.")
-        
-        try:
-            await bot.load_extension(cog)
-            print(f"✅ Berhasil load: {cog}")
-        except Exception as e:
-            print(f"❌ Gagal load {cog}: {e}")
+     except Exception as e:
+        print(f"❌ Gagal load {cog}: {e}")
 
 # Gunakan setup_hook agar loop dan tasks bisa jalan
 @bot.event
