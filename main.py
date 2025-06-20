@@ -156,6 +156,7 @@ async def load_cogs():
         await bot.load_extension("cogs.emojiquiz")
         await bot.load_extension("cogs.hangmann")
         print("✅ Semua cogs berhasil dimuat.")
+        
      except Exception as e:
         print(f"❌ Gagal load {cog}: {e}")
 
