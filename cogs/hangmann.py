@@ -56,7 +56,7 @@ class Hangman(commands.Cog):
                 async with session.get(default_image_url) as resp:
                     return BytesIO(await resp.read())
 
-    @commands.command(name="resman", help="Mulai permainan Hangman.")
+    @commands.command(name="restes", help="Mulai permainan Hangman.")
     async def resman(self, ctx):
         if ctx.channel.id != self.game_channel_id:
             await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
