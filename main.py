@@ -154,7 +154,7 @@ async def load_cogs():
         await bot.load_extension("cogs.music")
         await bot.load_extension("cogs.itemmanage")
         await bot.load_extension("cogs.moderation")
-        await bot.load_extension("cogs.hangmantes")
+        await bot.load_extension("cogs.hangmantest")
         await bot.load_extension("cogs.emojiquiz")
         print("✅ Semua cogs berhasil dimuat.")
     except Exception as e:
