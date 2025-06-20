@@ -163,6 +163,9 @@ async def load_cogs():
 @bot.event
 async def setup_hook():
     await load_cogs()
+    print("🔁 Memulai setup_hook dan load cogs...")
+    await load_cogs()
+    print("✅ Selesai setup_hook dan semua cogs dicoba load.")
 
 save_cookies_from_env()
 
