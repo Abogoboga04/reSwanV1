@@ -1,0 +1,397 @@
+[
+    {
+        "word": "Komputer",
+        "category": "Teknologi",
+        "clue": "Kisi-kisi: Mesin yang dapat menjalankan program dan memproses data."
+    },
+    {
+        "word": "Jupiter",
+        "category": "Planet",
+        "clue": "Kisi-kisi: Planet raksasa yang terkenal dengan badai merahnya."
+    },
+    {
+        "word": "Kucing",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan domestik yang sering kali menjadi subjek meme dan video lucu."
+    },
+    {
+        "word": "Mawar",
+        "category": "Tanaman",
+        "clue": "Kisi-kisi: Bunga yang sering menjadi simbol cinta dan biasanya memiliki duri."
+    },
+    {
+        "word": "Anjing",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan peliharaan yang dikenal sebagai teman setia manusia."
+    },
+    {
+        "word": "Buku",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Koleksi halaman yang berisi teks yang dapat memberikan pengetahuan atau hiburan."
+    },
+    {
+        "word": "Mobil",
+        "category": "Transportasi",
+        "clue": "Kisi-kisi: Kendaraan darat yang digunakan untuk transportasi pribadi dan sering memiliki empat roda."
+    },
+    {
+        "word": "Laptop",
+        "category": "Teknologi",
+        "clue": "Kisi-kisi: Komputer portabel yang dirancang untuk penggunaan di mana saja."
+    },
+    {
+        "word": "Kamera",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Perangkat yang digunakan untuk merekam gambar dengan cahaya."
+    },
+    {
+        "word": "Sepatu",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Alas kaki yang dirancang untuk melindungi kaki saat berjalan atau berlari."
+    },
+    {
+        "word": "Gitar",
+        "category": "Musik",
+        "clue": "Kisi-kisi: Alat musik yang biasa digunakan dalam genre musik seperti rock dan blues."
+    },
+    {
+        "word": "Piano",
+        "category": "Musik",
+        "clue": "Kisi-kisi: Alat musik yang dimainkan dengan menekan tuts dan menghasilkan suara harmonis."
+    },
+    {
+        "word": "Singa",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Predator besar yang dikenal karena suaranya yang menggelegar dan hidup dalam kelompok."
+    },
+    {
+        "word": "Burung",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan yang memiliki sayap dan dapat terbang, seringkali dikenal dengan nyanyiannya."
+    },
+    {
+        "word": "Ayam",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Unggas yang biasa dipelihara di peternakan dan dikenal dengan suaranya yang khas."
+    },
+    {
+        "word": "Bunga",
+        "category": "Tanaman",
+        "clue": "Kisi-kisi: Struktur reproduksi tanaman yang menarik perhatian dengan warna dan aroma."
+    },
+    {
+        "word": "Kaktus",
+        "category": "Tanaman",
+        "clue": "Kisi-kisi: Tanaman yang mampu bertahan di lingkungan kering dengan duri sebagai pelindung."
+    },
+    {
+        "word": "Apel",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Buah yang sering disebut dalam pepatah dan memiliki banyak varietas."
+    },
+    {
+        "word": "Pisang",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Buah yang memiliki kulit kuning dan bisa dimakan langsung atau diolah."
+    },
+    {
+        "word": "Roti",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Makanan pokok yang dihasilkan dari bahan dasar tepung dan air."
+    },
+    {
+        "word": "Kue",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Hidangan manis yang sering dipanggang dan disajikan pada perayaan."
+    },
+    {
+        "word": "Susu",
+        "category": "Minuman",
+        "clue": "Kisi-kisi: Minuman bergizi yang dihasilkan dari hewan ternak."
+    },
+    {
+        "word": "Teh",
+        "category": "Minuman",
+        "clue": "Kisi-kisi: Minuman yang diseduh dari daun dan sering mempunyai berbagai rasa."
+    },
+    {
+        "word": "Kopi",
+        "category": "Minuman",
+        "clue": "Kisi-kisi: Minuman yang terbuat dari biji yang disangrai dan dikenal menyegarkan."
+    },
+    {
+        "word": "Es Krim",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Makanan manis yang terbuat dari susu dan sering dinikmati di cuaca panas."
+    },
+    {
+        "word": "Salad",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Campuran sayuran segar yang bisa disajikan dengan dressing."
+    },
+    {
+        "word": "Kacang",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Camilan yang kaya akan protein dan sering dijadikan bahan makanan."
+    },
+    {
+        "word": "Nasi",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Makanan pokok di banyak budaya yang berasal dari tanaman padi."
+    },
+    {
+        "word": "Pasta",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Makanan berbahan dasar tepung yang terkenal dalam masakan Italia."
+    },
+    {
+        "word": "Burger",
+        "category": "Makanan",
+        "clue": "Kisi-kisi: Makanan cepat saji yang terdiri dari daging dan disajikan dalam roti."
+    },
+    {
+        "word": "Teleskop",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Alat yang digunakan untuk mengamati objek jauh di luar atmosfer Bumi."
+    },
+    {
+        "word": "Peta",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Representasi grafis dari wilayah geografis yang menunjukkan lokasi."
+    },
+    {
+        "word": "Bendera",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Simbol negara yang sering berkibar di tiang sebagai tanda identitas."
+    },
+    {
+        "word": "Koper",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Alat penyimpanan yang digunakan untuk membawa barang saat bepergian."
+    },
+    {
+        "word": "Tas",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Wadah yang sering digunakan untuk membawa barang sehari-hari."
+    },
+    {
+        "word": "Jam",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Alat yang membantu seseorang untuk mengetahui waktu."
+    },
+    {
+        "word": "Kunci",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Alat kecil yang digunakan untuk membuka atau mengunci pintu."
+    },
+    {
+        "word": "Cangkir",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Wadah kecil yang biasanya digunakan untuk minum teh atau kopi."
+    },
+    {
+        "word": "Kulkas",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Alat rumah tangga yang menjaga makanan tetap segar dan dingin."
+    },
+    {
+        "word": "Sandal",
+        "category": "Objek",
+        "clue": "Kisi-kisi: Alas kaki yang nyaman dan sering digunakan di rumah atau saat santai."
+    },
+    {
+        "word": "Kepala",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang menjadikan kita dapat berpikir dan berbicara."
+    },
+    {
+        "word": "Mata",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang memungkinkan kita melihat dunia di sekitar."
+    },
+    {
+        "word": "Tangan",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang memiliki jari dan digunakan untuk berinteraksi."
+    },
+    {
+        "word": "Kaki",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang membantu kita bergerak dan berdiri."
+    },
+    {
+        "word": "Hidung",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi dalam proses bernapas dan mencium aroma."
+    },
+    {
+        "word": "Mulut",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang digunakan untuk berbicara dan makan."
+    },
+    {
+        "word": "Telinga",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi untuk mendengar suara."
+    },
+    {
+        "word": "Perut",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang terletak di bawah dada dan berfungsi untuk mencerna makanan."
+    },
+    {
+        "word": "Jari",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tangan yang membantu kita melakukan berbagai aktivitas."
+    },
+    {
+        "word": "Rambut",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Serat yang tumbuh di kepala dan bisa dipotong atau ditata."
+    },
+    {
+        "word": "Dada",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang melindungi organ vital seperti jantung."
+    },
+    {
+        "word": "Paha",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang menghubungkan pinggul dengan lutut."
+    },
+    {
+        "word": "Bahu",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian tubuh yang menghubungkan lengan dengan tubuh."
+    },
+    {
+        "word": "Jantung",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang memompa darah ke seluruh tubuh."
+    },
+    {
+        "word": "Paru-paru",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi dalam pernapasan dan pertukaran gas."
+    },
+    {
+        "word": "Hati",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi dalam metabolisme dan detoksifikasi."
+    },
+    {
+        "word": "Ginjal",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi untuk menyaring darah dan menghasilkan urine."
+    },
+    {
+        "word": "Tulang",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Struktur keras yang membentuk kerangka tubuh."
+    },
+    {
+        "word": "Otak",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Pusat kendali sistem saraf dan tempat berpikir."
+    },
+    {
+        "word": "Sinar",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Cahaya yang dipancarkan oleh matahari dan bintang lainnya."
+    },
+    {
+        "word": "Langit",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Ruang di atas permukaan bumi tempat bintang dan planet berada."
+    },
+    {
+        "word": "Bintang",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Objek langit yang bersinar dan terlihat saat malam hari."
+    },
+    {
+        "word": "Galaksi",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Kumpulan bintang, gas, dan debu yang terikat gravitasi."
+    },
+    {
+        "word": "Satelit",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Objek yang mengorbit planet dan bisa alami atau buatan."
+    },
+    {
+        "word": "Meteor",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Benda langit yang memasuki atmosfer dan menghasilkan cahaya."
+    },
+    {
+        "word": "Nebula",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Awan gas dan debu di ruang angkasa, sering menjadi tempat lahir bintang."
+    },
+    {
+        "word": "Komet",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Benda langit yang terdiri dari es dan debu, sering memiliki ekor yang panjang."
+    },
+    {
+        "word": "Orbit",
+        "category": "Astronomi",
+        "clue": "Kisi-kisi: Jalur yang dilalui benda langit saat mengelilingi planet atau bintang."
+    },
+    {
+        "word": "Konsentrasi",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Kemampuan untuk fokus pada satu hal tanpa terganggu."
+    },
+    {
+        "word": "Persepsi",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Proses di mana individu memahami dan menginterpretasi informasi."
+    },
+    {
+        "word": "Emosi",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Perasaan yang dialami seseorang dalam situasi tertentu."
+    },
+    {
+        "word": "Kecemasan",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Perasaan khawatir yang sering kali tidak berdasarkan pada situasi nyata."
+    },
+    {
+        "word": "Stres",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Respons tubuh terhadap tekanan atau tantangan."
+    },
+    {
+        "word": "Motivasi",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Dorongan internal yang mempengaruhi perilaku seseorang."
+    },
+    {
+        "word": "Kreativitas",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Kemampuan untuk menghasilkan ide-ide baru dan orisinal."
+    },
+    {
+        "word": "Kemampuan",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Potensi yang dimiliki seseorang untuk melakukan sesuatu."
+    },
+    {
+        "word": "Kepribadian",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Karakteristik unik yang membedakan satu individu dari individu lainnya."
+    },
+    {
+        "word": "Perilaku",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Tindakan atau respons seseorang terhadap lingkungan."
+    },
+    {
+        "word": "Pengalaman",
+        "category": "Psikologi",
+        "clue": "Kisi-kisi: Proses belajar melalui interaksi dan peristiwa yang dialami."
+    }
+]
