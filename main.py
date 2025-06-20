@@ -147,14 +147,13 @@ async def sendbackup(ctx):
 # Muat semua cog yang ada
 async def load_cogs():
     try:
-        await bot.load_extension("cogs.livestream")
-        await bot.load_extension("cogs.hangman")
-        await bot.load_extension("cogs.emoji")
         await bot.load_extension("cogs.leveling")
         await bot.load_extension("cogs.shop")
         await bot.load_extension("cogs.quizz")
         await bot.load_extension("cogs.music")
         await bot.load_extension("cogs.itemmanage")
+        await bot.load_extension("cogs.hangman")
+        await bot.load_extension("cogs.emoji")
         await bot.load_extension("cogs.moderation")
         print("✅ Semua cogs berhasil dimuat.")
     except Exception as e:
