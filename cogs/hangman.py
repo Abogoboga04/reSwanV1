@@ -7,6 +7,9 @@ import os
 import aiohttp
 from io import BytesIO
 
+print("🔍 hangman.py sedang di-load...")
+
+
 class Hangman(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -213,6 +216,5 @@ class Hangman(commands.Cog):
             await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
 async def setup(bot):
+    print("🔍 hangman.py sedang di-load...")
     await bot.add_cog(Hangman(bot))
-
-
