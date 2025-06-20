@@ -150,7 +150,6 @@ async def load_cogs():
         await bot.load_extension("cogs.livestream")
         await bot.load_extension("cogs.leveling")
         await bot.load_extension("cogs.shop")
-        await bot.load_extension("cogs.backup")
         await bot.load_extension("cogs.quizz")
         await bot.load_extension("cogs.music")
         await bot.load_extension("cogs.itemmanage")
