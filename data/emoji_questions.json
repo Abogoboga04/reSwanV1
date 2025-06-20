@@ -1,1 +1,428 @@
-
+{
+  "questions": [
+    {
+      "emoji": "🐶🐾",
+      "answer": "anjing jalan"
+    },
+    {
+      "emoji": "🐱😺",
+      "answer": "kucing senang"
+    },
+    {
+      "emoji": "☕📖",
+      "answer": "ngopi baca"
+    },
+    {
+      "emoji": "🚗💨",
+      "answer": "mobil ngebut"
+    },
+    {
+      "emoji": "🍕😍",
+      "answer": "suka pizza"
+    },
+    {
+      "emoji": "🎧🎶",
+      "answer": "musik santai"
+    },
+    {
+      "emoji": "📱📲",
+      "answer": "main hp"
+    },
+    {
+      "emoji": "🎥🍿",
+      "answer": "nonton bioskop"
+    },
+    {
+      "emoji": "🛌💤",
+      "answer": "tidur nyenyak"
+    },
+    {
+      "emoji": "📚🧠",
+      "answer": "belajar pintar"
+    },
+    {
+      "emoji": "👨‍🍳🍜",
+      "answer": "chef masak"
+    },
+    {
+      "emoji": "👩‍⚕️💉",
+      "answer": "dokter suntik"
+    },
+    {
+      "emoji": "🚿🧼",
+      "answer": "mandi bersih"
+    },
+    {
+      "emoji": "🏃‍♂️💨",
+      "answer": "lari cepat"
+    },
+    {
+      "emoji": "🧹🧼",
+      "answer": "bersih rumah"
+    },
+    {
+      "emoji": "🎓📚",
+      "answer": "kuliah belajar"
+    },
+    {
+      "emoji": "💻⌨️",
+      "answer": "kerja laptop"
+    },
+    {
+      "emoji": "🛍️💳",
+      "answer": "belanja kartu"
+    },
+    {
+      "emoji": "🍔🍟",
+      "answer": "makan cepat"
+    },
+    {
+      "emoji": "🐔🥚",
+      "answer": "ayam telur"
+    },
+    {
+      "emoji": "🐟🍚",
+      "answer": "ikan nasi"
+    },
+    {
+      "emoji": "🍎🍏",
+      "answer": "apel hijau"
+    },
+    {
+      "emoji": "🥕🥦",
+      "answer": "sayur sehat"
+    },
+    {
+      "emoji": "🍇🍉",
+      "answer": "buah segar"
+    },
+    {
+      "emoji": "🍞🥖",
+      "answer": "roti panjang"
+    },
+    {
+      "emoji": "🌧️☔",
+      "answer": "hujan turun"
+    },
+    {
+      "emoji": "⛄❄️",
+      "answer": "salju dingin"
+    },
+    {
+      "emoji": "🌞😎",
+      "answer": "hari cerah"
+    },
+    {
+      "emoji": "🌜🌟",
+      "answer": "malam bintang"
+    },
+    {
+      "emoji": "🌈☁️",
+      "answer": "pelangi awan"
+    },
+    {
+      "emoji": "🎁🎂",
+      "answer": "ulang tahun"
+    },
+    {
+      "emoji": "💌💍",
+      "answer": "surat cinta"
+    },
+    {
+      "emoji": "🏖️🌊",
+      "answer": "pantai ombak"
+    },
+    {
+      "emoji": "🏕️🔥",
+      "answer": "kemah api"
+    },
+    {
+      "emoji": "🎄🎅",
+      "answer": "natal santa"
+    },
+    {
+      "emoji": "🎃👻",
+      "answer": "halloween seram"
+    },
+    {
+      "emoji": "🕌🌙",
+      "answer": "idul fitri"
+    },
+    {
+      "emoji": "🙏🕌",
+      "answer": "doa masjid"
+    },
+    {
+      "emoji": "⛪📖",
+      "answer": "gereja kitab"
+    },
+    {
+      "emoji": "🏫📓",
+      "answer": "sekolah buku"
+    },
+    {
+      "emoji": "🧑‍🏫📋",
+      "answer": "guru tugas"
+    },
+    {
+      "emoji": "🧮📏",
+      "answer": "matematika alat"
+    },
+    {
+      "emoji": "🎨🖌️",
+      "answer": "lukis warna"
+    },
+    {
+      "emoji": "🎼🎷",
+      "answer": "musik jazz"
+    },
+    {
+      "emoji": "🎸🥁",
+      "answer": "band rock"
+    },
+    {
+      "emoji": "⚽🥅",
+      "answer": "gol bola"
+    },
+    {
+      "emoji": "🏀⛹️",
+      "answer": "basket main"
+    },
+    {
+      "emoji": "🏸🎾",
+      "answer": "raket tenis"
+    },
+    {
+      "emoji": "🚴‍♀️🌳",
+      "answer": "sepeda taman"
+    },
+    {
+      "emoji": "🚂🚉",
+      "answer": "kereta stasiun"
+    },
+    {
+      "emoji": "✈️🛫",
+      "answer": "pesawat terbang"
+    },
+    {
+      "emoji": "🛳️⚓",
+      "answer": "kapal laut"
+    },
+    {
+      "emoji": "🚌🚏",
+      "answer": "bus halte"
+    },
+    {
+      "emoji": "🚦🚗",
+      "answer": "lampu merah"
+    },
+    {
+      "emoji": "🧭🗺️",
+      "answer": "arah peta"
+    },
+    {
+      "emoji": "💡🔋",
+      "answer": "lampu nyala"
+    },
+    {
+      "emoji": "🔧🔩",
+      "answer": "alat bengkel"
+    },
+    {
+      "emoji": "🪑🛋️",
+      "answer": "kursi sofa"
+    },
+    {
+      "emoji": "🖼️🪟",
+      "answer": "jendela gambar"
+    },
+    {
+      "emoji": "🧸🎈",
+      "answer": "boneka balon"
+    },
+    {
+      "emoji": "🎀🎉",
+      "answer": "hiasan pesta"
+    },
+    {
+      "emoji": "🕰️📅",
+      "answer": "jam kalender"
+    },
+    {
+      "emoji": "🛎️🧳",
+      "answer": "hotel koper"
+    },
+    {
+      "emoji": "📦📬",
+      "answer": "paket pos"
+    },
+    {
+      "emoji": "📞☎️",
+      "answer": "panggil telepon"
+    },
+    {
+      "emoji": "🎙️📻",
+      "answer": "radio bicara"
+    },
+    {
+      "emoji": "📺📹",
+      "answer": "tv kamera"
+    },
+    {
+      "emoji": "🔍📖",
+      "answer": "baca cari"
+    },
+    {
+      "emoji": "🔒🔑",
+      "answer": "kunci rahasia"
+    },
+    {
+      "emoji": "💣🔥",
+      "answer": "bom meledak"
+    },
+    {
+      "emoji": "🕵️‍♂️🧩",
+      "answer": "detektif teka"
+    },
+    {
+      "emoji": "🧪🧬",
+      "answer": "ilmu sains"
+    },
+    {
+      "emoji": "🩺💊",
+      "answer": "obat sehat"
+    },
+    {
+      "emoji": "🧼🦠",
+      "answer": "cuci kuman"
+    },
+    {
+      "emoji": "🧴🌞",
+      "answer": "sunscreen panas"
+    },
+    {
+      "emoji": "📖📝",
+      "answer": "buku catatan"
+    },
+    {
+      "emoji": "🗣️🤫",
+      "answer": "bicara diam"
+    },
+    {
+      "emoji": "🤔💭",
+      "answer": "pikir ide"
+    },
+    {
+      "emoji": "😴⏰",
+      "answer": "tidur alarm"
+    },
+    {
+      "emoji": "😱🔥",
+      "answer": "panik api"
+    },
+    {
+      "emoji": "😭💔",
+      "answer": "patah hati"
+    },
+    {
+      "emoji": "😎🌴",
+      "answer": "liburan tropis"
+    },
+    {
+      "emoji": "😂🤣",
+      "answer": "tertawa ngakak"
+    },
+    {
+      "emoji": "😡💢",
+      "answer": "marah emosi"
+    },
+    {
+      "emoji": "😍😘",
+      "answer": "cinta mesra"
+    },
+    {
+      "emoji": "🤢🤮",
+      "answer": "mual muntah"
+    },
+    {
+      "emoji": "🥵🌡️",
+      "answer": "demam panas"
+    },
+    {
+      "emoji": "🤒🏥",
+      "answer": "sakit rumah"
+    },
+    {
+      "emoji": "🛠️🏗️",
+      "answer": "bangun alat"
+    },
+    {
+      "emoji": "🧰🪛",
+      "answer": "kotak obeng"
+    },
+    {
+      "emoji": "📁🗂️",
+      "answer": "file dokumen"
+    },
+    {
+      "emoji": "🔗🧷",
+      "answer": "klip sambung"
+    },
+    {
+      "emoji": "🖋️📝",
+      "answer": "tulis pena"
+    },
+    {
+      "emoji": "📌📍",
+      "answer": "pin lokasi"
+    },
+    {
+      "emoji": "🧾💼",
+      "answer": "nota kerja"
+    },
+    {
+      "emoji": "📊📈",
+      "answer": "grafik naik"
+    },
+    {
+      "emoji": "💳🏦",
+      "answer": "kartu bank"
+    },
+    {
+      "emoji": "💰💸",
+      "answer": "uang habis"
+    },
+    {
+      "emoji": "💼🧳",
+      "answer": "koper kerja"
+    },
+    {
+      "emoji": "👟👞",
+      "answer": "sepatu beda"
+    },
+    {
+      "emoji": "👗👠",
+      "answer": "gaun sepatu"
+    },
+    {
+      "emoji": "👔🕶️",
+      "answer": "dasi kacamata"
+    },
+    {
+      "emoji": "👘🎎",
+      "answer": "baju jepang"
+    },
+    {
+      "emoji": "🧥🧣",
+      "answer": "jaket syal"
+    },
+    {
+      "emoji": "🧦🥿",
+      "answer": "kaos kaki"
+    },
+    {
+      "emoji": "🎒📚",
+      "answer": "tas sekolah"
+    }
+  ]
+}
