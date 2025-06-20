@@ -14,6 +14,7 @@ class Hangman(commands.Cog):
         self.bank_data = self.load_bank_data()
         self.level_data = self.load_level_data()
         self.questions = self.load_hangman_data()
+        print("🔍 hangman.py sedang di-load...")
         
         # Debug: cek jumlah pertanyaan yang dimuat
         print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")  # Debug: jumlah pertanyaan
