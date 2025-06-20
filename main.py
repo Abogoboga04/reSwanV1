@@ -156,8 +156,7 @@ async def load_cogs():
         await bot.load_extension("cogs.emojiquiz")
         await bot.load_extension("cogs.hangmann")
         print("✅ Semua cogs berhasil dimuat.")
-
-    for cog in cogs:
+        
         try:
             await bot.load_extension(cog)
             print(f"✅ Berhasil load: {cog}")
