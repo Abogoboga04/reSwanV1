@@ -69,16 +69,14 @@ class Hangman(commands.Cog):
         embed = discord.Embed(
             title="🎮 Cara Bermain Hangman",
             description=(
-                "Selamat datang di Dunia Sunyi Hangman! 🖤🌧️\n\n"
-                "Di sini, kamu tak hanya menebak kata... tapi juga menebak makna dari kesepian yang tak bertepi.\n"
-                "Jawablah satu per satu, berharap RSWN bisa sedikit mengisi kekosongan itu.\n"
-                "Selesaikan 10 soal dalam 2 menit... kalau kamu masih punya semangat itu.\n\n"
-                "✨ *Dev udah bikin fitur. Admin udah promosi. Tapi server tetap sepi...*\n\n"
-                "Kadang rasanya seperti teriak dalam ruangan kosong. Nggak ada yang jawab. Cuma gema yang balas.\n"
-                "Tapi kalau kamu masih di sini... mungkin kamu satu-satunya harapan yang tersisa. 🕯️\n\n"
-                "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
+                "Selamat datang di permainan Hangman! 😢✨\n\n"
+                "Kamu akan diberikan satu kata untuk ditebak.\n"
+                "Jawab dengan satu kata. Jika benar, kamu akan mendapatkan RSWN!\n"
+                "Jika kamu berhasil menjawab semua dengan benar, ada bonus menunggu!\n\n"
+                "Tapi ingat, waktu adalah musuh terbesarmu. 2 menit untuk menyelesaikan 10 soal.\n\n"
+                "Siap untuk memulai? Klik tombol di bawah ini untuk memulai permainan!"
             ),
-            color=0x5500aa
+            color=0x00ff00
         )
 
         view = discord.ui.View()
@@ -214,4 +212,3 @@ class Hangman(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
-  
