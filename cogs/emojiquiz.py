@@ -4,13 +4,11 @@ import json
 import random
 import asyncio
 import os
-import aiohttp
-from io import BytesIO
 
-class HangmanQuiz(commands.Cog):
+class EmojiQuiz(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.quiz_data = self.load_hangman_data()  # Mengambil data dari hangman
+        self.quiz_data = self.load_quiz_data()
         self.bank_data = self.load_bank_data()
         self.current_question = None
         self.current_answers = {}
@@ -23,9 +21,9 @@ class HangmanQuiz(commands.Cog):
         self.host = None
         self.question_active = False
 
-    def load_hangman_data(self):
+    def load_quiz_data(self):
         current_dir = os.path.dirname(__file__)
-        file_path = os.path.join(current_dir, '..', 'data', 'questions_hangman.json')  # Mengambil dari file hangman
+        file_path = os.path.join(current_dir, '..', 'data', 'emoji_questions.json')
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             if "questions" in data and isinstance(data["questions"], list):
@@ -37,39 +35,20 @@ class HangmanQuiz(commands.Cog):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
             return json.load(f)
 
-    async def get_user_image(self, ctx, user_data):
-        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
-        custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
-
-        # Cek validitas URL gambar
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(custom_image_url) as resp:
-                    if resp.status == 200:
-                        image_data = BytesIO(await resp.read())
-                        return image_data
-                    else:
-                        raise Exception("Invalid image URL")
-        except Exception:
-            default_image_url = str(ctx.author.avatar.url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(default_image_url) as resp:
-                    return BytesIO(await resp.read())
-
-    @commands.command(name="ressman", help="Mulai Kuis Hangman")
-    async def reshangman(self, ctx):
+    @commands.command(name="resmoji", help="Mulai Kuis Emoji")
+    async def resmoji(self, ctx):
         if self.quiz_active:
             await ctx.send("Kuis sudah aktif, tunggu hingga sesi ini selesai!", ephemeral=True)
             return
 
         self.host = ctx.author
         embed = discord.Embed(
-            title="🎮 Kuis Hangman! 🎮",
+            title="✨ Kuis Emoji! ✨",
             description=(
-                "Selamat datang di Kuis Hangman! 🖤\n\n"
+                "Ayo, bersiap-siap untuk menjawab pertanyaan emoji yang menyedihkan, meskipun hati ini terasa hampa. 😢💔\n\n"
                 "**Cara Main:**\n"
-                "1. Akan ada 10 pertanyaan Hangman.\n"
-                "2. Semua peserta bisa menjawab dengan sistem siapa cepat dia dapat.\n"
+                "1. Akan ada 10 pertanyaan emoji.\n"
+                "2. Semua peserta bisa menjawab dengan sistem yg siapa cepat dia dapat.\n"
                 "3. Jawaban benar = +25 RSWN.\n"
                 "4. Bonus 50 RSWN jika semua pertanyaan dijawab benar.\n"
                 "5. Minimal 2 peserta.\n\n"
@@ -96,6 +75,17 @@ class HangmanQuiz(commands.Cog):
         start_button.callback = start_quiz
         view.add_item(start_button)
 
+        help_button = discord.ui.Button(label="🆘 Beli Bantuan", style=discord.ButtonStyle.secondary)
+
+        async def buy_help(interaction):
+            if self.quiz_active:
+                await ctx.send("Kuis sudah dimulai!", ephemeral=True)
+            else:
+                await self.buy_help_function(ctx)
+
+        help_button.callback = buy_help
+        view.add_item(help_button)
+
         await ctx.send(embed=embed, view=view)
 
     async def start_quiz(self, ctx):
@@ -107,7 +97,7 @@ class HangmanQuiz(commands.Cog):
         for member in ctx.guild.members:
             if len(self.participants) >= 5:
                 break
-            if member != ctx.author and not member.bot:
+            if member != ctx.author and not member.bot and member.voice:
                 self.participants.append(member)
 
         if len(self.participants) < 2:
@@ -127,8 +117,8 @@ class HangmanQuiz(commands.Cog):
 
     async def ask_question(self, ctx, question):
         embed = discord.Embed(
-            title="⏳ Pertanyaan Hangman!",
-            description=f"Tebak kata ini: **{self.display_word(question['word'], self.current_answers.values())}**",
+            title="⏳ Pertanyaan Emoji!",
+            description=f"Tebak frasa ini: {question['emoji']}",
             color=0x0000ff
         )
         message = await ctx.send(embed=embed)
@@ -138,7 +128,7 @@ class HangmanQuiz(commands.Cog):
         self.question_active = True
 
         for i in range(15, 0, -1):
-            embed.description = f"Tebak kata ini: **{self.display_word(question['word'], self.current_answers.values())}**\nWaktu tersisa: {i} detik"
+            embed.description = f"Tebak frasa ini: {question['emoji']}\nWaktu tersisa: {i} detik"
             await message.edit(embed=embed)
             await asyncio.sleep(1)
 
@@ -149,7 +139,7 @@ class HangmanQuiz(commands.Cog):
         if not self.question_active:
             return
         
-        correct_answer = question['word'].strip().lower()
+        correct_answer = question['answer'].strip().lower()
         answer_found = False
 
         for participant in self.participants:
@@ -169,11 +159,11 @@ class HangmanQuiz(commands.Cog):
             await ctx.send("➡️ Pertanyaan berikutnya...")
         self.question_active = False
 
-    async def end_quiz(self, ctx):
+    async def end_quiz(self, ctx):  # <-- yang kamu minta
         for message in self.messages:
             await message.delete()
 
-        embed = discord.Embed(title="🏆 Hasil Kuis Hangman!", color=0x00ff00)
+        embed = discord.Embed(title="🏆 Leaderboard Kuis Emoji!", color=0x00ff00)
 
         for participant in self.participants:
             correct = self.correct_count.get(participant.id, 0)
@@ -188,9 +178,6 @@ class HangmanQuiz(commands.Cog):
             final_balance = self.bank_data[pid]['balance']
             initial_balance = final_balance + earned  # karena udah dikurangi pas benar
 
-            user_data = self.bank_data.get(pid, {})
-            image_data = await self.get_user_image(ctx, user_data)
-
             embed.add_field(
                 name=f"{participant.display_name} {participant.mention}",
                 value=(
@@ -203,10 +190,6 @@ class HangmanQuiz(commands.Cog):
                 inline=False
             )
 
-            # Mengirim gambar pengguna
-            if image_data:
-                await ctx.send(file=discord.File(image_data, "avatar.png"))
-
         await ctx.send(embed=embed)
 
         with open('data/bank_data.json', 'w', encoding='utf-8') as f:
@@ -218,9 +201,44 @@ class HangmanQuiz(commands.Cog):
         self.correct_count.clear()
         self.current_answers.clear()
 
-    def display_word(self, word, guessed_letters):
-        displayed_word = ''.join([letter if letter in guessed_letters else '_' for letter in word])
-        return displayed_word
+    async def buy_help_function(self, ctx):
+        user_id = str(ctx.author.id)
+
+        if user_id not in self.bank_data:
+            self.bank_data[user_id] = {"balance": 0}
+
+        if user_id not in self.bantuan_used:
+            self.bantuan_used[user_id] = 0
+
+        if self.bantuan_used[user_id] >= 5:
+            await ctx.send("❌ Batas bantuan harian tercapai.", ephemeral=True)
+            return
+
+        if self.bank_data[user_id]['balance'] < self.bantuan_price:
+            await ctx.send("😢 Saldo RSWN tidak cukup.", ephemeral=True)
+            return
+
+        self.bank_data[user_id]['balance'] -= self.bantuan_price
+        self.bantuan_used[user_id] += 1
+
+        help_msg = await ctx.send("✅ Bantuan dibeli! Gunakan `!resplis` untuk melihat jawaban.", ephemeral=True)
+        await asyncio.sleep(2)
+        await help_msg.delete()
+
+    @commands.command(name="resplis", help="Gunakan bantuan untuk melihat jawaban.")
+    async def resplis(self, ctx):
+        user_id = str(ctx.author.id)
+        if user_id not in self.bantuan_used or self.bantuan_used[user_id] <= 0:
+            await ctx.send("Kamu belum beli bantuan!", ephemeral=True)
+            return
+
+        if self.current_question is None:
+            await ctx.send("Belum ada pertanyaan aktif!", ephemeral=True)
+            return
+
+        answer = self.current_question['answer']
+        await ctx.author.send(f"🔐 Jawaban: **{answer}**")
+        self.bantuan_used[user_id] -= 1
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -228,10 +246,15 @@ class HangmanQuiz(commands.Cog):
             return
 
         if message.author in self.participants and self.current_question:
+            if message.author.voice is None:
+                await message.channel.send(f"{message.author.mention}, kamu harus di voice channel untuk menjawab!")
+                return
+
             user_answer = message.content.strip().lower()
             if user_answer not in self.current_answers.values():
                 self.current_answers[message.author.id] = user_answer
                 await self.evaluate_answers(message.channel, self.current_question)
 
 async def setup(bot):
-    await bot.add_cog(HangmanQuiz(bot))
+    await bot.add_cog(EmojiQuiz(bot))
+  
