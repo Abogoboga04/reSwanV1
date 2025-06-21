@@ -49,6 +49,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f"ðŸ¤– Bot {bot.user} is now online!")
+    print(f"Command yang terdaftar: {[command.name for command in bot.commands]}")
 
 # Command untuk backup data dari folder data/ dan config/
 @bot.command()
