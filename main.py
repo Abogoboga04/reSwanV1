@@ -12,55 +12,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-class Hangman(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.active_games = {}
-        self.bank_data = self.load_bank_data()
-        self.level_data = self.load_level_data()
-        self.questions = self.load_hangman_data()
-        
-        # Debug: cek jumlah pertanyaan yang dimuat
-        print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")  # Debug: jumlah pertanyaan
-
-        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
-
-    def load_bank_data(self):
-        with open('data/bank_data.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-
-    def load_level_data(self):
-        with open('data/level_data.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-
-    def load_hangman_data(self):
-        current_dir = os.path.dirname(__file__)  # Folder cogs/
-        file_path = os.path.join(current_dir, "..", "data", "questions_hangman.json")
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data["questions"]
-
-    async def get_user_image(self, ctx, user_data):
-        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
-        # Mengambil URL gambar
-        custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
-
-        # Cek validitas URL gambar
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(custom_image_url) as resp:
-                    if resp.status == 200:
-                        image_data = BytesIO(await resp.read())
-                        return image_data
-                    else:
-                        raise Exception("Invalid image URL")
-        except Exception:
-            # Jika URL tidak valid, ambil gambar profil default
-            default_image_url = str(ctx.author.avatar.url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(default_image_url) as resp:
-                    return BytesIO(await resp.read())
-
 def save_cookies_from_env():
     encoded = os.getenv("COOKIES_BASE64")
     if not encoded:
@@ -101,8 +52,6 @@ async def on_ready():
 @bot.command()
 async def backupnow(ctx):
     backup_data = {}
-
-    # Backup semua file JSON dari folder data/
     data_folder = 'data/'
     config_folder = 'config/'
 
@@ -155,7 +104,91 @@ async def backupnow(ctx):
     else:
         await ctx.send("❌ Tidak ada data untuk dibackup.")
 
-@command.command(name="resman", help="Mulai permainan Hangman.")
+# Command untuk mengirim data backup ke DM
+@bot.command()
+async def sendbackup(ctx):
+    user_id = 1000737066822410311  # Ganti dengan ID kamu
+    user = await bot.fetch_user(user_id)
+
+    try:
+        stored_data = collection.find_one(sort=[('_id', -1)])
+        if not stored_data or 'backup' not in stored_data:
+            await ctx.send("❌ Tidak ada data backup yang tersedia.")
+            return
+
+        backup_data = stored_data["backup"]
+        await ctx.send("📤 Mengirim file backup satu per satu ke DM...")
+
+        for filename, content in backup_data.items():
+            string_buffer = io.StringIO()
+            json.dump(content, string_buffer, indent=4, ensure_ascii=False)
+            string_buffer.seek(0)
+
+            byte_buffer = io.BytesIO(string_buffer.read().encode('utf-8'))
+            byte_buffer.seek(0)
+
+            file = discord.File(fp=byte_buffer, filename=filename)
+
+            try:
+                await user.send(content=f"📄 Berikut file backup: **{filename}**", file=file)
+            except discord.HTTPException as e:
+                await ctx.send(f"❌ Gagal kirim file {filename}: {e}")
+
+        await ctx.send("✅ Semua file backup berhasil dikirim ke DM!")
+
+    except discord.Forbidden:
+        await ctx.send("❌ Gagal mengirim DM. Pastikan saya dapat mengirim DM ke pengguna ini.")
+    except Exception as e:
+        await ctx.send("❌ Terjadi kesalahan saat mengambil data backup.")
+        print(f"❌ Error: {e}")
+
+class Hangman(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.active_games = {}
+        self.bank_data = self.load_bank_data()
+        self.level_data = self.load_level_data()
+        self.questions = self.load_hangman_data()
+        
+        print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")  # Debug: jumlah pertanyaan
+
+        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+
+    def load_bank_data(self):
+        with open('data/bank_data.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def load_level_data(self):
+        with open('data/level_data.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def load_hangman_data(self):
+        current_dir = os.path.dirname(__file__)  # Folder cogs/
+        file_path = os.path.join(current_dir, "data", "questions_hangman.json")
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data["questions"]
+
+    async def get_user_image(self, ctx, user_data):
+        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
+        custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(custom_image_url) as resp:
+                    if resp.status == 200:
+                        image_data = BytesIO(await resp.read())
+                        return image_data
+                    else:
+                        raise Exception("Invalid image URL")
+        except Exception:
+            # Jika URL tidak valid, ambil gambar profil default
+            default_image_url = str(ctx.author.avatar.url)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(default_image_url) as resp:
+                    return BytesIO(await resp.read())
+
+    @commands.command(name="resman", help="Mulai permainan Hangman.")
     async def resman(self, ctx):
         if ctx.channel.id != self.game_channel_id:
             await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
@@ -223,7 +256,6 @@ async def backupnow(ctx):
             await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan questions_hangman.json diisi dengan benar.")
             return
 
-        print(f"Jumlah pertanyaan yang tersedia: {len(self.questions)}")  # Debug: jumlah pertanyaan
         if len(self.questions) < 10:
             await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di questions_hangman.json.")
             return
@@ -309,57 +341,13 @@ async def backupnow(ctx):
             # Mengirimkan kartu hasil dengan gambar pengguna
             await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
-# Command untuk mengirim data backup ke DM
-@bot.command()
-async def sendbackup(ctx):
-    user_id = 1000737066822410311  # Ganti dengan ID kamu
-    user = await bot.fetch_user(user_id)
-
-    try:
-        stored_data = collection.find_one(sort=[('_id', -1)])
-        if not stored_data or 'backup' not in stored_data:
-            await ctx.send("❌ Tidak ada data backup yang tersedia.")
-            return
-
-        backup_data = stored_data["backup"]
-        await ctx.send("📤 Mengirim file backup satu per satu ke DM...")
-
-        for filename, content in backup_data.items():
-            string_buffer = io.StringIO()
-            json.dump(content, string_buffer, indent=4, ensure_ascii=False)
-            string_buffer.seek(0)
-
-            byte_buffer = io.BytesIO(string_buffer.read().encode('utf-8'))
-            byte_buffer.seek(0)
-
-            file = discord.File(fp=byte_buffer, filename=filename)
-
-            try:
-                await user.send(content=f"📄 Berikut file backup: **{filename}**", file=file)
-            except discord.HTTPException as e:
-                await ctx.send(f"❌ Gagal kirim file {filename}: {e}")
-
-        await ctx.send("✅ Semua file backup berhasil dikirim ke DM!")
-
-    except discord.Forbidden:
-        await ctx.send("❌ Gagal mengirim DM. Pastikan saya dapat mengirim DM ke pengguna ini.")
-    except Exception as e:
-        await ctx.send("❌ Terjadi kesalahan saat mengambil data backup.")
-        print(f"❌ Error: {e}")
-
+async def setup(bot):
+    await bot.add_cog(Hangman(bot))
 
 # Muat semua cog yang ada
 async def load_cogs():
     try:
-        await bot.load_extension("cogs.leveling")
-        await bot.load_extension("cogs.shop")
-        await bot.load_extension("cogs.quizz")
-        await bot.load_extension("cogs.music")
-        await bot.load_extension("cogs.itemmanage")
-        await bot.load_extension("cogs.moderation")
-        await bot.load_extension("cogs.emojiquiz")
-        await bot.load_extension("cogs.kuisaja")
-        await bot.load_extension("cogs.hangman")
+        await setup(bot)  # Memuat cog Hangman
         print("✅ Semua cogs berhasil dimuat.")
     except Exception as e:
         print(f"❌ Gagal memuat cogs: {e}")
