@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO)
+
 def save_cookies_from_env():
     encoded = os.getenv("COOKIES_BASE64")
     if not encoded:
@@ -166,7 +168,6 @@ async def load_cogs():
 @bot.event
 async def setup_hook():
     await load_cogs()
-    await load_extension()
     print("Command yang terdaftar: {[command.name for command in bot.commands]}")
     print("ðŸ” Memulai setup_hook dan load cogs...")
     print("âœ… Selesai setup_hook dan semua cogs dicoba load.")
