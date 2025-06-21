@@ -7,6 +7,8 @@ import os
 import aiohttp
 from io import BytesIO
 
+print("🔍 hangman.py sedang di-load...")
+
 class Hangman(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -17,8 +19,6 @@ class Hangman(commands.Cog):
         
         # Debug: cek jumlah pertanyaan yang dimuat
         print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")  # Debug: jumlah pertanyaan
-
-        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -37,7 +37,6 @@ class Hangman(commands.Cog):
 
     async def get_user_image(self, ctx, user_data):
         """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
-        # Mengambil URL gambar
         custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
 
         # Cek validitas URL gambar
@@ -58,10 +57,8 @@ class Hangman(commands.Cog):
 
     @commands.command(name="resman", help="Mulai permainan Hangman.")
     async def resman(self, ctx):
-        if ctx.channel.id != self.game_channel_id:
-            await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
-            return
-
+        print(f"Command !resman dipanggil oleh {ctx.author.display_name}.")  # Debugging
+        
         if ctx.author.id in self.active_games:
             await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
             return
@@ -69,14 +66,16 @@ class Hangman(commands.Cog):
         embed = discord.Embed(
             title="🎮 Cara Bermain Hangman",
             description=(
-                "Selamat datang di permainan Hangman! 😢✨\n\n"
-                "Kamu akan diberikan satu kata untuk ditebak.\n"
-                "Jawab dengan satu kata. Jika benar, kamu akan mendapatkan RSWN!\n"
-                "Jika kamu berhasil menjawab semua dengan benar, ada bonus menunggu!\n\n"
-                "Tapi ingat, waktu adalah musuh terbesarmu. 2 menit untuk menyelesaikan 10 soal.\n\n"
-                "Siap untuk memulai? Klik tombol di bawah ini untuk memulai permainan!"
+                "Selamat datang di Dunia Sunyi Hangman! 🖤🌧️\n\n"
+                "Di sini, kamu tak hanya menebak kata... tapi juga menebak makna dari kesepian yang tak bertepi.\n"
+                "Jawablah satu per satu, berharap RSWN bisa sedikit mengisi kekosongan itu.\n"
+                "Selesaikan 10 soal dalam 2 menit... kalau kamu masih punya semangat itu.\n\n"
+                "✨ *Dev udah bikin fitur. Admin udah promosi. Tapi server tetap sepi...*\n\n"
+                "Kadang rasanya seperti teriak dalam ruangan kosong. Nggak ada yang jawab. Cuma gema yang balas.\n"
+                "Tapi kalau kamu masih di sini... mungkin kamu satu-satunya harapan yang tersisa. 🕯️\n\n"
+                "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
             ),
-            color=0x00ff00
+            color=0x5500aa
         )
 
         view = discord.ui.View()
@@ -211,4 +210,6 @@ class Hangman(commands.Cog):
             await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
 async def setup(bot):
+    print("🔍 hangman.py sedang di-load...")
     await bot.add_cog(Hangman(bot))
+    print("✅ Hangman Cog berhasil dimuat.")
