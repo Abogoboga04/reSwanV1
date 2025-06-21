@@ -6,6 +6,7 @@ import asyncio
 import os
 import aiohttp
 from io import BytesIO
+from discord import app_commands
 
 print("🔍 hangman.py sedang di-load...")
 
@@ -57,8 +58,8 @@ class Hangman(commands.Cog):
                 async with session.get(default_image_url) as resp:
                     return BytesIO(await resp.read())
 
-    @commands.command(name="resman", help="Mulai permainan Hangman.")
-    async def resman(self, ctx):
+    @app_commands.command(name="resman", help="Mulai permainan Hangman.")
+    async def resman(self, interaction: discord.Interaction):
         print(f"Command !resman dipanggil oleh {ctx.author.display_name}.")  # Debugging
         
         if ctx.author.id in self.active_games:
