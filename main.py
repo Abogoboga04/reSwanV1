@@ -166,7 +166,8 @@ async def load_cogs():
 @bot.event
 async def setup_hook():
     await load_cogs()
-    print(f"Command yang terdaftar: {[command.name for command in bot.commands]}")
+    await load_extension()
+    print("Command yang terdaftar: {[command.name for command in bot.commands]}")
     print("ðŸ” Memulai setup_hook dan load cogs...")
     print("âœ… Selesai setup_hook dan semua cogs dicoba load.")
 
