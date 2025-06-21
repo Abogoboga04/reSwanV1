@@ -14,7 +14,7 @@ class Hangman(commands.Cog):
         self.bank_data = self.load_bank_data()
         self.level_data = self.load_level_data()
         self.questions = self.load_hangman_data()
-        
+
         # Debug: cek jumlah pertanyaan yang dimuat
         print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")
 
@@ -58,10 +58,10 @@ class Hangman(commands.Cog):
             try:
                 data = json.load(f)
                 print("Data loaded from JSON:", data)  # Debug: Cek data yang dimuat
-                if "questions" in data and isinstance(data["questions"], list):
-                    return data["questions"]
+                if isinstance(data, list) and len(data) > 0:
+                    return data
                 else:
-                    raise ValueError("Data harus memiliki kunci 'questions' dan harus berupa list.")
+                    raise ValueError("Data harus berupa list dan tidak kosong.")
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON from questions_hangman.json: {e}")
                 return []
