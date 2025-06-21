@@ -22,25 +22,55 @@ class Hangman(commands.Cog):
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
+            try:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+                else:
+                    raise ValueError("Data harus dalam format dictionary.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON from bank_data.json: {e}")
+                return {}
+            except Exception as e:
+                print(f"Error loading bank data: {e}")
+                return {}
 
     def load_level_data(self):
         with open('data/level_data.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
+            try:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+                else:
+                    raise ValueError("Data harus dalam format dictionary.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON from level_data.json: {e}")
+                return {}
+            except Exception as e:
+                print(f"Error loading level data: {e}")
+                return {}
 
     def load_hangman_data(self):
         current_dir = os.path.dirname(__file__)  # Folder cogs/
         file_path = os.path.join(current_dir, "..", "data", "questions_hangman.json")
         with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data["questions"]
+            try:
+                data = json.load(f)
+                if "questions" in data and isinstance(data["questions"], list):
+                    return data["questions"]
+                else:
+                    raise ValueError("Data harus memiliki kunci 'questions' dan harus berupa list.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON from questions_hangman.json: {e}")
+                return []
+            except Exception as e:
+                print(f"Error loading hangman data: {e}")
+                return []
 
     async def get_user_image(self, ctx, user_data):
         """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
-        # Mengambil URL gambar
         custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
 
-        # Cek validitas URL gambar
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(custom_image_url) as resp:
@@ -191,7 +221,7 @@ class Hangman(commands.Cog):
         game_data = self.active_games.pop(ctx.author.id, None)
         if game_data:
             # Hitung saldo awal dan akhir
-            initial_balance = self.bank_data[str(ctx.author.id)]['balance']
+            initial_balance = self.bank_data.get(str(ctx.author.id), {}).get('balance', 0)
             final_balance = initial_balance + (game_data['correct'] * 25) + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
             # Kartu hasil
