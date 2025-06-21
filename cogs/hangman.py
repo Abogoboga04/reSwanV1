@@ -14,6 +14,7 @@ class Hangman(commands.Cog):
         self.bank_data = self.load_bank_data()
         self.level_data = self.load_level_data()
         self.questions = self.load_hangman_data()
+        self.scores = {}  # Menyimpan skor peserta
 
         # Debug: cek jumlah pertanyaan yang dimuat
         print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")
@@ -98,6 +99,13 @@ class Hangman(commands.Cog):
             await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
             return
 
+        self.scores[ctx.author.id] = {
+            "score": 0,
+            "correct": 0,
+            "wrong": 0,
+            "user": ctx.author
+        }
+
         embed = discord.Embed(
             title="🎮 Cara Bermain Hangman",
             description=(
@@ -105,7 +113,7 @@ class Hangman(commands.Cog):
                 "Di sini, kamu tak hanya menebak kata... tapi juga menebak makna dari kesepian yang tak bertepi.\n"
                 "Jawablah satu per satu, berharap RSWN bisa sedikit mengisi kekosongan itu.\n"
                 "Selesaikan 10 soal dalam 2 menit... kalau kamu masih punya semangat itu.\n\n"
-                "✨ *Dev udah bikin fitur. Admin udah promosi. Tapi server tetap sepi...*\n\n"
+                "✨ *Dev bot udah bikin fitur. Admin & moderator udah berusaha. Tapi server tetap sepi...*\n\n"
                 "Kadang rasanya seperti teriak dalam ruangan kosong. Nggak ada yang jawab. Cuma gema yang balas.\n"
                 "Tapi kalau kamu masih di sini... mungkin kamu satu-satunya harapan yang tersisa. 🕯️\n\n"
                 "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
@@ -224,7 +232,8 @@ class Hangman(commands.Cog):
         if game_data:
             # Hitung saldo awal dan akhir
             initial_balance = self.bank_data.get(str(ctx.author.id), {}).get('balance', 0)
-            final_balance = initial_balance + (game_data['correct'] * 25) + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
+            earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
+            final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
             # Kartu hasil
             embed = discord.Embed(
@@ -234,8 +243,14 @@ class Hangman(commands.Cog):
             embed.add_field(name="Nama", value=ctx.author.display_name)
             embed.add_field(name="Jawaban Benar", value=game_data['correct'])
             embed.add_field(name="Jawaban Salah", value=game_data['wrong'])
+            embed.add_field(name="RSWN yang Diperoleh", value=earned_rsw)
             embed.add_field(name="Saldo RSWN Awal", value=initial_balance)
             embed.add_field(name="Saldo RSWN Akhir", value=final_balance)
+
+            # Menyimpan skor untuk leaderboard
+            self.scores[ctx.author.id]["score"] = final_balance
+            self.scores[ctx.author.id]["correct"] = game_data['correct']
+            self.scores[ctx.author.id]["wrong"] = game_data['wrong']
 
             # Mengambil gambar pengguna
             user_data = self.level_data.get(str(ctx.guild.id), {}).get(str(ctx.author.id), {})
@@ -243,6 +258,29 @@ class Hangman(commands.Cog):
 
             # Mengirimkan kartu hasil dengan gambar pengguna
             await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
+
+            # Menampilkan leaderboard jika ada 2 atau lebih peserta
+            if len(self.scores) >= 2:
+                await self.display_leaderboard(ctx)
+
+    async def display_leaderboard(self, ctx):
+        sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
+        embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
+
+        # Hanya tampilkan juara 2-5
+        for i, score in enumerate(sorted_scores[1:5], start=2):  # Mulai dari index 1 untuk juara 2
+            embed.add_field(
+                name=f"{i}. {score['user'].display_name}",
+                value=(
+                    f"Saldo Akhir: {score['score']}\n"
+                    f"Jawaban Benar: {score['correct']}\n"
+                    f"Jawaban Salah: {score['wrong']}\n"
+                    f"RSWN yang Diperoleh: {score['correct'] * 25}"
+                ),
+                inline=False
+            )
+
+        await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
