@@ -163,13 +163,12 @@ async def load_cogs():
     except Exception as e:
         print(f"âŒ Gagal memuat cogs: {e}")
 
-# Gunakan setup_hook agar loop dan tasks bisa jalan
 @bot.event
 async def setup_hook():
     await load_cogs()
+    await load_extensions()
     print(f"Command yang terdaftar: {[command.name for command in bot.commands]}")
     print("ðŸ” Memulai setup_hook dan load cogs...")
-    await load_cogs()
     print("âœ… Selesai setup_hook dan semua cogs dicoba load.")
 
 save_cookies_from_env()
