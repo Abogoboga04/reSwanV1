@@ -16,7 +16,7 @@ class Hangman(commands.Cog):
         self.questions = self.load_hangman_data()
         
         # Debug: cek jumlah pertanyaan yang dimuat
-        print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")  # Debug: jumlah pertanyaan
+        print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")
 
         self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
 
@@ -53,9 +53,11 @@ class Hangman(commands.Cog):
     def load_hangman_data(self):
         current_dir = os.path.dirname(__file__)  # Folder cogs/
         file_path = os.path.join(current_dir, "..", "data", "questions_hangman.json")
+        print(f"Loading hangman data from: {file_path}")  # Debug: Cek lokasi file
         with open(file_path, "r", encoding="utf-8") as f:
             try:
                 data = json.load(f)
+                print("Data loaded from JSON:", data)  # Debug: Cek data yang dimuat
                 if "questions" in data and isinstance(data["questions"], list):
                     return data["questions"]
                 else:
@@ -86,7 +88,7 @@ class Hangman(commands.Cog):
                 async with session.get(default_image_url) as resp:
                     return BytesIO(await resp.read())
 
-    @commands.command(name="hangman", help="Mulai permainan Hangman.")
+    @commands.command(name="resman", help="Mulai permainan Hangman.")
     async def hangman(self, ctx):
         if ctx.channel.id != self.game_channel_id:
             await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
