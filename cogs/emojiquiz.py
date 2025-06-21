@@ -43,18 +43,18 @@ class EmojiQuiz(commands.Cog):
 
         self.host = ctx.author
         embed = discord.Embed(
-            title="✨ Kuis Emoji! ✨",
+            title="😔 Kuis Emoji: Sebuah Harapan yang Tertinggal 😔",
             description=(
-                "Ayo, bersiap-siap untuk menjawab pertanyaan emoji yang menyedihkan, meskipun hati ini terasa hampa. 😢💔\n\n"
-                "**Cara Main:**\n"
-                "1. Akan ada 10 pertanyaan emoji.\n"
-                "2. Semua peserta bisa menjawab dengan sistem yg siapa cepat dia dapat.\n"
-                "3. Jawaban benar = +25 RSWN.\n"
-                "4. Bonus 50 RSWN jika semua pertanyaan dijawab benar.\n"
-                "5. Minimal 2 peserta.\n\n"
-                "Klik tombol di bawah untuk mulai."
-            ),
-            color=0x00ff00
+                "Pernahkah kamu merasa bikin sesuatu dengan sepenuh hati... tapi yang datang cuma itu-itu aja? Yah, ini dia... kuis emoji dari admin dan dev yang masih percaya keajaiban itu ada. 😞💔\n\n"
+            "**Cara Main:**\n"
+            "1. Ada 10 soal emoji, penuh teka-teki dan harapan.\n"
+            "2. Siapa cepat dia dapat, tapi kadang yang cepat pun tak dianggap. 🕊️\n"
+            "3. Jawaban benar dapet 25 RSWN, karena hidup butuh semangat (dan receh).\n"
+            "4. Jawab semuanya benar? Kamu pantas dapet bonus 50 RSWN dan mungkin... rasa bangga yang singkat.\n"
+            "5. Minimal 2 peserta, biar nggak terlalu sepi kayak hati ini.\n\n"
+            "Kalau kamu baca ini dan tertarik... yuk, klik tombol di bawah. Biar usaha kami gak sia-sia sepenuhnya. 🌙"
+           ),
+           color=0x2f3136
         )
 
         view = discord.ui.View()
