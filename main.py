@@ -10,7 +10,7 @@ import json
 from io import BytesIO
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from hangman import hangman
+from hangman import Hangman
 
 load_dotenv()
 
