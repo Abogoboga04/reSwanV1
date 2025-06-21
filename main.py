@@ -2,17 +2,16 @@ import discord
 from discord.ext import commands
 import aiohttp
 import base64
-import logging
 import os
 import io
 import asyncio
 import json
-from io import BytesIO
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Fungsi untuk menyimpan cookies dari environment variable
 def save_cookies_from_env():
     encoded = os.getenv("COOKIES_BASE64")
     if not encoded:
@@ -29,8 +28,8 @@ def save_cookies_from_env():
 # Koneksi ke MongoDB
 mongo_uri = os.getenv("MONGODB_URI")  # Pastikan variabel ini sudah diatur
 client = MongoClient(mongo_uri)
-db = client["reSwan"]  # Nama database
-collection = db["Data collection"]  # Nama koleksi
+db = client["reSwan"]
+collection = db["Data collection"]
 
 # Import fungsi keep_alive jika Anda menggunakan Replit
 from keep_alive import keep_alive
@@ -49,115 +48,124 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"🤖 Bot {bot.user} is now online!")
 
-# Command untuk backup data dari folder data/ dan config/
-@bot.command()
-async def backupnow(ctx):
-    backup_data = {}
+# Kelas Cog Hangman
+class Hangman(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.active_games = {}
+        self.bank_data = self.load_bank_data()
+        self.level_data = self.load_level_data()
+        self.questions = self.load_hangman_data()
+        print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")  # Debug: jumlah pertanyaan
+        self.game_channel_id = 1379458566452154438  # Ganti dengan ID channel yang diizinkan
 
-    # Backup semua file JSON dari folder data/
-    data_folder = 'data/'
-    config_folder = 'config/'
+    def load_bank_data(self):
+        with open('data/bank_data.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
 
-    # Backup file dari folder data/
-    for filename in os.listdir(data_folder):
-        if filename.endswith('.json'):
-            file_path = os.path.join(data_folder, filename)
-            with open(file_path, 'r') as f:
-                try:
-                    json_data = json.load(f)
-                    backup_data[filename] = json_data
-                    print(f"✅ File {filename} berhasil dibaca dari data/")
-                except json.JSONDecodeError:
-                    await ctx.send(f"❌ Gagal membaca file {filename} dari data/")
-                    print(f"❌ Gagal membaca file {filename} dari data/")
+    def load_level_data(self):
+        with open('data/level_data.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
 
-    # Backup file dari folder config/
-    for filename in os.listdir(config_folder):
-        if filename.endswith('.json'):
-            file_path = os.path.join(config_folder, filename)
-            with open(file_path, 'r') as f:
-                try:
-                    json_data = json.load(f)
-                    backup_data[filename] = json_data
-                    print(f"✅ File {filename} berhasil dibaca dari config/")
-                except json.JSONDecodeError:
-                    await ctx.send(f"❌ Gagal membaca file {filename} dari config/")
-                    print(f"❌ Gagal membaca file {filename} dari config/")
+    def load_hangman_data(self):
+        current_dir = os.path.dirname(__file__)
+        file_path = os.path.join(current_dir, "data", "questions_hangman.json")
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data["questions"]
 
-    # Simpan data backup ke dalam koleksi MongoDB
-    if backup_data:
-        try:
-            print(f"✅ Data yang akan disimpan ke MongoDB: {backup_data}")  # Logging data sebelum disimpan
-            result = collection.insert_one({"backup": backup_data})
-            
-            if result.inserted_id:
-                print(f"✅ Data backup berhasil disimpan ke MongoDB dengan ID: {result.inserted_id}")
-
-                # Kirim data ke pengguna dengan ID tertentu
-                user_id = 1000737066822410311  # Ganti dengan ID pengguna kamu
-                user = await bot.fetch_user(user_id)
-                await user.send(f"Backup Data: {json.dumps(backup_data, indent=4)}")
-                print(f"✅ Data backup berhasil dikirim ke DM pengguna dengan ID {user_id}.")
-                await ctx.send("✅ Data backup berhasil disimpan dan dikirim ke DM!")
-            else:
-                await ctx.send("❌ Gagal menyimpan data ke MongoDB, ID tidak ditemukan.")
-        except Exception as e:
-            await ctx.send("❌ Gagal menyimpan data ke MongoDB.")
-            print(f"❌ Gagal menyimpan data ke MongoDB: {e}")
-    else:
-        await ctx.send("❌ Tidak ada data untuk dibackup.")
-
-# Command untuk mengirim data backup ke DM
-@bot.command()
-async def sendbackup(ctx):
-    user_id = 1000737066822410311  # Ganti dengan ID kamu
-    user = await bot.fetch_user(user_id)
-
-    try:
-        stored_data = collection.find_one(sort=[('_id', -1)])
-        if not stored_data or 'backup' not in stored_data:
-            await ctx.send("❌ Tidak ada data backup yang tersedia.")
+    @commands.command(name="resman", help="Mulai permainan Hangman.")
+    async def resman(self, ctx):
+        if ctx.channel.id != self.game_channel_id:
+            await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
             return
 
-        backup_data = stored_data["backup"]
-        await ctx.send("📤 Mengirim file backup satu per satu ke DM...")
+        if ctx.author.id in self.active_games:
+            await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
+            return
 
-        for filename, content in backup_data.items():
-            string_buffer = io.StringIO()
-            json.dump(content, string_buffer, indent=4, ensure_ascii=False)
-            string_buffer.seek(0)
+        self.active_games[ctx.author.id] = {
+            "score": 0,
+            "correct": 0,
+            "wrong": 0,
+            "current_question": 0,
+            "time_limit": 120,  # 2 menit
+            "game_over": False,
+            "answers": []
+        }
 
-            byte_buffer = io.BytesIO(string_buffer.read().encode('utf-8'))
-            byte_buffer.seek(0)
+        await ctx.send(f"{ctx.author.mention}, permainan Hangman dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
+        await self.play_game(ctx)
 
-            file = discord.File(fp=byte_buffer, filename=filename)
+    async def play_game(self, ctx):
+        game_data = self.active_games[ctx.author.id]
+        game_data["question"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
 
-            try:
-                await user.send(content=f"📄 Berikut file backup: **{filename}**", file=file)
-            except discord.HTTPException as e:
-                await ctx.send(f"❌ Gagal kirim file {filename}: {e}")
+        for index, question in enumerate(game_data["question"]):
+            if game_data["game_over"]:
+                break
+            
+            game_data["current_question"] = index + 1
+            await self.ask_question(ctx, question)
 
-        await ctx.send("✅ Semua file backup berhasil dikirim ke DM!")
+        if not game_data["game_over"]:
+            await self.end_game(ctx)
 
-    except discord.Forbidden:
-        await ctx.send("❌ Gagal mengirim DM. Pastikan saya dapat mengirim DM ke pengguna ini.")
-    except Exception as e:
-        await ctx.send("❌ Terjadi kesalahan saat mengambil data backup.")
-        print(f"❌ Error: {e}")
+    async def ask_question(self, ctx, question):
+        game_data = self.active_games[ctx.author.id]
 
+        embed = discord.Embed(
+            title=f"❓ Pertanyaan {game_data['current_question']}",
+            description=(
+                f"Kategori: **{question['category']}**\n"
+                f"Kisi-kisi: {question['clue']}\n"
+                f"Sebutkan satu kata: **{'_' * len(question['word'])}**"
+            ),
+            color=0x00ff00
+        )
+
+        await ctx.send(embed=embed)
+
+        try:
+            def check(m):
+                return m.author == ctx.author and m.channel == ctx.channel
+
+            user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
+
+            if user_answer.content.strip().lower() == question['word'].lower():
+                game_data["correct"] += 1
+                await ctx.send("✅ Jawaban Benar!")
+            else:
+                game_data["wrong"] += 1
+                await ctx.send("❌ Jawaban Salah.")
+
+            if game_data["current_question"] == 10:
+                await self.end_game(ctx)
+
+        except asyncio.TimeoutError:
+            await ctx.send("Waktu habis! Permainan berakhir.")
+            game_data["game_over"] = True
+            await self.end_game(ctx)
+
+    async def end_game(self, ctx):
+        game_data = self.active_games.pop(ctx.author.id, None)
+        if game_data:
+            embed = discord.Embed(
+                title="📝 Hasil Permainan Hangman",
+                color=0x00ff00
+            )
+            embed.add_field(name="Jawaban Benar", value=game_data['correct'])
+            embed.add_field(name="Jawaban Salah", value=game_data['wrong'])
+
+            await ctx.send(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(Hangman(bot))
 
 # Muat semua cog yang ada
 async def load_cogs():
     try:
-        await bot.load_extension("cogs.leveling")
-        await bot.load_extension("cogs.shop")
-        await bot.load_extension("cogs.quizz")
-        await bot.load_extension("cogs.music")
-        await bot.load_extension("cogs.itemmanage")
-        await bot.load_extension("cogs.moderation")
-        await bot.load_extension("cogs.emojiquiz")
-        await bot.load_extension("cogs.kuisaja")
-        await bot.load_extension("cogs.hangman")
+        await setup(bot)  # Memuat cog Hangman
         print("✅ Semua cogs berhasil dimuat.")
     except Exception as e:
         print(f"❌ Gagal memuat cogs: {e}")
@@ -165,8 +173,6 @@ async def load_cogs():
 # Gunakan setup_hook agar loop dan tasks bisa jalan
 @bot.event
 async def setup_hook():
-    await load_cogs()
-    print("🔁 Memulai setup_hook dan load cogs...")
     await load_cogs()
     print("✅ Selesai setup_hook dan semua cogs dicoba load.")
 
