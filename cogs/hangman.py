@@ -9,7 +9,6 @@ from io import BytesIO
 
 print("🔍 hangman.py sedang di-load...")
 
-
 class Hangman(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -20,8 +19,6 @@ class Hangman(commands.Cog):
         
         # Debug: cek jumlah pertanyaan yang dimuat
         print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")  # Debug: jumlah pertanyaan
-
-        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -40,7 +37,6 @@ class Hangman(commands.Cog):
 
     async def get_user_image(self, ctx, user_data):
         """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
-        # Mengambil URL gambar
         custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
 
         # Cek validitas URL gambar
@@ -61,10 +57,8 @@ class Hangman(commands.Cog):
 
     @commands.command(name="resman", help="Mulai permainan Hangman.")
     async def resman(self, ctx):
-        if ctx.channel.id != self.game_channel_id:
-            await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
-            return
-
+        print(f"Command !resman dipanggil oleh {ctx.author.display_name}.")  # Debugging
+        
         if ctx.author.id in self.active_games:
             await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
             return
@@ -218,3 +212,4 @@ class Hangman(commands.Cog):
 async def setup(bot):
     print("🔍 hangman.py sedang di-load...")
     await bot.add_cog(Hangman(bot))
+    print("✅ Hangman Cog berhasil dimuat.")
