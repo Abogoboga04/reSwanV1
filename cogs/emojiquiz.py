@@ -138,26 +138,22 @@ class EmojiQuiz(commands.Cog):
     async def evaluate_answers(self, ctx, question):
         if not self.question_active:
             return
-        
+
         correct_answer = question['answer'].strip().lower()
-        answer_found = False
+        no_one_answered = True
 
         for participant in self.participants:
             if participant.id in self.current_answers:
                 user_answer = self.current_answers[participant.id].strip().lower()
-
                 if user_answer == correct_answer:
-                    self.correct_count[participant.id] += 1
-                    self.bank_data[str(participant.id)]['balance'] += 25
-                    await ctx.send(f"✅ {participant.mention} menjawab dengan benar! Jawabannya: **{correct_answer}**")
-                    answer_found = True
+                    no_one_answered = False
                     break
 
-        await asyncio.sleep(2)
-
-        if answer_found:
-            await ctx.send("➡️ Pertanyaan berikutnya...")
         self.question_active = False
+        if no_one_answered:
+            await ctx.send(f"❌ Tidak ada yang menjawab benar. Jawabannya: **{correct_answer}**")
+            await asyncio.sleep(1)
+            await ctx.send("➡️ Pertanyaan berikutnya...")
 
     async def end_quiz(self, ctx):  # <-- yang kamu minta
         for message in self.messages:
@@ -242,7 +238,7 @@ class EmojiQuiz(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot or not self.quiz_active:
+        if message.author.bot or not self.quiz_active or not self.question_active:
             return
 
         if message.author in self.participants and self.current_question:
@@ -251,9 +247,22 @@ class EmojiQuiz(commands.Cog):
                 return
 
             user_answer = message.content.strip().lower()
-            if user_answer not in self.current_answers.values():
-                self.current_answers[message.author.id] = user_answer
-                await self.evaluate_answers(message.channel, self.current_question)
+            correct_answer = self.current_question['answer'].strip().lower()
+
+            if user_answer == correct_answer:
+                if message.author.id not in self.current_answers:
+                    self.current_answers[message.author.id] = user_answer
+                    self.correct_count[message.author.id] += 1
+                    self.bank_data[str(message.author.id)]['balance'] += 25
+                    await message.channel.send(f"✅ {message.author.mention} menjawab dengan benar! Jawabannya: **{correct_answer}**")
+
+                    self.question_active = False  # Hentikan soal
+                    await asyncio.sleep(1)
+                    await message.channel.send("➡️ Pertanyaan berikutnya...")
+            else:
+                if message.author.id not in self.current_answers:
+                    self.current_answers[message.author.id] = user_answer
+
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
