@@ -12,6 +12,7 @@ print("🔍 hangman.py sedang di-load...")
 
 class Hangman(commands.Cog):
     def __init__(self, bot):
+        print("🔍 hangman.py di init. py sedang di-load...")
         self.bot = bot
         self.active_games = {}
         self.bank_data = self.load_bank_data()
