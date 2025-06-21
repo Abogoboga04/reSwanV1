@@ -145,10 +145,14 @@ class Hangman(commands.Cog):
                 "current_question": 0,
                 "time_limit": 180,  # 3 menit total untuk 10 soal
                 "start_time": None,
-                "question": None,
+                "questions": [],  # Menyimpan pertanyaan yang akan diacak
                 "game_over": False,
                 "answers": []
             }
+
+            # Ambil 10 soal acak dari pertanyaan yang tersedia
+            game_data = self.active_games[ctx.author.id]
+            game_data["questions"] = random.sample(self.questions, 10)
 
             await ctx.send(f"{ctx.author.mention}, permainan Hangman dimulai! Anda memiliki 3 menit untuk menjawab 10 soal.")
             await self.play_game(ctx, voice_members)
@@ -171,16 +175,11 @@ class Hangman(commands.Cog):
         game_data["start_time"] = asyncio.get_event_loop().time()
 
         # Cek apakah ada pertanyaan yang tersedia
-        if not self.questions:
+        if not game_data["questions"]:
             await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan questions_hangman.json diisi dengan benar.")
             return
 
         print(f"Jumlah pertanyaan yang tersedia: {len(self.questions)}")  # Debug: jumlah pertanyaan
-        if len(self.questions) < 10:
-            await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di questions_hangman.json.")
-            return
-
-        game_data["questions"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
 
         for index, question in enumerate(game_data["questions"]):
             if game_data["game_over"]:
@@ -224,8 +223,7 @@ class Hangman(commands.Cog):
             await self.end_game(ctx)
             return
 
-        # Cek jawaban dari peserta yang ada di voice channel
-        correct_answers = []
+        participant_correct = False  # Menandakan apakah ada peserta yang menjawab benar
         for member in voice_members:
             if member.id in self.active_games:
                 try:
@@ -234,8 +232,9 @@ class Hangman(commands.Cog):
                         if user_answer.content.strip().lower() == question['word'].lower():
                             game_data["correct"] += 1
                             game_data["answers"].append(user_answer.content.strip().lower())  # Simpan jawaban yang benar
-                            correct_answers.append(member)
+                            participant_correct = True
                             await ctx.send(f"✅ Jawaban Benar dari {member.display_name}!")
+                            break  # Langsung lanjut ke soal berikutnya jika ada yang benar
                         else:
                             game_data["wrong"] += 1
                             await ctx.send(f"❌ Jawaban Salah dari {member.display_name}.")
@@ -243,7 +242,7 @@ class Hangman(commands.Cog):
                     continue  # Jika waktu habis, abaikan dan lanjutkan
 
         # Jika tidak ada jawaban benar, soal akan berlanjut
-        if not correct_answers:
+        if not participant_correct:
             await ctx.send("Tidak ada jawaban benar, soal berlanjut.")
 
         # Lanjut ke pertanyaan berikutnya
