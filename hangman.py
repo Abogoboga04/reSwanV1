@@ -8,7 +8,7 @@ import aiohttp
 from io import BytesIO
 
 print("🔍 hangman.py sedang di-load...")
-print(f"Command yang terdaftar: {[command.name for command in bot.commands]}")
+
 
 class Hangman(commands.Cog):
     def __init__(self, bot):
