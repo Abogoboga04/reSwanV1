@@ -155,7 +155,7 @@ async def backupnow(ctx):
     else:
         await ctx.send("❌ Tidak ada data untuk dibackup.")
 
-@bot.command(name="resman", help="Mulai permainan Hangman.")
+@command.command(name="resman", help="Mulai permainan Hangman.")
     async def resman(self, ctx):
         if ctx.channel.id != self.game_channel_id:
             await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
