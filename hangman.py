@@ -59,7 +59,7 @@ class Hangman(commands.Cog):
                     return BytesIO(await resp.read())
 
     @app_commands.command(name="resman", help="Mulai permainan Hangman.")
-    async def resman(self, interaction: discord.Interaction):
+    async def resman(self, ctx):
         print(f"Command !resman dipanggil oleh {ctx.author.display_name}.")  # Debugging
         
         if ctx.author.id in self.active_games:
