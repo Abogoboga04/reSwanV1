@@ -7,9 +7,9 @@ import os
 import aiohttp
 from io import BytesIO
 
-print("🔍 hangman.py sedang di-load...")
+print("🔍 resgame.py sedang di-load...")
 
-class Hangman(commands.Cog):
+class ResGame(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_games = {}
@@ -56,14 +56,14 @@ class Hangman(commands.Cog):
                 async with session.get(default_image_url) as resp:
                     return BytesIO(await resp.read())
 
-    @discord.app_commands.command(name="resman", description="Mulai permainan Hangman.")
-    async def resman(self, interaction: discord.Interaction):
-        if interaction.channel.id != self.game_channel_id:
-            await interaction.response.send_message("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
+    @commands.command(name="resgame", description="Menampilkan cara bermain Hangman.")
+    async def resgame(self, ctx):
+        if ctx.channel.id != self.game_channel_id:
+            await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
             return
 
-        if interaction.user.id in self.active_games:
-            await interaction.response.send_message("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
+        if ctx.author.id in self.active_games:
+            await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
             return
 
         embed = discord.Embed(
@@ -76,74 +76,60 @@ class Hangman(commands.Cog):
                 "✨ *Dev udah bikin fitur. Admin udah promosi. Tapi server tetap sepi...*\n\n"
                 "Kadang rasanya seperti teriak dalam ruangan kosong. Nggak ada yang jawab. Cuma gema yang balas.\n"
                 "Tapi kalau kamu masih di sini... mungkin kamu satu-satunya harapan yang tersisa. 🕯️\n\n"
-                "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
+                "Jika kamu siap untuk menantang diri, gunakan command `!start` untuk memulai permainan."
             ),
             color=0x5500aa
         )
 
-        view = discord.ui.View()
-        start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
+        await ctx.send(embed=embed)
 
-        async def start_game(interaction: discord.Interaction):
-            if interaction.user.id in self.active_games:
-                await interaction.response.send_message("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
-                return
+    @commands.command(name="start", description="Mulai permainan Hangman.")
+    async def start(self, ctx):
+        if ctx.author.id in self.active_games:
+            await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
+            return
 
-            self.active_games[interaction.user.id] = {
-                "score": 0,
-                "correct": 0,
-                "wrong": 0,
-                "current_question": 0,
-                "time_limit": 120,  # 2 menit
-                "start_time": None,
-                "question": None,
-                "game_over": False,
-                "answers": []
-            }
+        self.active_games[ctx.author.id] = {
+            "score": 0,
+            "correct": 0,
+            "wrong": 0,
+            "current_question": 0,
+            "time_limit": 120,  # 2 menit
+            "start_time": None,
+            "questions": None,
+            "game_over": False,
+            "answers": []
+        }
 
-            await interaction.response.send_message(f"{interaction.user.mention}, permainan Hangman dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
-            await self.play_game(interaction)
+        await ctx.send(f"{ctx.author.mention}, permainan Hangman dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
+        await self.play_game(ctx)
 
-        start_button.callback = start_game
-        view.add_item(start_button)
-
-        message = await interaction.response.send_message(embed=embed, view=view)
-
-        # Tunggu 1 menit sebelum reset jika tidak ada yang menekan tombol
-        await asyncio.sleep(60)
-        if interaction.user.id not in self.active_games:
-            await message.delete()
-            await interaction.channel.send("Waktu habis! Permainan Hangman di-reset. Silakan coba lagi.")
-        else:
-            await message.delete()  # Hapus pesan instruksi jika game dimulai
-
-    async def play_game(self, interaction):
-        game_data = self.active_games[interaction.user.id]
+    async def play_game(self, ctx):
+        game_data = self.active_games[ctx.author.id]
         game_data["start_time"] = asyncio.get_event_loop().time()
 
         if not self.questions:
-            await interaction.channel.send("Tidak ada pertanyaan yang tersedia. Pastikan questions_hangman.json diisi dengan benar.")
+            await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan questions_hangman.json diisi dengan benar.")
             return
 
-        print(f"Jumlah pertanyaan yang tersedia: {len(self.questions)}")  # Debug: jumlah pertanyaan
         if len(self.questions) < 10:
-            await interaction.channel.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di questions_hangman.json.")
+            await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di questions_hangman.json.")
             return
 
-        game_data["question"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
+        game_data["questions"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
 
-        for index, question in enumerate(game_data["question"]):
+        for index, question in enumerate(game_data["questions"]):
             if game_data["game_over"]:
                 break
 
             game_data["current_question"] = index + 1
-            await self.ask_question(interaction, question)
+            await self.ask_question(ctx, question)
 
         if not game_data["game_over"]:
-            await self.end_game(interaction)
+            await self.end_game(ctx)
 
-    async def ask_question(self, interaction, question):
-        game_data = self.active_games[interaction.user.id]
+    async def ask_question(self, ctx, question):
+        game_data = self.active_games[ctx.author.id]
 
         embed = discord.Embed(
             title=f"❓ Pertanyaan {game_data['current_question']}",
@@ -155,55 +141,55 @@ class Hangman(commands.Cog):
             color=0x00ff00
         )
         
-        await interaction.channel.send(embed=embed)
+        await ctx.send(embed=embed)
 
         try:
             def check(m):
-                return m.author == interaction.user and m.channel == interaction.channel
+                return m.author == ctx.author and m.channel == ctx.channel
 
             user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
 
             if user_answer.content.strip().lower() == question['word'].lower():
                 game_data["correct"] += 1
                 game_data["answers"].append(user_answer.content.strip().lower())
-                await interaction.channel.send("✅ Jawaban Benar!")
+                await ctx.send("✅ Jawaban Benar!")
             else:
                 game_data["wrong"] += 1
-                await interaction.channel.send("❌ Jawaban Salah.")
+                await ctx.send("❌ Jawaban Salah.")
 
             if game_data["current_question"] == 10:
-                await self.end_game(interaction)
+                await self.end_game(ctx)
 
         except asyncio.TimeoutError:
-            await interaction.channel.send("Waktu habis! Permainan berakhir.")
+            await ctx.send("Waktu habis! Permainan berakhir.")
             game_data["game_over"] = True
-            await self.end_game(interaction)
+            await self.end_game(ctx)
 
     def display_word(self, word, guessed_letters):
         displayed_word = ''.join([letter if letter in guessed_letters else '_' for letter in word])
         return displayed_word
 
-    async def end_game(self, interaction):
-        game_data = self.active_games.pop(interaction.user.id, None)
+    async def end_game(self, ctx):
+        game_data = self.active_games.pop(ctx.author.id, None)
         if game_data:
-            initial_balance = self.bank_data[str(interaction.user.id)]['balance']
+            initial_balance = self.bank_data[str(ctx.author.id)]['balance']
             final_balance = initial_balance + (game_data['correct'] * 25) + (50 if game_data['correct'] == 10 else 0)
 
             embed = discord.Embed(
                 title="📝 Hasil Permainan Hangman",
                 color=0x00ff00
             )
-            embed.add_field(name="Nama", value=interaction.user.display_name)
+            embed.add_field(name="Nama", value=ctx.author.display_name)
             embed.add_field(name="Jawaban Benar", value=game_data['correct'])
             embed.add_field(name="Jawaban Salah", value=game_data['wrong'])
             embed.add_field(name="Saldo RSWN Awal", value=initial_balance)
             embed.add_field(name="Saldo RSWN Akhir", value=final_balance)
 
-            user_data = self.level_data.get(str(interaction.guild.id), {}).get(str(interaction.user.id), {})
-            image_data = await self.get_user_image(interaction, user_data)
+            user_data = self.level_data.get(str(ctx.guild.id), {}).get(str(ctx.author.id), {})
+            image_data = await self.get_user_image(ctx, user_data)
 
-            await interaction.channel.send(file=discord.File(image_data, "avatar.png"), embed=embed)
+            await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
 async def setup(bot):
-    print("🔍 hangman.py sedang di-load...")
-    await bot.add_cog(Hangman(bot))
+    print("🔍 resgame.py sedang di-load...")
+    await bot.add_cog(ResGame(bot))
