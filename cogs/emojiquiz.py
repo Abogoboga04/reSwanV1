@@ -150,6 +150,7 @@ class EmojiQuiz(commands.Cog):
     @commands.command(name="resplis", help="Membeli bantuan untuk jawaban pertanyaan saat ini.")
     async def resplis(self, ctx):
         user_id = ctx.author.id
+
         if user_id not in self.bank_data:
             await ctx.send("Anda tidak memiliki akun di sistem ini.")
             return
@@ -160,13 +161,13 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
             return
 
-        user_data['balance'] -= self.bantuan_price
+        user_data['balance'] -= self.bantuan_price  # Mengurangi saldo RSWN
 
         # Mengambil jawaban dari pertanyaan saat ini
         current_question_index = self.active_games[ctx.channel.id]["current_question"]
         current_question = self.active_games[ctx.channel.id]["questions"][current_question_index]
 
-        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
+        await ctx.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.channel.id]
