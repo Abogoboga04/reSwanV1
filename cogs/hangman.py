@@ -19,6 +19,8 @@ class Hangman(commands.Cog):
         # Debug: cek jumlah pertanyaan yang dimuat
         print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")
 
+        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
             try:
@@ -87,23 +89,16 @@ class Hangman(commands.Cog):
                 async with session.get(default_image_url) as resp:
                     return BytesIO(await resp.read())
 
-    @commands.command(name="hangman", help="Mulai permainan Hangman.")
+    @commands.command(name="resman", help="Mulai permainan Hangman.")
     async def hangman(self, ctx):
-        # Pastikan pengguna berada di voice channel
-        if ctx.author.voice is None:
-            await ctx.send("Anda harus berada dalam ruangan suara untuk bermain Hangman.")
-            return
-        
-        # Pastikan command dijalankan di teks channel yang sesuai
-        if ctx.channel.id != ctx.author.voice.channel.id:
-            await ctx.send("Command ini hanya dapat dijalankan di teks channel yang terkait dengan ruangan suara Anda.")
+        if ctx.channel.id != self.game_channel_id:
+            await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
             return
 
         if ctx.author.id in self.active_games:
             await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
             return
 
-        # Menyimpan skor untuk peserta yang ingin bermain
         self.scores[ctx.author.id] = {
             "score": 0,
             "correct": 0,
@@ -117,8 +112,10 @@ class Hangman(commands.Cog):
                 "Selamat datang di Dunia Sunyi Hangman! 🖤🌧️\n\n"
                 "Di sini, kamu tak hanya menebak kata... tapi juga menebak makna dari kesepian yang tak bertepi.\n"
                 "Jawablah satu per satu, berharap RSWN bisa sedikit mengisi kekosongan itu.\n"
-                "Selesaikan 10 soal dalam 3 menit... jika Anda masih memiliki semangat itu.\n\n"
-                "✨ *Dev udah bikin fitur. Admin udah promosi. Tapi server tetap sepi...*\n\n"
+                "Selesaikan 10 soal dalam 2 menit... kalau kamu masih punya semangat itu.\n\n"
+                "✨ *Dev bot udah bikin fitur. Admin & moderator udah berusaha. Tapi server tetap sepi...*\n\n"
+                "Kadang rasanya seperti teriak dalam ruangan kosong. Nggak ada yang jawab. Cuma gema yang balas.\n"
+                "Tapi kalau kamu masih di sini... mungkin kamu satu-satunya harapan yang tersisa. 🕯️\n\n"
                 "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
             ),
             color=0x5500aa
@@ -132,30 +129,20 @@ class Hangman(commands.Cog):
                 await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
                 return
 
-            # Menentukan peserta yang ada di voice channel
-            voice_members = [member for member in ctx.author.voice.channel.members if not member.bot]
-            if len(voice_members) < 1:
-                await ctx.send("Tidak ada peserta lain yang dapat bermain. Minimal 1 peserta diperlukan.")
-                return
-            
             self.active_games[ctx.author.id] = {
                 "score": 0,
                 "correct": 0,
                 "wrong": 0,
                 "current_question": 0,
-                "time_limit": 180,  # 3 menit total untuk 10 soal
+                "time_limit": 120,  # 2 menit
                 "start_time": None,
-                "questions": [],  # Menyimpan pertanyaan yang akan diacak
+                "question": None,
                 "game_over": False,
                 "answers": []
             }
 
-            # Ambil 10 soal acak dari pertanyaan yang tersedia
-            game_data = self.active_games[ctx.author.id]
-            game_data["questions"] = random.sample(self.questions, 10)
-
-            await ctx.send(f"{ctx.author.mention}, permainan Hangman dimulai! Anda memiliki 3 menit untuk menjawab 10 soal.")
-            await self.play_game(ctx, voice_members)
+            await ctx.send(f"{ctx.author.mention}, permainan Hangman dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
+            await self.play_game(ctx)
 
         start_button.callback = start_game
         view.add_item(start_button)
@@ -170,85 +157,72 @@ class Hangman(commands.Cog):
         else:
             await message.delete()  # Hapus pesan instruksi jika game dimulai
 
-    async def play_game(self, ctx, voice_members):
+    async def play_game(self, ctx):
         game_data = self.active_games[ctx.author.id]
         game_data["start_time"] = asyncio.get_event_loop().time()
 
         # Cek apakah ada pertanyaan yang tersedia
-        if not game_data["questions"]:
+        if not self.questions:
             await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan questions_hangman.json diisi dengan benar.")
             return
 
         print(f"Jumlah pertanyaan yang tersedia: {len(self.questions)}")  # Debug: jumlah pertanyaan
+        if len(self.questions) < 10:
+            await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di questions_hangman.json.")
+            return
 
-        for index, question in enumerate(game_data["questions"]):
+        game_data["question"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
+
+        for index, question in enumerate(game_data["question"]):
             if game_data["game_over"]:
                 break
 
             game_data["current_question"] = index + 1
-            await self.ask_question(ctx, question, voice_members)
+            await self.ask_question(ctx, question)
 
         if not game_data["game_over"]:
             await self.end_game(ctx)
 
-    async def ask_question(self, ctx, question, voice_members):
+    async def ask_question(self, ctx, question):
         game_data = self.active_games[ctx.author.id]
 
         embed = discord.Embed(
             title=f"❓ Pertanyaan {game_data['current_question']}",
             description=(
                 f"Kategori: **{question['category']}**\n"
-                f"Kisi-kisi: {question['clue']} \n"
-                f"Sebutkan satu kata: **{self.display_word(question['word'], game_data['answers'])}**\n"
-                f"Waktu: **15 detik**"
+                f"Kisi-kisi: {question['clue']}\n"
+                f"Sebutkan satu kata: **{self.display_word(question['word'], game_data['answers'])}**"
             ),
             color=0x00ff00
         )
         
-        question_message = await ctx.send(embed=embed)
+        await ctx.send(embed=embed)
 
-        # Timer untuk 15 detik
-        for remaining in range(15, 0, -1):
-            embed.description = (
-                f"Kategori: **{question['category']}**\n"
-                f"Kisi-kisi: {question['clue']}\n"
-                f"Sebutkan satu kata: **{self.display_word(question['word'], game_data['answers'])}**\n"
-                f"Waktu: **{remaining} detik**"
-            )
-            await question_message.edit(embed=embed)
-            await asyncio.sleep(1)
+        # Menunggu jawaban dalam waktu yang ditentukan
+        try:
+            def check(m):
+                # Setiap orang di channel dapat menjawab
+                return m.channel == ctx.channel
 
-        # Cek jawaban setelah waktu habis
-        if game_data["current_question"] == 10:
-            await self.end_game(ctx)
-            return
+            while True:
+                user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
 
-        participant_correct = False  # Menandakan apakah ada peserta yang menjawab benar
-        for member in voice_members:
-            if member.id in self.active_games:
-                try:
-                    user_answer = await self.bot.wait_for('message', timeout=15.0)
-                    if user_answer.author == member and user_answer.channel == ctx.channel:
-                        if user_answer.content.strip().lower() == question['word'].lower():
-                            game_data["correct"] += 1
-                            game_data["answers"].append(user_answer.content.strip().lower())  # Simpan jawaban yang benar
-                            participant_correct = True
-                            await ctx.send(f"✅ Jawaban Benar dari {member.display_name}!")
-                            break  # Langsung lanjut ke soal berikutnya jika ada yang benar
-                        else:
-                            game_data["wrong"] += 1
-                            await ctx.send(f"❌ Jawaban Salah dari {member.display_name}.")
-                except asyncio.TimeoutError:
-                    continue  # Jika waktu habis, abaikan dan lanjutkan
+                # Cek jawaban
+                if user_answer.content.strip().lower() == question['word'].lower():
+                    game_data["correct"] += 1
+                    game_data["answers"].append(user_answer.content.strip().lower())  # Simpan jawaban yang benar
+                    await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+                    break  # Langsung lanjut ke soal berikutnya jika ada yang benar
+                else:
+                    game_data["wrong"] += 1
+                    await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
 
-        # Jika tidak ada jawaban benar, soal akan berlanjut
-        if not participant_correct:
-            await ctx.send("Tidak ada jawaban benar, soal berlanjut.")
+            if game_data["current_question"] == 10:
+                await self.end_game(ctx)
 
-        # Lanjut ke pertanyaan berikutnya
-        if game_data["current_question"] < 10:
-            await self.ask_question(ctx, game_data["questions"][game_data["current_question"]], voice_members)
-        else:
+        except asyncio.TimeoutError:
+            await ctx.send("Waktu habis! Permainan berakhir.")
+            game_data["game_over"] = True
             await self.end_game(ctx)
 
     def display_word(self, word, guessed_letters):
