@@ -92,6 +92,11 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("Permainan EmojiQuiz hanya bisa dimainkan di channel yang ditentukan.")
             return
 
+        # Memeriksa apakah sesi aktif untuk pengguna lain
+        if any(game["user"].id == ctx.author.id for game in self.active_games.values()):
+            await ctx.send("Anda sudah sedang bermain EmojiQuiz. Silakan tunggu hingga selesai.")
+            return
+        
         if ctx.author.id in self.active_games:
             await ctx.send("Anda sudah sedang bermain EmojiQuiz. Silakan tunggu hingga selesai.")
             return
@@ -136,7 +141,8 @@ class EmojiQuiz(commands.Cog):
                 "start_time": None,
                 "questions": [],  # Menyimpan daftar pertanyaan
                 "game_over": False,
-                "answers": []
+                "answers": [],
+                "user": ctx.author  # Menyimpan pengguna yang memulai sesi
             }
 
             await ctx.send(f"{ctx.author.mention}, permainan EmojiQuiz dimulai! Anda memiliki 1 menit untuk menjawab setiap soal.")
