@@ -167,7 +167,7 @@ class EmojiQuiz(commands.Cog):
         current_question_index = self.active_games[ctx.channel.id]["current_question"]
         current_question = self.active_games[ctx.channel.id]["questions"][current_question_index]
 
-        await ctx.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
+        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")  # Kirim jawaban ke DM
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.channel.id]
