@@ -16,8 +16,6 @@ class EmojiQuiz(commands.Cog):
         self.current_answers = {}
         self.participants = []
         self.correct_count = {}
-        self.bantuan_used = {}
-        self.bantuan_price = 25
         self.quiz_active = False
         self.messages = []
         self.host = None
@@ -69,14 +67,13 @@ class EmojiQuiz(commands.Cog):
         embed = discord.Embed(
             title="😔 Kuis Emoji: Sebuah Harapan yang Tertinggal 😔",
             description=(
-                "Pernahkah kamu merasa bikin sesuatu dengan sepenuh hati... tapi yang datang cuma itu-itu aja? Yah, ini dia... kuis emoji dari admin dan dev yang masih percaya keajaiban itu ada. 😞💔\n\n"
+                "Kuis ini akan membawa kamu melalui serangkaian pertanyaan emoji. Siapa yang bisa menebak frasa dengan tepat? 🕊️\n"
                 "**Cara Main:**\n"
                 "1. Ada 10 soal emoji, penuh teka-teki dan harapan.\n"
-                "2. Siapa cepat dia dapat, tapi kadang yang cepat pun tak dianggap. 🕊️\n"
-                "3. Jawaban benar dapet 25 RSWN, karena hidup butuh semangat (dan receh).\n"
-                "4. Jawab semuanya benar? Kamu pantas dapet bonus 50 RSWN dan mungkin... rasa bangga yang singkat.\n"
-                "5. Minimal 2 peserta, biar nggak terlalu sepi kayak hati ini.\n\n"
-                "Kalau kamu baca ini dan tertarik... yuk, klik tombol di bawah. Biar usaha kami gak sia-sia sepenuhnya. 🌙"
+                "2. Setiap soal memiliki waktu 1 menit untuk dijawab.\n"
+                "3. Jawaban benar dapet 25 RSWN.\n"
+                "4. Minimal 2 peserta untuk memulai.\n"
+                "Kalau kamu tertarik, yuk, klik tombol di bawah!"
             ),
             color=0x2f3136
         )
@@ -99,17 +96,6 @@ class EmojiQuiz(commands.Cog):
         start_button.callback = start_quiz
         view.add_item(start_button)
 
-        help_button = discord.ui.Button(label="🆘 Beli Bantuan", style=discord.ButtonStyle.secondary)
-
-        async def buy_help(interaction):
-            if self.quiz_active:
-                await ctx.send("Kuis sudah dimulai!", ephemeral=True)
-            else:
-                await self.buy_help_function(ctx)
-
-        help_button.callback = buy_help
-        view.add_item(help_button)
-
         await ctx.send(embed=embed, view=view)
 
     async def start_quiz(self, ctx):
@@ -121,7 +107,7 @@ class EmojiQuiz(commands.Cog):
         for member in ctx.guild.members:
             if len(self.participants) >= 5:
                 break
-            if member != ctx.author and not member.bot and member.voice:
+            if member != ctx.author and not member.bot:
                 self.participants.append(member)
 
         if len(self.participants) < 2:
@@ -130,7 +116,6 @@ class EmojiQuiz(commands.Cog):
 
         for participant in self.participants:
             self.correct_count[participant.id] = 0
-            self.bantuan_used[participant.id] = 0
 
         questions_to_ask = random.sample(self.quiz_data, min(10, len(self.quiz_data)))
         for question in questions_to_ask:
@@ -151,7 +136,7 @@ class EmojiQuiz(commands.Cog):
         self.current_answers.clear()
         self.question_active = True
 
-        for i in range(15, 0, -1):
+        for i in range(60, 0, -1):  # 1 menit untuk menjawab
             embed.description = f"Tebak frasa ini: {question['emoji']}\nWaktu tersisa: {i} detik"
             await message.edit(embed=embed)
             await asyncio.sleep(1)
@@ -182,7 +167,8 @@ class EmojiQuiz(commands.Cog):
 
         if answer_found:
             await ctx.send("➡️ Pertanyaan berikutnya...")
-        self.question_active = False
+        else:
+            await ctx.send("➡️ Tidak ada yang menjawab, lanjut ke pertanyaan berikutnya.")
 
     async def end_quiz(self, ctx):
         for message in self.messages:
@@ -235,45 +221,6 @@ class EmojiQuiz(commands.Cog):
         self.correct_count.clear()
         self.current_answers.clear()
 
-    async def buy_help_function(self, ctx):
-        user_id = str(ctx.author.id)
-
-        if user_id not in self.bank_data:
-            self.bank_data[user_id] = {"balance": 0}
-
-        if user_id not in self.bantuan_used:
-            self.bantuan_used[user_id] = 0
-
-        if self.bantuan_used[user_id] >= 5:
-            await ctx.send("❌ Batas bantuan harian tercapai.", ephemeral=True)
-            return
-
-        if self.bank_data[user_id]['balance'] < self.bantuan_price:
-            await ctx.send("😢 Saldo RSWN tidak cukup.", ephemeral=True)
-            return
-
-        self.bank_data[user_id]['balance'] -= self.bantuan_price
-        self.bantuan_used[user_id] += 1
-
-        help_msg = await ctx.send("✅ Bantuan dibeli! Gunakan `!resplis` untuk melihat jawaban.", ephemeral=True)
-        await asyncio.sleep(2)
-        await help_msg.delete()
-
-    @commands.command(name="resplis", help="Gunakan bantuan untuk melihat jawaban.")
-    async def resplis(self, ctx):
-        user_id = str(ctx.author.id)
-        if user_id not in self.bantuan_used or self.bantuan_used[user_id] <= 0:
-            await ctx.send("Kamu belum beli bantuan!", ephemeral=True)
-            return
-
-        if self.current_question is None:
-            await ctx.send("Belum ada pertanyaan aktif!", ephemeral=True)
-            return
-
-        answer = self.current_question['answer']
-        await ctx.author.send(f"🔐 Jawaban: **{answer}**")
-        self.bantuan_used[user_id] -= 1
-
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot or not self.quiz_active:
@@ -284,14 +231,10 @@ class EmojiQuiz(commands.Cog):
             return
 
         if message.author in self.participants and self.current_question:
-            if message.author.voice is None:
-                await message.channel.send(f"{message.author.mention}, kamu harus di voice channel untuk menjawab!")
-                return
-
             user_answer = message.content.strip().lower()
             if message.author.id not in self.current_answers:
                 self.current_answers[message.author.id] = user_answer
-                await self.evaluate_answers(message.channel, self.current_question)
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
+    
