@@ -94,12 +94,17 @@ class EmojiQuiz(commands.Cog):
         embed = discord.Embed(
             title="🎮 Cara Bermain EmojiQuiz",
             description=(
-                "Selamat datang di Kuis Emoji! 🎉\n\n"
-                "Di sini, kamu akan diberikan emoji dan kamu harus menebak frasa yang sesuai.\n"
-                "Setiap peserta dapat menjawab, dan jika tidak ada yang benar dalam waktu 1 menit, soal akan dilanjutkan.\n"
-                "Gunakan command **!resplis** untuk membeli bantuan jika diperlukan (maksimal 8 per sesi).\n"
-                "Harga bantuan adalah 35 RSWN.\n"
-                "Siap untuk mulai? Klik tombol di bawah ini untuk memulai permainan."
+                "Selamat datang di **Kuis Emoji** — game buat kamu yang masih mau main meski server sepi... lagi. 💔\n\n"
+                "📌 Kamu akan dikasih 1 atau lebih emoji dari bot.\n"
+                "🫵 Tebak maksudnya, bisa 1–3 kata. Bebas.\n"
+                "⏳ Kalau gak ada yang jawab dalam 1 menit, soal langsung lanjut ke berikutnya.\n"
+                "🎁 Jawaban benar dapet **+30 RSWN**. Lumayan buat beli badge atau sekadar merasa berguna.\n\n"
+                "💸 Ngerasa buntu? Beli **bantuan** aja pake:\n"
+                "**!resplis** – Harga: 35 RSWN. Dibalas via DM.\n"
+                "*Bantuan gak dibatasin... karena kami ngerti, kadang kita butuh banyak petunjuk buat ngerti sesuatu.*\n\n"
+                "🖤 Terima kasih buat kalian yang masih sering nongol di sini...\n"
+                "Walau orangnya itu-itu aja, ... tapi hati kami tetap hangat karena kalian."
+                "\n\nKlik tombol di bawah ini kalau kamu siap... atau kalau cuma pengen ditemani sebentar sama bot ini."
             ),
             color=0x5500aa
         )
