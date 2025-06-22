@@ -161,13 +161,18 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
             return
 
-        user_data['balance'] -= self.bantuan_price  # Mengurangi saldo RSWN
+        # Mengurangi saldo RSWN
+        initial_balance = user_data['balance']
+        user_data['balance'] -= self.bantuan_price
+        final_balance = user_data['balance']
 
         # Mengambil jawaban dari pertanyaan saat ini
         current_question_index = self.active_games[ctx.channel.id]["current_question"]
         current_question = self.active_games[ctx.channel.id]["questions"][current_question_index]
 
-        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")  # Kirim jawaban ke DM
+        # Kirim jawaban ke DM pengguna
+        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
+        await ctx.author.send(f"✅ Pembelian bantuan berhasil! Saldo RSWN Anda berkurang dari **{initial_balance}** menjadi **{final_balance}**.")
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.channel.id]
@@ -266,10 +271,21 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
+        # Menampilkan gambar juara 1
+        if sorted_scores:
+            top_player = sorted_scores[0]['user']
+            avatar_url = top_player.avatar.url if top_player.avatar else None
+            image_url = top_player.image_url if hasattr(top_player, 'image_url') and top_player.image_url else avatar_url
+
+            # Kirim gambar juara 1
+            if image_url:
+                await ctx.send(image_url)  # Mengirim gambar sebagai pesan terpisah
+
         # Menampilkan peserta dari peringkat 1 hingga 5
         for i, score in enumerate(sorted_scores[:5], start=1):  # Hanya 5 peserta teratas
+            user = score['user']
             embed.add_field(
-                name=f"{i}. {score['user'].display_name}",
+                name=f"{i}. {user.display_name}",
                 value=(
                     f"Saldo Akhir: {score['score']}\n"
                     f"Jawaban Benar: {score['correct']}\n"
@@ -283,3 +299,4 @@ class EmojiQuiz(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
+    
