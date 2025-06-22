@@ -69,24 +69,6 @@ class EmojiQuiz(commands.Cog):
                 print(f"Error loading quiz data: {e}")
                 return []
 
-    async def get_user_image(self, ctx, user_data):
-        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
-        custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(custom_image_url) as resp:
-                    if resp.status == 200:
-                        image_data = BytesIO(await resp.read())
-                        return image_data
-                    else:
-                        raise Exception("Invalid image URL")
-        except Exception:
-            default_image_url = str(ctx.author.avatar.url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(default_image_url) as resp:
-                    return BytesIO(await resp.read())
-
     @commands.command(name="resmoji", help="Mulai permainan EmojiQuiz.")
     async def resmoji(self, ctx):
         if ctx.channel.id != self.game_channel_id:
@@ -237,10 +219,9 @@ class EmojiQuiz(commands.Cog):
                         game_data["correct"] += 1
                         await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
                         # Tambahkan reward untuk jawaban benar
-                        self.scores[user_answer.author.id]['score'] += self.reward_per_correct_answer
+                        self.scores[user_answer.author.id] = self.scores.get(user_answer.author.id, 0) + self.reward_per_correct_answer
                         break  # Keluar dari loop untuk melanjutkan ke soal berikutnya
                     else:
-                        game_data["wrong"] += 1
                         await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
                 except asyncio.TimeoutError:
                     await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
