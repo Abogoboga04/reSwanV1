@@ -65,25 +65,6 @@ class Hangman(commands.Cog):
                 print(f"Error loading hangman data: {e}")
                 return []
 
-    async def get_user_image(self, ctx, user_data):
-        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
-        custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(custom_image_url) as resp:
-                    if resp.status == 200:
-                        image_data = BytesIO(await resp.read())
-                        return image_data
-                    else:
-                        raise Exception("Invalid image URL")
-        except Exception:
-            # Jika URL tidak valid, ambil gambar profil default
-            default_image_url = str(ctx.author.avatar.url)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(default_image_url) as resp:
-                    return BytesIO(await resp.read())
-
     @commands.command(name="resman", help="Mulai permainan Hangman.")
     async def hangman(self, ctx):
         if ctx.channel.id != self.game_channel_id:
@@ -270,24 +251,31 @@ class Hangman(commands.Cog):
             if user_id_str in self.level_data:
                 image_url = self.level_data[user_id_str].get('image_url', None)
 
-            # Jika image_url tidak ada, gunakan gambar profil pengguna
-            if not image_url:
-                image_url = str(user.avatar.url)
+            # Mengambil gambar pengguna
+            custom_image_url = image_url or str(user.avatar.url)
 
-            # Mengunduh gambar menggunakan aiohttp
-            async with aiohttp.ClientSession() as session:
-                async with session.get(image_url) as response:
-                    if response.status == 200:
-                        image_bytes = BytesIO(await response.read())
-                        await ctx.send(file=discord.File(image_bytes, filename='user_image.png'))  # Kirim gambar
-                    else:
-                        await ctx.send("Gambar tidak ditemukan.")
+            # Validasi URL gambar
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(custom_image_url) as resp:
+                        if resp.status != 200:
+                            custom_image_url = str(user.avatar.url)  # Fallback ke avatar
+                        image_data = BytesIO(await resp.read())
+            except Exception:
+                custom_image_url = str(user.avatar.url)  # Fallback ke avatar
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(custom_image_url) as resp:
+                        image_data = BytesIO(await resp.read())
+
+            # Kirim gambar
+            await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
 
             # Menambahkan informasi pengguna ke embed
+            balance = self.bank_data.get(user_id_str, {}).get('balance', 0)  # Ambil saldo
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
-                    f"Saldo Akhir: {score['score']}\n"
+                    f"Saldo Akhir: {balance} 🪙RSWN\n"
                     f"Jawaban Benar: {score['correct']}\n"
                     f"Jawaban Salah: {score['wrong']}"
                 ),
