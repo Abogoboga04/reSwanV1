@@ -82,13 +82,14 @@ class EmojiQuiz(commands.Cog):
         
         self.scores = {}  # Reset skor untuk setiap permainan baru
 
+        # Inisialisasi data pengguna
         self.scores[ctx.author.id] = {
             "score": 0,
             "correct": 0,
             "wrong": 0,
             "user": ctx.author,
-            "bantuan_used": 0,  # Menghitung bantuan yang digunakan per sesi
-            "current_question": None  # Menyimpan pertanyaan saat ini
+            "bantuan_used": 0,
+            "current_question": None
         }
 
         embed = discord.Embed(
@@ -218,11 +219,23 @@ class EmojiQuiz(commands.Cog):
                     if user_answer.content.strip().lower() == question['answer'].lower():
                         game_data["correct"] += 1
                         await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+
                         # Tambahkan reward untuk jawaban benar
-                        self.scores[user_answer.author.id] = self.scores.get(user_answer.author.id, 0) + self.reward_per_correct_answer
-                        break  # Keluar dari loop untuk melanjutkan ke soal berikutnya
+                        if user_answer.author.id not in self.scores:
+                            self.scores[user_answer.author.id] = {
+                                "score": 0,
+                                "correct": 0,
+                                "wrong": 0,
+                                "user": user_answer.author
+                            }
+                        self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
+                        self.scores[user_answer.author.id]["correct"] += 1
+
+                        # Keluar dari loop untuk melanjutkan ke soal berikutnya
+                        break
                     else:
                         await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
+                        # Tidak keluar dari loop, tetap menunggu jawaban yang benar
                 except asyncio.TimeoutError:
                     await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
                     break
@@ -235,7 +248,6 @@ class EmojiQuiz(commands.Cog):
         if game_data:
             # Menghitung skor akhir untuk pengguna
             for score in self.scores.values():
-                score["correct"] = game_data["correct"]
                 score["wrong"] = game_data["wrong"]
 
             # Simpan perubahan ke file
@@ -249,15 +261,6 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Mengirim gambar pengguna peringkat 1
-        if sorted_scores:
-            top_player = sorted_scores[0]['user']
-            avatar_url = top_player.avatar.url if top_player.avatar else None
-
-            # Kirim gambar juara 1
-            if avatar_url:
-                await ctx.send(avatar_url)  # Mengirim gambar sebagai pesan terpisah
-
         # Menampilkan semua peserta
         for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
             user = score['user']
@@ -266,8 +269,7 @@ class EmojiQuiz(commands.Cog):
                 value=(
                     f"Saldo Akhir: {score['score']}\n"
                     f"Jawaban Benar: {score['correct']}\n"
-                    f"Jawaban Salah: {score['wrong']}\n"
-                    f"RSWN yang Diperoleh: {score['correct'] * self.reward_per_correct_answer}"
+                    f"Jawaban Salah: {score['wrong']}"
                 ),
                 inline=False
             )
