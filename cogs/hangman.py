@@ -201,8 +201,7 @@ class Hangman(commands.Cog):
         # Menunggu jawaban dalam waktu yang ditentukan
         try:
             def check(m):
-                # Setiap orang di channel dapat menjawab
-                return m.channel == ctx.channel
+                return m.channel == ctx.channel  # Setiap orang di channel dapat menjawab
 
             while True:
                 user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
