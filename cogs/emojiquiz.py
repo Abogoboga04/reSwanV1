@@ -163,6 +163,7 @@ class EmojiQuiz(commands.Cog):
         correct_answer = question['answer'].strip().lower()
         answer_found = False
 
+        # Cek jawaban dari peserta
         for participant in self.participants:
             if participant.id in self.current_answers:
                 user_answer = self.current_answers[participant.id].strip().lower()
@@ -174,15 +175,14 @@ class EmojiQuiz(commands.Cog):
                     answer_found = True
                     break
 
-        await asyncio.sleep(2)
-
-        # Respons jika tidak ada jawaban benar
-        if not answer_found:
+        # Jika ada yang menjawab benar, langsung lanjut ke pertanyaan berikutnya
+        if answer_found:
+            await ctx.send("➡️ Pertanyaan berikutnya...")
+        else:
             await ctx.send(f"❌ Tidak ada jawaban benar. Jawaban yang benar adalah: **{correct_answer}**")
+            await asyncio.sleep(2)  # Menunggu sebelum lanjut ke pertanyaan berikutnya
 
-        await ctx.send("➡️ Pertanyaan berikutnya...")  # Langsung lanjut ke pertanyaan berikutnya
         await asyncio.sleep(1)  # Beri waktu sebelum pertanyaan berikutnya
-        self.question_active = False
 
     async def end_quiz(self, ctx):
         for message in self.messages:
@@ -287,7 +287,6 @@ class EmojiQuiz(commands.Cog):
             user_answer = message.content.strip().lower()
             if message.author.id not in self.current_answers:
                 self.current_answers[message.author.id] = user_answer
-                await self.evaluate_answers(message.channel, self.current_question)  # Evaluasi segera setelah jawaban diberikan
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
