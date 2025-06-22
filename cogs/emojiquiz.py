@@ -129,7 +129,7 @@ class EmojiQuiz(commands.Cog):
 
         async def start_game(interaction):
             # Menambahkan pengguna ke active_games dan mengatur data permainan
-            self.active_games[ctx.author.id] = {
+            self.active_games[ctx.channel.id] = {
                 "user": ctx.author,
                 "correct": 0,
                 "wrong": 0,
@@ -153,7 +153,7 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("Anda tidak sedang dalam sesi permainan EmojiQuiz.")
             return
 
-        game_data = self.active_games[ctx.author.id]
+        game_data = self.active_games[ctx.channel.id]
         
         # Memastikan ada pertanyaan aktif
         if game_data["current_question"] is None:
@@ -180,7 +180,7 @@ class EmojiQuiz(commands.Cog):
         await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
 
     async def play_game(self, ctx):
-        game_data = self.active_games[ctx.author.id]
+        game_data = self.active_games[ctx.channel.id]
         game_data["start_time"] = asyncio.get_event_loop().time()
 
         # Cek apakah ada pertanyaan yang tersedia
@@ -205,7 +205,7 @@ class EmojiQuiz(commands.Cog):
             await self.end_game(ctx)
 
     async def ask_question(self, ctx, question):
-        game_data = self.active_games[ctx.author.id]
+        game_data = self.active_games[ctx.channel.id]
 
         embed = discord.Embed(
             title=f"❓ Pertanyaan {game_data['current_question'] + 1}",
@@ -245,23 +245,23 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
 
     async def end_game(self, ctx):
-        game_data = self.active_games.pop(ctx.author.id, None)
+        game_data = self.active_games.pop(ctx.channel.id, None)
         if game_data:
             # Hitung saldo awal dan akhir
-            initial_balance = self.bank_data.get(str(ctx.author.id), {}).get('balance', 0)
+            initial_balance = self.bank_data.get(str(game_data['user'].id), {}).get('balance', 0)
             earned_rsw = game_data['correct'] * self.reward_per_correct_answer  # RSWN yang diperoleh dari hasil kuis
             final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
             # Memperbarui skor untuk leaderboard
-            self.scores[ctx.author.id] = {
+            self.scores[game_data['user'].id] = {
                 "score": final_balance,
                 "correct": game_data['correct'],
                 "wrong": game_data['wrong'],
-                "user": ctx.author
+                "user": game_data['user']
             }
 
             # Menyimpan data bank
-            self.bank_data[str(ctx.author.id)] = {
+            self.bank_data[str(game_data['user'].id)] = {
                 "balance": final_balance
             }
 
@@ -274,22 +274,7 @@ class EmojiQuiz(commands.Cog):
 
     async def display_leaderboard(self, ctx):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
-        embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
-
-        # Mendapatkan juara 1
-        if sorted_scores:
-            top_scorer = sorted_scores[0]
-            top_user_image = await self.get_user_image(ctx, self.level_data.get(str(ctx.guild.id), {}).get(str(top_scorer['user'].id), {}))
-            await ctx.send(file=discord.File(top_user_image, "avatar.png"), embed=discord.Embed(
-                title=f"🏅 Juara 1: {top_scorer['user'].display_name}",
-                description=(
-                    f"Saldo Akhir: {top_scorer['score']}\n"
-                    f"Jawaban Benar: {top_scorer['correct']}\n"
-                    f"Jawaban Salah: {top_scorer['wrong']}\n"
-                    f"RSWN yang Diperoleh: {top_scorer['correct'] * self.reward_per_correct_answer}"
-                ),
-                color=0x00ff00
-            ))
+        embed = discord.Embed(title="🏆 Kartu Hasil Kuis Emoji!", color=0x00ff00)
 
         # Menampilkan peserta dari peringkat 1 hingga 5
         for i, score in enumerate(sorted_scores[:5], start=1):  # Hanya 5 peserta teratas
