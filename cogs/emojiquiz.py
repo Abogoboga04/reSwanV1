@@ -149,33 +149,22 @@ class EmojiQuiz(commands.Cog):
 
     @commands.command(name="resplis", help="Membeli bantuan untuk jawaban pertanyaan saat ini.")
     async def resplis(self, ctx):
-        if ctx.author.id not in self.active_games:
-            await ctx.send("Anda tidak sedang dalam sesi permainan EmojiQuiz.")
+        user_id = ctx.author.id
+        if user_id not in self.bank_data:
+            await ctx.send("Anda tidak memiliki akun di sistem ini.")
             return
 
-        game_data = self.active_games[ctx.channel.id]
-        
-        # Memastikan ada pertanyaan aktif
-        if game_data["current_question"] is None:
-            await ctx.send("❌ Tidak ada pertanyaan saat ini yang dapat dibantu.")
-            return
+        user_data = self.bank_data[str(user_id)]
 
-        user_data = self.scores[ctx.author.id]
-        
-        if user_data["bantuan_used"] >= self.max_bantuan_per_session:
-            await ctx.send("❌ Anda sudah mencapai batas maksimal pembelian bantuan per sesi.")
-            return
-
-        if self.bank_data.get(str(ctx.author.id), {}).get('balance', 0) < self.bantuan_price:
+        if user_data.get('balance', 0) < self.bantuan_price:
             await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
             return
 
-        self.bank_data[str(ctx.author.id)]['balance'] -= self.bantuan_price
-        user_data["bantuan_used"] += 1
+        user_data['balance'] -= self.bantuan_price
 
         # Mengambil jawaban dari pertanyaan saat ini
-        current_question_index = game_data["current_question"]
-        current_question = game_data["questions"][current_question_index]
+        current_question_index = self.active_games[ctx.channel.id]["current_question"]
+        current_question = self.active_games[ctx.channel.id]["questions"][current_question_index]
 
         await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
 
@@ -221,11 +210,11 @@ class EmojiQuiz(commands.Cog):
         # Menunggu jawaban dalam waktu yang ditentukan
         try:
             def check(m):
-                return m.channel == ctx.channel and m.author.id in self.active_games  # Setiap peserta dapat menjawab
+                return m.channel == ctx.channel  # Mengizinkan semua pengguna di channel untuk menjawab
 
             while True:
                 try:
-                    user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
+                    user_answer = await self.bot.wait_for('message', timeout=self.time_limit, check=check)
 
                     # Cek jawaban
                     if user_answer.content.strip().lower() == question['answer'].lower():
@@ -274,7 +263,7 @@ class EmojiQuiz(commands.Cog):
 
     async def display_leaderboard(self, ctx):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
-        embed = discord.Embed(title="🏆 Kartu Hasil Kuis Emoji!", color=0x00ff00)
+        embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
         # Menampilkan peserta dari peringkat 1 hingga 5
         for i, score in enumerate(sorted_scores[:5], start=1):  # Hanya 5 peserta teratas
