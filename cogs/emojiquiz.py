@@ -189,7 +189,7 @@ class EmojiQuiz(commands.Cog):
         # Menunggu jawaban dalam waktu yang ditentukan
         try:
             def check(m):
-                return m.channel == ctx.channel and m.author in self.participants  # Setiap peserta dapat menjawab
+                return m.channel == ctx.channel and m.author.id in self.active_games  # Setiap peserta dapat menjawab
 
             user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
 
