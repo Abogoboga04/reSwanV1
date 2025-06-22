@@ -16,9 +16,6 @@ class Hangman(commands.Cog):
         self.questions = self.load_hangman_data()
         self.scores = {}  # Menyimpan skor peserta
 
-        # Debug: cek jumlah pertanyaan yang dimuat
-        print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")
-
         self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
 
     def load_bank_data(self):
@@ -54,11 +51,9 @@ class Hangman(commands.Cog):
     def load_hangman_data(self):
         current_dir = os.path.dirname(__file__)  # Folder cogs/
         file_path = os.path.join(current_dir, "..", "data", "questions_hangman.json")
-        print(f"Loading hangman data from: {file_path}")  # Debug: Cek lokasi file
         with open(file_path, "r", encoding="utf-8") as f:
             try:
                 data = json.load(f)
-                print("Data loaded from JSON:", data)  # Debug: Cek data yang dimuat
                 if isinstance(data, list) and len(data) > 0:
                     return data
                 else:
@@ -166,7 +161,6 @@ class Hangman(commands.Cog):
             await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan questions_hangman.json diisi dengan benar.")
             return
 
-        print(f"Jumlah pertanyaan yang tersedia: {len(self.questions)}")  # Debug: jumlah pertanyaan
         if len(self.questions) < 10:
             await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di questions_hangman.json.")
             return
@@ -261,6 +255,26 @@ class Hangman(commands.Cog):
             # Mengirimkan kartu hasil dengan gambar pengguna
             await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
+            # Update bank_data.json
+            self.bank_data[str(ctx.author.id)] = {
+                "balance": final_balance
+            }
+
+            # Update level_data.json dengan EXP
+            if str(ctx.author.id) in self.level_data:
+                self.level_data[str(ctx.author.id)]["exp"] += game_data['correct'] * 10  # 10 EXP per soal yang benar
+            else:
+                self.level_data[str(ctx.author.id)] = {
+                    "exp": game_data['correct'] * 10
+                }
+
+            # Simpan perubahan ke file
+            with open('data/bank_data.json', 'w', encoding='utf-8') as f:
+                json.dump(self.bank_data, f, indent=4)
+
+            with open('data/level_data.json', 'w', encoding='utf-8') as f:
+                json.dump(self.level_data, f, indent=4)
+
             # Menampilkan leaderboard jika ada 2 atau lebih peserta
             if len(self.scores) >= 2:
                 await self.display_leaderboard(ctx)
@@ -269,7 +283,7 @@ class Hangman(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
 
-        # Hanya tampilkan juara 2-5
+        # Mengambil peserta dari peringkat 2 hingga 5
         for i, score in enumerate(sorted_scores[1:5], start=2):  # Mulai dari index 1 untuk juara 2
             embed.add_field(
                 name=f"{i}. {score['user'].display_name}",
