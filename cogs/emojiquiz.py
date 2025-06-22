@@ -98,6 +98,8 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("Permainan sudah sedang berlangsung di channel ini.")
             return
         
+        self.scores = {}  # Reset skor untuk setiap permainan baru
+
         self.scores[ctx.author.id] = {
             "score": 0,
             "correct": 0,
@@ -235,7 +237,7 @@ class EmojiQuiz(commands.Cog):
                         game_data["correct"] += 1
                         await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
                         # Tambahkan reward untuk jawaban benar
-                        self.bank_data[str(user_answer.author.id)]['balance'] += self.reward_per_correct_answer
+                        self.scores[user_answer.author.id]['score'] += self.reward_per_correct_answer
                         break
                     else:
                         game_data["wrong"] += 1
@@ -250,24 +252,10 @@ class EmojiQuiz(commands.Cog):
     async def end_game(self, ctx):
         game_data = self.active_games.pop(ctx.channel.id, None)
         if game_data:
-            # Hitung saldo awal dan akhir
-            initial_balance = self.bank_data.get(str(game_data['user'].id), {}).get('balance', 0)
-            earned_rsw = game_data['correct'] * self.reward_per_correct_answer  # RSWN yang diperoleh dari hasil kuis
-            final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
-
-            # Memperbarui skor untuk leaderboard
-            self.scores[game_data['user'].id] = {
-                "score": final_balance,
-                "correct": game_data['correct'],
-                "wrong": game_data['wrong'],
-                "user": game_data['user']
-            }
-
-            # Menyimpan data bank
-            self.bank_data[str(game_data['user'].id)] = {
-                "balance": final_balance,
-                "debt": 0  # Menambahkan utang jika diperlukan
-            }
+            # Menghitung skor akhir untuk pengguna
+            for score in self.scores.values():
+                score["correct"] = game_data["correct"]
+                score["wrong"] = game_data["wrong"]
 
             # Simpan perubahan ke file
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
@@ -280,18 +268,8 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Menampilkan gambar juara 1
-        if sorted_scores:
-            top_player = sorted_scores[0]['user']
-            avatar_url = top_player.avatar.url if top_player.avatar else None
-            image_url = top_player.image_url if hasattr(top_player, 'image_url') and top_player.image_url else avatar_url
-
-            # Kirim gambar juara 1
-            if image_url:
-                await ctx.send(image_url)  # Mengirim gambar sebagai pesan terpisah
-
-        # Menampilkan peserta dari peringkat 1 hingga 5
-        for i, score in enumerate(sorted_scores[:5], start=1):  # Hanya 5 peserta teratas
+        # Menampilkan semua peserta
+        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
             user = score['user']
             embed.add_field(
                 name=f"{i}. {user.display_name}",
