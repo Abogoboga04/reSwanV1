@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import random
+import asyncio
 import os
 import aiohttp
 from io import BytesIO
@@ -16,35 +17,64 @@ class EmojiQuiz(commands.Cog):
         self.scores = {}  # Menyimpan skor peserta
 
         self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
-        self.bantuan_used = {}
-        self.bantuan_price = 25
-        self.quiz_active = False
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
+            try:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+                else:
+                    raise ValueError("Data harus dalam format dictionary.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON from bank_data.json: {e}")
+                return {}
+            except Exception as e:
+                print(f"Error loading bank data: {e}")
+                return {}
 
     def load_level_data(self):
         with open('data/level_data.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
+            try:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+                else:
+                    raise ValueError("Data harus dalam format dictionary.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON from level_data.json: {e}")
+                return {}
+            except Exception as e:
+                print(f"Error loading level data: {e}")
+                return {}
 
     def load_quiz_data(self):
-        current_dir = os.path.dirname(__file__)
+        current_dir = os.path.dirname(__file__)  # Folder cogs/
         file_path = os.path.join(current_dir, '..', 'data', 'emoji_questions.json')
         with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data["questions"], list) and len(data["questions"]) > 0:
-                return data["questions"]
-            else:
-                raise ValueError("Data harus berupa list dan tidak kosong.")
+            try:
+                data = json.load(f)
+                if isinstance(data["questions"], list) and len(data["questions"]) > 0:
+                    return data["questions"]
+                else:
+                    raise ValueError("Data harus berupa list dan tidak kosong.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON from emoji_questions.json: {e}")
+                return []
+            except Exception as e:
+                print(f"Error loading quiz data: {e}")
+                return []
 
     async def get_user_image(self, ctx, user_data):
+        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
         custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(custom_image_url) as resp:
                     if resp.status == 200:
-                        return BytesIO(await resp.read())
+                        image_data = BytesIO(await resp.read())
+                        return image_data
                     else:
                         raise Exception("Invalid image URL")
         except Exception:
@@ -55,43 +85,28 @@ class EmojiQuiz(commands.Cog):
 
     @commands.command(name="resmoji", help="Mulai permainan EmojiQuiz.")
     async def resmoji(self, ctx):
-        if self.quiz_active:
-            await ctx.send("Kuis sudah aktif, tunggu hingga sesi ini selesai!")
-            return
-
         if ctx.channel.id != self.game_channel_id:
-            await ctx.send("Kuis hanya dapat dimulai di channel yang ditentukan!")
+            await ctx.send("Permainan EmojiQuiz hanya bisa dimainkan di channel yang ditentukan.")
             return
 
-        self.quiz_active = True
-        self.current_question = random.choice(self.questions)
-        self.current_answer = self.current_question['answer'].lower()
-        self.current_guesses = []
-        self.participants = [ctx.author]
-
-        for member in ctx.guild.members:
-            if len(self.participants) >= 5:
-                break
-            if member != ctx.author and not member.bot:
-                self.participants.append(member)
-
-        if len(self.participants) < 2:
-            await ctx.send("😢 Minimal 2 peserta diperlukan untuk memulai kuis!")
-            self.quiz_active = False
+        if ctx.author.id in self.active_games:
+            await ctx.send("Anda sudah sedang bermain EmojiQuiz. Silakan tunggu hingga selesai.")
             return
 
-        for participant in self.participants:
-            self.bantuan_used[participant.id] = 0
+        self.scores[ctx.author.id] = {
+            "score": 0,
+            "correct": 0,
+            "wrong": 0,
+            "user": ctx.author
+        }
 
         embed = discord.Embed(
             title="🎮 Cara Bermain EmojiQuiz",
             description=(
                 "Selamat datang di Kuis Emoji! 🎉\n\n"
                 "Di sini, kamu akan diberikan emoji dan kamu harus menebak frasa yang sesuai.\n"
-                "Gunakan emoji yang ditampilkan untuk membantu menebak frasa yang benar.\n"
-                "Setiap peserta memiliki kesempatan untuk menebak.\n"
-                "Jika kamu memerlukan bantuan, kamu dapat membeli bantuan dengan menggunakan tombol di bawah.\n"
-                "Siap untuk mulai? Klik tombol di bawah ini untuk memulai permainan."
+                "Selesaikan 10 soal dalam 2 menit... kalau kamu masih punya semangat itu.\n\n"
+                "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
             ),
             color=0x5500aa
         )
@@ -116,69 +131,83 @@ class EmojiQuiz(commands.Cog):
                 "answers": []
             }
 
-            await ctx.send(f"{ctx.author.mention}, permainan EmojiQuiz dimulai! Anda memiliki 2 menit untuk menjawab.")
-            await self.send_game_state(ctx)
+            await ctx.send(f"{ctx.author.mention}, permainan EmojiQuiz dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
+            await self.play_game(ctx)
 
         start_button.callback = start_game
         view.add_item(start_button)
 
-        await ctx.send(embed=embed, view=view)
+        message = await ctx.send(embed=embed, view=view)
 
-    async def send_game_state(self, ctx):
-        displayed_word = ''.join([letter if letter in self.current_guesses else '_' for letter in self.current_answer])
+        # Tunggu 1 menit sebelum reset jika tidak ada yang menekan tombol
+        await asyncio.sleep(60)
+        if ctx.author.id not in self.active_games:
+            await message.delete()
+            await ctx.send("Waktu habis! Permainan EmojiQuiz di-reset. Silakan coba lagi.")
+        else:
+            await message.delete()  # Hapus pesan instruksi jika game dimulai
+
+    async def play_game(self, ctx):
+        game_data = self.active_games[ctx.author.id]
+        game_data["start_time"] = asyncio.get_event_loop().time()
+
+        # Cek apakah ada pertanyaan yang tersedia
+        if not self.questions:
+            await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan emoji_questions.json diisi dengan benar.")
+            return
+
+        if len(self.questions) < 10:
+            await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di emoji_questions.json.")
+            return
+
+        game_data["question"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
+
+        for index, question in enumerate(game_data["question"]):
+            if game_data["game_over"]:
+                break
+
+            game_data["current_question"] = index + 1
+            await self.ask_question(ctx, question)
+
+        if not game_data["game_over"]:
+            await self.end_game(ctx)
+
+    async def ask_question(self, ctx, question):
+        game_data = self.active_games[ctx.author.id]
+
         embed = discord.Embed(
-            title="🔤 Kuis Emoji!",
-            description=f"Tebak frasa ini: `{displayed_word}`\n\nGunakan `!resplis` untuk melihat jawaban.",
+            title=f"❓ Pertanyaan {game_data['current_question']}",
+            description=(
+                f"Emoji: **{question['emoji']}**\n"
+                f"Sebutkan frasa yang sesuai!"
+            ),
             color=0x00ff00
         )
+        
+        await ctx.send(embed=embed)
 
-        # Tombol untuk membeli bantuan
-        view = discord.ui.View()
-        help_button = discord.ui.Button(label="🆘 Beli Bantuan", style=discord.ButtonStyle.secondary)
+        # Menunggu jawaban dalam waktu yang ditentukan
+        try:
+            def check(m):
+                return m.channel == ctx.channel and m.author in self.participants  # Setiap peserta dapat menjawab
 
-        async def buy_help(interaction):
-            await self.buy_help_function(ctx)
+            user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
 
-        help_button.callback = buy_help
-        view.add_item(help_button)
+            # Cek jawaban
+            if user_answer.content.strip().lower() == question['answer'].lower():
+                game_data["correct"] += 1
+                await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+            else:
+                game_data["wrong"] += 1
+                await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
 
-        await ctx.send(embed=embed, view=view)
+            if game_data["current_question"] == 10:
+                await self.end_game(ctx)
 
-    async def buy_help_function(self, ctx):
-        user_id = str(ctx.author.id)
-
-        if user_id not in self.bank_data:
-            self.bank_data[user_id] = {"balance": 0}
-
-        if user_id not in self.bantuan_used:
-            self.bantuan_used[user_id] = 0
-
-        if self.bantuan_used[user_id] >= 5:
-            await ctx.send("❌ Batas bantuan harian tercapai.", ephemeral=True)
-            return
-
-        if self.bank_data[user_id]['balance'] < self.bantuan_price:
-            await ctx.send("😢 Saldo RSWN tidak cukup.", ephemeral=True)
-            return
-
-        self.bank_data[user_id]['balance'] -= self.bantuan_price
-        self.bantuan_used[user_id] += 1
-
-        await ctx.send("✅ Bantuan dibeli! Gunakan `!resplis` untuk melihat jawaban.", ephemeral=True)
-
-    @commands.command(name="resplis", help="Gunakan bantuan untuk melihat jawaban.")
-    async def resplis(self, ctx):
-        user_id = str(ctx.author.id)
-        if user_id not in self.bantuan_used or self.bantuan_used[user_id] <= 0:
-            await ctx.send("Kamu belum beli bantuan!", ephemeral=True)
-            return
-
-        if self.current_answer is None:
-            await ctx.send("Belum ada pertanyaan aktif!", ephemeral=True)
-            return
-
-        await ctx.author.send(f"🔐 Jawaban: **{self.current_answer}**")
-        self.bantuan_used[user_id] -= 1
+        except asyncio.TimeoutError:
+            await ctx.send("Waktu habis! Permainan berakhir.")
+            game_data["game_over"] = True
+            await self.end_game(ctx)
 
     async def end_game(self, ctx):
         game_data = self.active_games.pop(ctx.author.id, None)
@@ -207,6 +236,13 @@ class EmojiQuiz(commands.Cog):
                 "wrong": game_data['wrong'],
                 "user": ctx.author
             }
+
+            # Mengambil gambar pengguna
+            user_data = self.level_data.get(str(ctx.guild.id), {}).get(str(ctx.author.id), {})
+            image_data = await self.get_user_image(ctx, user_data)
+
+            # Mengirimkan kartu hasil dengan gambar pengguna
+            await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
 
             # Update bank_data.json
             self.bank_data[str(ctx.author.id)] = {
