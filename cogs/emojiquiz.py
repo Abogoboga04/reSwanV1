@@ -1,4 +1,4 @@
-import discord
+limport discord
 from discord.ext import commands
 import json
 import random
@@ -272,18 +272,24 @@ class EmojiQuiz(commands.Cog):
             if user_id_str in self.level_data:
                 image_url = self.level_data[user_id_str].get('image_url', None)
 
-            # Jika image_url tidak ada, gunakan gambar profil pengguna
-            if not image_url:
-                image_url = str(user.avatar.url)
+            # Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna
+            custom_image_url = image_url or str(user.avatar.url)
 
-            # Mengunduh gambar menggunakan aiohttp
-            async with aiohttp.ClientSession() as session:
-                async with session.get(image_url) as response:
-                    if response.status == 200:
-                        image_bytes = BytesIO(await response.read())
-                        await ctx.send(file=discord.File(image_bytes, filename='user_image.png'))  # Kirim gambar
-                    else:
-                        await ctx.send("Gambar tidak ditemukan.")
+            # Validasi URL gambar
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(custom_image_url) as resp:
+                        if resp.status != 200:
+                            custom_image_url = str(user.avatar.url)  # Fallback ke avatar
+                        image_data = BytesIO(await resp.read())
+            except Exception:
+                custom_image_url = str(user.avatar.url)  # Fallback ke avatar
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(custom_image_url) as resp:
+                        image_data = BytesIO(await resp.read())
+
+            # Kirim gambar
+            await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
 
             # Menambahkan informasi pengguna ke embed untuk peringkat 1-5
             for i in range(min(5, len(sorted_scores))):  # Peringkat 1 sampai 5
