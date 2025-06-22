@@ -16,7 +16,7 @@ class Hangman(commands.Cog):
         self.questions = self.load_hangman_data()
         self.scores = {}  # Menyimpan skor peserta
 
-        self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
+        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -258,8 +258,8 @@ class Hangman(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
 
-        # Menampilkan semua peserta dan mengumpulkan URL gambar
-        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
+        # Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna
+        for i, score in enumerate(sorted_scores[:5], start=1):  # Menampilkan peringkat 1 hingga 5
             user = score['user']
             
             # Mendapatkan ID pengguna
@@ -267,10 +267,8 @@ class Hangman(commands.Cog):
 
             # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
             image_url = None
-            for guild_id, users in self.level_data.items():
-                if user_id_str in users:
-                    image_url = users[user_id_str].get('image_url', None)
-                    break
+            if user_id_str in self.level_data:
+                image_url = self.level_data[user_id_str].get('image_url', None)
 
             # Jika image_url tidak ada, gunakan gambar profil pengguna
             if not image_url:
