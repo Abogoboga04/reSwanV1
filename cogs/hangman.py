@@ -19,7 +19,7 @@ class Hangman(commands.Cog):
         # Debug: cek jumlah pertanyaan yang dimuat
         print(f"Jumlah pertanyaan yang dimuat: {len(self.questions)}")
 
-        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+        self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
