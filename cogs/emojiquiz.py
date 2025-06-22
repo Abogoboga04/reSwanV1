@@ -134,7 +134,7 @@ class EmojiQuiz(commands.Cog):
                 "current_question": 0,
                 "time_limit": 60,  # 1 menit
                 "start_time": None,
-                "question": None,
+                "questions": [],  # Menyimpan daftar pertanyaan
                 "game_over": False,
                 "answers": []
             }
@@ -158,8 +158,11 @@ class EmojiQuiz(commands.Cog):
             user_data["bantuan_used"] += 1
 
             # Mengambil jawaban dari pertanyaan saat ini
-            current_question = self.active_games[ctx.author.id]["question"][question_index]
-            await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
+            if question_index is not None:
+                current_question = self.active_games[ctx.author.id]["questions"][question_index]
+                await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
+            else:
+                await ctx.author.send("❌ Tidak ada pertanyaan saat ini yang dapat dibantu.")
 
         start_button.callback = start_game
         help_button.callback = buy_help
@@ -181,9 +184,9 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di emoji_questions.json.")
             return
 
-        game_data["question"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
+        game_data["questions"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
 
-        for index, question in enumerate(game_data["question"]):
+        for index, question in enumerate(game_data["questions"]):
             if game_data["game_over"]:
                 break
 
