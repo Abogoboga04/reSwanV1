@@ -127,6 +127,17 @@ class EmojiQuiz(commands.Cog):
         start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
 
         async def start_game(interaction):
+            # Menambahkan pengguna ke active_games
+            self.active_games[ctx.author.id] = {
+                "user": ctx.author,
+                "correct": 0,
+                "wrong": 0,
+                "current_question": None,
+                "questions": [],
+                "game_over": False,
+                "bantuan_used": 0,
+                "start_time": None
+            }
             await self.play_game(ctx)
 
         start_button.callback = start_game
