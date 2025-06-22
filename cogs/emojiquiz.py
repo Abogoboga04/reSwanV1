@@ -145,13 +145,18 @@ class EmojiQuiz(commands.Cog):
 
     @commands.command(name="resplis", help="Membeli bantuan untuk jawaban pertanyaan saat ini.")
     async def resplis(self, ctx):
-        user_id = ctx.author.id
+        user_id = str(ctx.author.id)  # Pastikan ID pengguna adalah string
 
+        # Memastikan bahwa data pengguna ada di bank_data
         if user_id not in self.bank_data:
-            await ctx.send("Anda tidak memiliki akun di sistem ini.")
-            return
+            # Membuat akun baru untuk pengguna
+            self.bank_data[user_id] = {
+                "balance": 0,  # Set saldo awal ke 0 atau nilai lainnya sesuai kebutuhan
+                "debt": 0
+            }
+            await ctx.send("Akun Anda telah dibuat. Saldo awal Anda adalah 0 RSWN.")
 
-        user_data = self.bank_data[str(user_id)]
+        user_data = self.bank_data[user_id]
 
         if user_data.get('balance', 0) < self.bantuan_price:
             await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
@@ -172,6 +177,10 @@ class EmojiQuiz(commands.Cog):
 
         # Memberikan konfirmasi di channel
         await ctx.send(f"{ctx.author.mention}, Anda telah berhasil membeli bantuan!")
+
+        # Simpan perubahan ke file
+        with open('data/bank_data.json', 'w', encoding='utf-8') as f:
+            json.dump(self.bank_data, f, indent=4)
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.channel.id]
@@ -256,7 +265,8 @@ class EmojiQuiz(commands.Cog):
 
             # Menyimpan data bank
             self.bank_data[str(game_data['user'].id)] = {
-                "balance": final_balance
+                "balance": final_balance,
+                "debt": 0  # Menambahkan utang jika diperlukan
             }
 
             # Simpan perubahan ke file
