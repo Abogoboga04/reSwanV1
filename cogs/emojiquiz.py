@@ -21,7 +21,6 @@ class EmojiQuiz(commands.Cog):
         self.quiz_active = False
         self.messages = []
         self.host = None
-        self.question_active = False
         self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
 
     def load_quiz_data(self):
@@ -149,12 +148,14 @@ class EmojiQuiz(commands.Cog):
 
         self.current_answers.clear()
         self.question_active = True
+        timer = 60
 
         # Mengatur waktu untuk menjawab
-        for i in range(60, 0, -1):
-            embed.description = f"Tebak frasa ini: {question['emoji']}\nWaktu tersisa: {i} detik"
+        while timer > 0 and not self.current_answers.get("correct"):
+            embed.description = f"Tebak frasa ini: {question['emoji']}\nWaktu tersisa: {timer} detik"
             await message.edit(embed=embed)
             await asyncio.sleep(1)
+            timer -= 1
 
         self.question_active = False
         await self.evaluate_answers(ctx, question)
@@ -173,6 +174,7 @@ class EmojiQuiz(commands.Cog):
                     self.bank_data[str(participant.id)]['balance'] += 25
                     await ctx.send(f"✅ {participant.mention} menjawab dengan benar! Jawabannya: **{correct_answer}**")
                     answer_found = True
+                    self.current_answers["correct"] = True  # Tandai bahwa jawaban benar ditemukan
                     break
 
         # Jika ada yang menjawab benar, langsung lanjut ke pertanyaan berikutnya
