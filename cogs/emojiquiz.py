@@ -17,8 +17,9 @@ class EmojiQuiz(commands.Cog):
         self.scores = {}  # Menyimpan skor peserta
 
         self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
-        self.bantuan_price = 35  # Harga bantuan diubah menjadi 35 RSWN
+        self.bantuan_price = 35  # Harga bantuan
         self.max_bantuan_per_session = 8  # Maksimal bantuan per sesi
+        self.reward_per_correct_answer = 30  # Hadiah per pertanyaan benar
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -100,7 +101,8 @@ class EmojiQuiz(commands.Cog):
             "correct": 0,
             "wrong": 0,
             "user": ctx.author,
-            "bantuan_used": 0  # Menghitung bantuan yang digunakan per sesi
+            "bantuan_used": 0,  # Menghitung bantuan yang digunakan per sesi
+            "current_question": None  # Menyimpan pertanyaan saat ini
         }
 
         embed = discord.Embed(
@@ -142,6 +144,8 @@ class EmojiQuiz(commands.Cog):
 
         async def buy_help(interaction):
             user_data = self.scores[ctx.author.id]
+            question_index = user_data["current_question"]  # Ambil indeks pertanyaan saat ini
+
             if user_data["bantuan_used"] >= self.max_bantuan_per_session:
                 await ctx.send("❌ Anda sudah mencapai batas maksimal pembelian bantuan per sesi.")
                 return
@@ -153,7 +157,9 @@ class EmojiQuiz(commands.Cog):
             self.bank_data[str(ctx.author.id)]['balance'] -= self.bantuan_price
             user_data["bantuan_used"] += 1
 
-            await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{question['answer']}**")
+            # Mengambil jawaban dari pertanyaan saat ini
+            current_question = self.active_games[ctx.author.id]["question"][question_index]
+            await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
 
         start_button.callback = start_game
         help_button.callback = buy_help
@@ -181,7 +187,7 @@ class EmojiQuiz(commands.Cog):
             if game_data["game_over"]:
                 break
 
-            game_data["current_question"] = index + 1
+            game_data["current_question"] = index  # Simpan indeks pertanyaan saat ini
             await self.ask_question(ctx, question)
 
         if not game_data["game_over"]:
@@ -191,7 +197,7 @@ class EmojiQuiz(commands.Cog):
         game_data = self.active_games[ctx.author.id]
 
         embed = discord.Embed(
-            title=f"❓ Pertanyaan {game_data['current_question']}",
+            title=f"❓ Pertanyaan {game_data['current_question'] + 1}",
             description=(
                 f"Emoji: **{question['emoji']}**\n"
                 f"Sebutkan frasa yang sesuai!"
@@ -214,6 +220,8 @@ class EmojiQuiz(commands.Cog):
                     if user_answer.content.strip().lower() == question['answer'].lower():
                         game_data["correct"] += 1
                         await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+                        # Tambahkan reward untuk jawaban benar
+                        self.bank_data[str(user_answer.author.id)]['balance'] += self.reward_per_correct_answer
                         break
                     else:
                         game_data["wrong"] += 1
@@ -230,7 +238,7 @@ class EmojiQuiz(commands.Cog):
         if game_data:
             # Hitung saldo awal dan akhir
             initial_balance = self.bank_data.get(str(ctx.author.id), {}).get('balance', 0)
-            earned_rsw = game_data['correct'] * 30  # RSWN yang diperoleh dari hasil kuis
+            earned_rsw = game_data['correct'] * self.reward_per_correct_answer  # RSWN yang diperoleh dari hasil kuis
             final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
             # Kartu hasil
@@ -285,7 +293,7 @@ class EmojiQuiz(commands.Cog):
                     f"Saldo Akhir: {score['score']}\n"
                     f"Jawaban Benar: {score['correct']}\n"
                     f"Jawaban Salah: {score['wrong']}\n"
-                    f"RSWN yang Diperoleh: {score['correct'] * 30}"
+                    f"RSWN yang Diperoleh: {score['correct'] * self.reward_per_correct_answer}"
                 ),
                 inline=False
             )
