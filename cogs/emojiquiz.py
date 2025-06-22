@@ -123,10 +123,16 @@ class EmojiQuiz(commands.Cog):
             color=0x5500aa
         )
 
-        await ctx.send(embed=embed)
+        view = discord.ui.View()
+        start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
 
-        # Memulai permainan
-        await self.play_game(ctx)
+        async def start_game(interaction):
+            await self.play_game(ctx)
+
+        start_button.callback = start_game
+        view.add_item(start_button)
+
+        await ctx.send(embed=embed, view=view)
 
     @commands.command(name="resplis", help="Membeli bantuan untuk jawaban pertanyaan saat ini.")
     async def resplis(self, ctx):
