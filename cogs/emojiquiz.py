@@ -17,6 +17,8 @@ class EmojiQuiz(commands.Cog):
         self.scores = {}  # Menyimpan skor peserta
 
         self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+        self.bantuan_price = 35  # Harga bantuan diubah menjadi 35 RSWN
+        self.max_bantuan_per_session = 8  # Maksimal bantuan per sesi
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -97,7 +99,8 @@ class EmojiQuiz(commands.Cog):
             "score": 0,
             "correct": 0,
             "wrong": 0,
-            "user": ctx.author
+            "user": ctx.author,
+            "bantuan_used": 0  # Menghitung bantuan yang digunakan per sesi
         }
 
         embed = discord.Embed(
@@ -105,14 +108,17 @@ class EmojiQuiz(commands.Cog):
             description=(
                 "Selamat datang di Kuis Emoji! 🎉\n\n"
                 "Di sini, kamu akan diberikan emoji dan kamu harus menebak frasa yang sesuai.\n"
-                "Selesaikan 10 soal dalam 2 menit... kalau kamu masih punya semangat itu.\n\n"
-                "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
+                "Setiap peserta dapat menjawab, dan jika tidak ada yang benar dalam waktu 1 menit, soal akan dilanjutkan.\n"
+                "Gunakan tombol di bawah untuk bantuan jika diperlukan (maksimal 8 per sesi).\n"
+                "Harga bantuan adalah 35 RSWN.\n"
+                "Siap untuk mulai? Klik tombol di bawah ini untuk memulai permainan."
             ),
             color=0x5500aa
         )
 
         view = discord.ui.View()
         start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
+        help_button = discord.ui.Button(label="🆘 Beli Bantuan", style=discord.ButtonStyle.secondary)
 
         async def start_game(interaction):
             if ctx.author.id in self.active_games:
@@ -124,28 +130,37 @@ class EmojiQuiz(commands.Cog):
                 "correct": 0,
                 "wrong": 0,
                 "current_question": 0,
-                "time_limit": 120,  # 2 menit
+                "time_limit": 60,  # 1 menit
                 "start_time": None,
                 "question": None,
                 "game_over": False,
                 "answers": []
             }
 
-            await ctx.send(f"{ctx.author.mention}, permainan EmojiQuiz dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
+            await ctx.send(f"{ctx.author.mention}, permainan EmojiQuiz dimulai! Anda memiliki 1 menit untuk menjawab setiap soal.")
             await self.play_game(ctx)
 
+        async def buy_help(interaction):
+            user_data = self.scores[ctx.author.id]
+            if user_data["bantuan_used"] >= self.max_bantuan_per_session:
+                await ctx.send("❌ Anda sudah mencapai batas maksimal pembelian bantuan per sesi.")
+                return
+
+            if self.bank_data.get(str(ctx.author.id), {}).get('balance', 0) < self.bantuan_price:
+                await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
+                return
+
+            self.bank_data[str(ctx.author.id)]['balance'] -= self.bantuan_price
+            user_data["bantuan_used"] += 1
+
+            await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{question['answer']}**")
+
         start_button.callback = start_game
+        help_button.callback = buy_help
         view.add_item(start_button)
+        view.add_item(help_button)
 
-        message = await ctx.send(embed=embed, view=view)
-
-        # Tunggu 1 menit sebelum reset jika tidak ada yang menekan tombol
-        await asyncio.sleep(60)
-        if ctx.author.id not in self.active_games:
-            await message.delete()
-            await ctx.send("Waktu habis! Permainan EmojiQuiz di-reset. Silakan coba lagi.")
-        else:
-            await message.delete()  # Hapus pesan instruksi jika game dimulai
+        await ctx.send(embed=embed, view=view)
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.author.id]
@@ -183,7 +198,7 @@ class EmojiQuiz(commands.Cog):
             ),
             color=0x00ff00
         )
-        
+
         await ctx.send(embed=embed)
 
         # Menunggu jawaban dalam waktu yang ditentukan
@@ -191,30 +206,31 @@ class EmojiQuiz(commands.Cog):
             def check(m):
                 return m.channel == ctx.channel and m.author.id in self.active_games  # Setiap peserta dapat menjawab
 
-            user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
+            while True:
+                try:
+                    user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
 
-            # Cek jawaban
-            if user_answer.content.strip().lower() == question['answer'].lower():
-                game_data["correct"] += 1
-                await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
-            else:
-                game_data["wrong"] += 1
-                await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
-
-            if game_data["current_question"] == 10:
-                await self.end_game(ctx)
+                    # Cek jawaban
+                    if user_answer.content.strip().lower() == question['answer'].lower():
+                        game_data["correct"] += 1
+                        await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+                        break
+                    else:
+                        game_data["wrong"] += 1
+                        await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
+                except asyncio.TimeoutError:
+                    await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
+                    break
 
         except asyncio.TimeoutError:
-            await ctx.send("Waktu habis! Permainan berakhir.")
-            game_data["game_over"] = True
-            await self.end_game(ctx)
+            await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
 
     async def end_game(self, ctx):
         game_data = self.active_games.pop(ctx.author.id, None)
         if game_data:
             # Hitung saldo awal dan akhir
             initial_balance = self.bank_data.get(str(ctx.author.id), {}).get('balance', 0)
-            earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
+            earned_rsw = game_data['correct'] * 30  # RSWN yang diperoleh dari hasil kuis
             final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
             # Kartu hasil
@@ -269,7 +285,7 @@ class EmojiQuiz(commands.Cog):
                     f"Saldo Akhir: {score['score']}\n"
                     f"Jawaban Benar: {score['correct']}\n"
                     f"Jawaban Salah: {score['wrong']}\n"
-                    f"RSWN yang Diperoleh: {score['correct'] * 25}"
+                    f"RSWN yang Diperoleh: {score['correct'] * 30}"
                 ),
                 inline=False
             )
