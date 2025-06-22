@@ -53,7 +53,7 @@ LEVEL_BADGES = {
     15: "🥇",
 }
 
-LEVEL_ANNOUNCE_CHANNEL_ID = 1255275460926111775  # Ganti dengan ID channel pengumuman
+LEVEL_ANNOUNCE_CHANNEL_ID = 765140300145360896  # Ganti dengan ID channel pengumuman
 
 LEVEL_DATA_PATH = "data/level_data.json"
 
@@ -77,7 +77,7 @@ def save_data(guild_id, data):
         json.dump(all_data, f, indent=2)
 # ========== FUNGSI UTILITAS ==========
 def calculate_level(exp):
-    return exp // 2500
+    return exp // 3200
 
 def load_data(guild_id):
     # Implementasi untuk memuat data dari file JSON
