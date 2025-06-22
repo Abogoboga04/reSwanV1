@@ -256,42 +256,48 @@ class EmojiQuiz(commands.Cog):
             await self.display_leaderboard(ctx)
 
     async def display_leaderboard(self, ctx):
-    sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
-    embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
+        sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
+        embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-    # Menampilkan semua peserta dan mengumpulkan URL gambar
-    for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
-        user = score['user']
-        
-        # Mendapatkan ID pengguna
-        user_id_str = str(user.id)
+        # Menampilkan semua peserta dan mengumpulkan URL gambar
+        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
+            user = score['user']
+            
+            # Mendapatkan ID pengguna
+            user_id_str = str(user.id)
 
-        # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
-        image_url = None
-        for guild_id, users in self.level_data.items():
-            if user_id_str in users:
-                image_url = users[user_id_str].get('image_url', None)
-                break
+            # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
+            image_url = None
+            for guild_id, users in self.level_data.items():
+                if user_id_str in users:
+                    image_url = users[user_id_str].get('image_url', None)
+                    break
 
-        # Jika image_url tidak ada, gunakan gambar profil pengguna
-        if not image_url:
-            image_url = str(user.avatar.url)
+            # Jika image_url tidak ada, gunakan gambar profil pengguna
+            if not image_url:
+                image_url = str(user.avatar.url)
 
-        # Kirim gambar sebelum leaderboard
-        await ctx.send(image_url)  # Mengirim gambar sebagai pesan terpisah
+            # Mengunduh gambar menggunakan aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as response:
+                    if response.status == 200:
+                        image_bytes = BytesIO(await response.read())
+                        await ctx.send(file=discord.File(image_bytes, filename='user_image.png'))  # Kirim gambar
+                    else:
+                        await ctx.send("Gambar tidak ditemukan.")
 
-        # Menambahkan informasi pengguna ke embed
-        embed.add_field(
-            name=f"{i}. {user.display_name}",
-            value=(
-                f"Saldo Akhir: {score['score']}\n"
-                f"Jawaban Benar: {score['correct']}\n"
-                f"Jawaban Salah: {score['wrong']}"
-            ),
-            inline=False
-        )
+            # Menambahkan informasi pengguna ke embed
+            embed.add_field(
+                name=f"{i}. {user.display_name}",
+                value=(
+                    f"Saldo Akhir: {score['score']}\n"
+                    f"Jawaban Benar: {score['correct']}\n"
+                    f"Jawaban Salah: {score['wrong']}"
+                ),
+                inline=False
+            )
 
-    await ctx.send(embed=embed)  # Mengirim leaderboard
+        await ctx.send(embed=embed)  # Mengirim leaderboard
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
