@@ -82,14 +82,13 @@ class EmojiQuiz(commands.Cog):
         
         self.scores = {}  # Reset skor untuk setiap permainan baru
 
-        # Inisialisasi data pengguna
         self.scores[ctx.author.id] = {
             "score": 0,
             "correct": 0,
             "wrong": 0,
             "user": ctx.author,
-            "bantuan_used": 0,
-            "current_question": None
+            "bantuan_used": 0,  # Menghitung bantuan yang digunakan per sesi
+            "current_question": None  # Menyimpan pertanyaan saat ini
         }
 
         embed = discord.Embed(
@@ -235,7 +234,6 @@ class EmojiQuiz(commands.Cog):
                         break
                     else:
                         await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
-                        # Tidak keluar dari loop, tetap menunggu jawaban yang benar
                 except asyncio.TimeoutError:
                     await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
                     break
@@ -260,6 +258,15 @@ class EmojiQuiz(commands.Cog):
     async def display_leaderboard(self, ctx):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
+
+        # Mengirim gambar pengguna peringkat 1
+        if sorted_scores:
+            top_player = sorted_scores[0]['user']
+            avatar_url = top_player.avatar.url if top_player.avatar else None
+
+            # Kirim gambar juara 1
+            if avatar_url:
+                await ctx.send(avatar_url)  # Mengirim gambar sebagai pesan terpisah
 
         # Menampilkan semua peserta
         for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
