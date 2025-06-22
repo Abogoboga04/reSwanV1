@@ -4,6 +4,8 @@ import json
 import random
 import asyncio
 import os
+import aiohttp
+from io import BytesIO
 
 class EmojiQuiz(commands.Cog):
     def __init__(self, bot):
@@ -20,6 +22,7 @@ class EmojiQuiz(commands.Cog):
         self.messages = []
         self.host = None
         self.question_active = False
+        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
 
     def load_quiz_data(self):
         current_dir = os.path.dirname(__file__)
@@ -35,10 +38,33 @@ class EmojiQuiz(commands.Cog):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
             return json.load(f)
 
+    async def get_user_image(self, ctx, user_data):
+        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
+        custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(custom_image_url) as resp:
+                    if resp.status == 200:
+                        image_data = BytesIO(await resp.read())
+                        return image_data
+                    else:
+                        raise Exception("Invalid image URL")
+        except Exception:
+            # Jika URL tidak valid, ambil gambar profil default
+            default_image_url = str(ctx.author.avatar.url)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(default_image_url) as resp:
+                    return BytesIO(await resp.read())
+
     @commands.command(name="resmoji", help="Mulai Kuis Emoji")
     async def resmoji(self, ctx):
         if self.quiz_active:
-            await ctx.send("Kuis sudah aktif, tunggu hingga sesi ini selesai!", ephemeral=True)
+            await ctx.send("Kuis sudah aktif, tunggu hingga sesi ini selesai!")
+            return
+
+        if ctx.channel.id != self.game_channel_id:
+            await ctx.send("Kuis hanya dapat dimulai di channel yang ditentukan!")
             return
 
         self.host = ctx.author
@@ -46,15 +72,15 @@ class EmojiQuiz(commands.Cog):
             title="😔 Kuis Emoji: Sebuah Harapan yang Tertinggal 😔",
             description=(
                 "Pernahkah kamu merasa bikin sesuatu dengan sepenuh hati... tapi yang datang cuma itu-itu aja? Yah, ini dia... kuis emoji dari admin dan dev yang masih percaya keajaiban itu ada. 😞💔\n\n"
-            "**Cara Main:**\n"
-            "1. Ada 10 soal emoji, penuh teka-teki dan harapan.\n"
-            "2. Siapa cepat dia dapat, tapi kadang yang cepat pun tak dianggap. 🕊️\n"
-            "3. Jawaban benar dapet 25 RSWN, karena hidup butuh semangat (dan receh).\n"
-            "4. Jawab semuanya benar? Kamu pantas dapet bonus 50 RSWN dan mungkin... rasa bangga yang singkat.\n"
-            "5. Minimal 2 peserta, biar nggak terlalu sepi kayak hati ini.\n\n"
-            "Kalau kamu baca ini dan tertarik... yuk, klik tombol di bawah. Biar usaha kami gak sia-sia sepenuhnya. 🌙"
-           ),
-           color=0x2f3136
+                "**Cara Main:**\n"
+                "1. Ada 10 soal emoji, penuh teka-teki dan harapan.\n"
+                "2. Siapa cepat dia dapat, tapi kadang yang cepat pun tak dianggap. 🕊️\n"
+                "3. Jawaban benar dapet 25 RSWN, karena hidup butuh semangat (dan receh).\n"
+                "4. Jawab semuanya benar? Kamu pantas dapet bonus 50 RSWN dan mungkin... rasa bangga yang singkat.\n"
+                "5. Minimal 2 peserta, biar nggak terlalu sepi kayak hati ini.\n\n"
+                "Kalau kamu baca ini dan tertarik... yuk, klik tombol di bawah. Biar usaha kami gak sia-sia sepenuhnya. 🌙"
+            ),
+            color=0x2f3136
         )
 
         view = discord.ui.View()
@@ -90,7 +116,7 @@ class EmojiQuiz(commands.Cog):
 
     async def start_quiz(self, ctx):
         if ctx.guild is None:
-            await ctx.send("Kuis hanya dapat dimulai di server!", ephemeral=True)
+            await ctx.send("Kuis hanya dapat dimulai di server!")
             return
 
         self.participants = [ctx.author]
@@ -136,32 +162,35 @@ class EmojiQuiz(commands.Cog):
         await self.evaluate_answers(ctx, question)
 
     async def evaluate_answers(self, ctx, question):
-        if not self.question_active:
-            return
-
         correct_answer = question['answer'].strip().lower()
-        no_one_answered = True
+        answer_found = False
 
         for participant in self.participants:
             if participant.id in self.current_answers:
                 user_answer = self.current_answers[participant.id].strip().lower()
+
                 if user_answer == correct_answer:
-                    no_one_answered = False
+                    self.correct_count[participant.id] += 1
+                    self.bank_data[str(participant.id)]['balance'] += 25
+                    await ctx.send(f"✅ {participant.mention} menjawab dengan benar! Jawabannya: **{correct_answer}**")
+                    answer_found = True
                     break
 
-        self.question_active = False
-        if no_one_answered:
-            await ctx.send(f"❌ Tidak ada yang menjawab benar. Jawabannya: **{correct_answer}**")
-            await asyncio.sleep(1)
-            await ctx.send("➡️ Pertanyaan berikutnya...")
+        await asyncio.sleep(2)
 
-    async def end_quiz(self, ctx):  # <-- yang kamu minta
+        if answer_found:
+            await ctx.send("➡️ Pertanyaan berikutnya...")
+        self.question_active = False
+
+    async def end_quiz(self, ctx):
         for message in self.messages:
             await message.delete()
 
-        embed = discord.Embed(title="🏆 Leaderboard Kuis Emoji!", color=0x00ff00)
+        embed = discord.Embed(title="🏆 Kartu Hasil Kuis Emoji!", color=0x00ff00)
 
-        for participant in self.participants:
+        sorted_participants = sorted(self.participants, key=lambda p: self.correct_count.get(p.id, 0), reverse=True)
+
+        for i, participant in enumerate(sorted_participants):
             correct = self.correct_count.get(participant.id, 0)
             total_questions = 10
             wrong = total_questions - correct
@@ -172,7 +201,11 @@ class EmojiQuiz(commands.Cog):
                 self.bank_data[pid] = {"balance": 0}
 
             final_balance = self.bank_data[pid]['balance']
-            initial_balance = final_balance + earned  # karena udah dikurangi pas benar
+            initial_balance = final_balance + earned  # karena sudah ditambahkan saat benar
+
+            # Mengambil gambar pengguna
+            user_data = self.bank_data.get(pid, {})
+            image_data = await self.get_user_image(ctx, user_data)
 
             embed.add_field(
                 name=f"{participant.display_name} {participant.mention}",
@@ -185,6 +218,9 @@ class EmojiQuiz(commands.Cog):
                 ),
                 inline=False
             )
+
+            if i >= 4:  # Hanya tampilkan juara 2-5
+                break
 
         await ctx.send(embed=embed)
 
@@ -238,7 +274,11 @@ class EmojiQuiz(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot or not self.quiz_active or not self.question_active:
+        if message.author.bot or not self.quiz_active:
+            return
+
+        if message.channel.id != self.game_channel_id:
+            await message.channel.send("Kuis hanya dapat dijawab di channel yang ditentukan!", ephemeral=True)
             return
 
         if message.author in self.participants and self.current_question:
@@ -247,23 +287,9 @@ class EmojiQuiz(commands.Cog):
                 return
 
             user_answer = message.content.strip().lower()
-            correct_answer = self.current_question['answer'].strip().lower()
-
-            if user_answer == correct_answer:
-                if message.author.id not in self.current_answers:
-                    self.current_answers[message.author.id] = user_answer
-                    self.correct_count[message.author.id] += 1
-                    self.bank_data[str(message.author.id)]['balance'] += 25
-                    await message.channel.send(f"✅ {message.author.mention} menjawab dengan benar! Jawabannya: **{correct_answer}**")
-
-                    self.question_active = False  # Hentikan soal
-                    await asyncio.sleep(1)
-                    await message.channel.send("➡️ Pertanyaan berikutnya...")
-            else:
-                if message.author.id not in self.current_answers:
-                    self.current_answers[message.author.id] = user_answer
-
+            if message.author.id not in self.current_answers:
+                self.current_answers[message.author.id] = user_answer
+                await self.evaluate_answers(message.channel, self.current_question)
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
-  
