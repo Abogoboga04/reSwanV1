@@ -116,66 +116,45 @@ class EmojiQuiz(commands.Cog):
                 "Selamat datang di Kuis Emoji! 🎉\n\n"
                 "Di sini, kamu akan diberikan emoji dan kamu harus menebak frasa yang sesuai.\n"
                 "Setiap peserta dapat menjawab, dan jika tidak ada yang benar dalam waktu 1 menit, soal akan dilanjutkan.\n"
-                "Gunakan tombol di bawah untuk bantuan jika diperlukan (maksimal 8 per sesi).\n"
+                "Gunakan command **!resplis** untuk membeli bantuan jika diperlukan (maksimal 8 per sesi).\n"
                 "Harga bantuan adalah 35 RSWN.\n"
                 "Siap untuk mulai? Klik tombol di bawah ini untuk memulai permainan."
             ),
             color=0x5500aa
         )
 
-        view = discord.ui.View()
-        start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
-        help_button = discord.ui.Button(label="🆘 Beli Bantuan", style=discord.ButtonStyle.secondary)
+        await ctx.send(embed=embed)
 
-        async def start_game(interaction):
-            if ctx.author.id in self.active_games:
-                await ctx.send("Anda sudah sedang bermain EmojiQuiz. Silakan tunggu hingga selesai.")
-                return
+        # Memulai permainan
+        await self.play_game(ctx)
 
-            self.active_games[ctx.author.id] = {
-                "score": 0,
-                "correct": 0,
-                "wrong": 0,
-                "current_question": 0,
-                "time_limit": 60,  # 1 menit
-                "start_time": None,
-                "questions": [],  # Menyimpan daftar pertanyaan
-                "game_over": False,
-                "answers": [],
-                "user": ctx.author  # Menyimpan pengguna yang memulai sesi
-            }
+    @commands.command(name="resplis", help="Membeli bantuan untuk jawaban pertanyaan saat ini.")
+    async def resplis(self, ctx):
+        if ctx.author.id not in self.active_games:
+            await ctx.send("Anda tidak sedang dalam sesi permainan EmojiQuiz.")
+            return
 
-            await ctx.send(f"{ctx.author.mention}, permainan EmojiQuiz dimulai! Anda memiliki 1 menit untuk menjawab setiap soal.")
-            await self.play_game(ctx)
+        user_data = self.scores[ctx.author.id]
+        
+        if user_data["bantuan_used"] >= self.max_bantuan_per_session:
+            await ctx.send("❌ Anda sudah mencapai batas maksimal pembelian bantuan per sesi.")
+            return
 
-        async def buy_help(interaction):
-            user_data = self.scores[ctx.author.id]
-            question_index = user_data["current_question"]  # Ambil indeks pertanyaan saat ini
+        if self.bank_data.get(str(ctx.author.id), {}).get('balance', 0) < self.bantuan_price:
+            await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
+            return
 
-            if user_data["bantuan_used"] >= self.max_bantuan_per_session:
-                await ctx.send("❌ Anda sudah mencapai batas maksimal pembelian bantuan per sesi.")
-                return
+        self.bank_data[str(ctx.author.id)]['balance'] -= self.bantuan_price
+        user_data["bantuan_used"] += 1
 
-            if self.bank_data.get(str(ctx.author.id), {}).get('balance', 0) < self.bantuan_price:
-                await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
-                return
+        # Mengambil jawaban dari pertanyaan saat ini
+        current_question_index = user_data["current_question"]
 
-            self.bank_data[str(ctx.author.id)]['balance'] -= self.bantuan_price
-            user_data["bantuan_used"] += 1
-
-            # Mengambil jawaban dari pertanyaan saat ini
-            if question_index is not None:
-                current_question = self.active_games[ctx.author.id]["questions"][question_index]
-                await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
-            else:
-                await ctx.author.send("❌ Tidak ada pertanyaan saat ini yang dapat dibantu.")
-
-        start_button.callback = start_game
-        help_button.callback = buy_help
-        view.add_item(start_button)
-        view.add_item(help_button)
-
-        await ctx.send(embed=embed, view=view)
+        if current_question_index is not None:
+            current_question = self.active_games[ctx.author.id]["questions"][current_question_index]
+            await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
+        else:
+            await ctx.author.send("❌ Tidak ada pertanyaan saat ini yang dapat dibantu.")
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.author.id]
@@ -250,19 +229,7 @@ class EmojiQuiz(commands.Cog):
             earned_rsw = game_data['correct'] * self.reward_per_correct_answer  # RSWN yang diperoleh dari hasil kuis
             final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
-            # Kartu hasil
-            embed = discord.Embed(
-                title="📝 Hasil Permainan EmojiQuiz",
-                color=0x00ff00
-            )
-            embed.add_field(name="Nama", value=ctx.author.display_name)
-            embed.add_field(name="Jawaban Benar", value=game_data['correct'])
-            embed.add_field(name="Jawaban Salah", value=game_data['wrong'])
-            embed.add_field(name="RSWN yang Diperoleh", value=earned_rsw)
-            embed.add_field(name="Saldo RSWN Awal", value=initial_balance)
-            embed.add_field(name="Saldo RSWN Akhir", value=final_balance)
-
-            # Menyimpan skor untuk leaderboard
+            # Memperbarui skor untuk leaderboard
             self.scores[ctx.author.id] = {
                 "score": final_balance,
                 "correct": game_data['correct'],
@@ -270,14 +237,7 @@ class EmojiQuiz(commands.Cog):
                 "user": ctx.author
             }
 
-            # Mengambil gambar pengguna
-            user_data = self.level_data.get(str(ctx.guild.id), {}).get(str(ctx.author.id), {})
-            image_data = await self.get_user_image(ctx, user_data)
-
-            # Mengirimkan kartu hasil dengan gambar pengguna
-            await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
-
-            # Update bank_data.json
+            # Menyimpan data bank
             self.bank_data[str(ctx.author.id)] = {
                 "balance": final_balance
             }
@@ -286,16 +246,30 @@ class EmojiQuiz(commands.Cog):
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
                 json.dump(self.bank_data, f, indent=4)
 
-            # Menampilkan leaderboard jika ada 2 atau lebih peserta
-            if len(self.scores) >= 2:
-                await self.display_leaderboard(ctx)
+            # Menampilkan leaderboard
+            await self.display_leaderboard(ctx)
 
     async def display_leaderboard(self, ctx):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Mengambil peserta dari peringkat 2 hingga 5
-        for i, score in enumerate(sorted_scores[1:5], start=2):  # Mulai dari index 1 untuk juara 2
+        # Mendapatkan juara 1
+        if sorted_scores:
+            top_scorer = sorted_scores[0]
+            top_user_image = await self.get_user_image(ctx, self.level_data.get(str(ctx.guild.id), {}).get(str(top_scorer['user'].id), {}))
+            await ctx.send(file=discord.File(top_user_image, "avatar.png"), embed=discord.Embed(
+                title=f"🏅 Juara 1: {top_scorer['user'].display_name}",
+                description=(
+                    f"Saldo Akhir: {top_scorer['score']}\n"
+                    f"Jawaban Benar: {top_scorer['correct']}\n"
+                    f"Jawaban Salah: {top_scorer['wrong']}\n"
+                    f"RSWN yang Diperoleh: {top_scorer['correct'] * self.reward_per_correct_answer}"
+                ),
+                color=0x00ff00
+            ))
+
+        # Menampilkan peserta dari peringkat 1 hingga 5
+        for i, score in enumerate(sorted_scores[:5], start=1):  # Hanya 5 peserta teratas
             embed.add_field(
                 name=f"{i}. {score['user'].display_name}",
                 value=(
