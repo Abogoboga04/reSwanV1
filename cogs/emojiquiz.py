@@ -94,14 +94,10 @@ class EmojiQuiz(commands.Cog):
             return
 
         # Memeriksa apakah sesi aktif untuk pengguna lain
-        if any(game["user"].id == ctx.author.id for game in self.active_games.values()):
-            await ctx.send("Anda sudah sedang bermain EmojiQuiz. Silakan tunggu hingga selesai.")
+        if ctx.channel.id in self.active_games:
+            await ctx.send("Permainan sudah sedang berlangsung di channel ini.")
             return
         
-        if ctx.author.id in self.active_games:
-            await ctx.send("Anda sudah sedang bermain EmojiQuiz. Silakan tunggu hingga selesai.")
-            return
-
         self.scores[ctx.author.id] = {
             "score": 0,
             "correct": 0,
@@ -171,8 +167,11 @@ class EmojiQuiz(commands.Cog):
         current_question = self.active_games[ctx.channel.id]["questions"][current_question_index]
 
         # Kirim jawaban ke DM pengguna
-        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
+        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan saat ini adalah: **{current_question['answer']}**")
         await ctx.author.send(f"✅ Pembelian bantuan berhasil! Saldo RSWN Anda berkurang dari **{initial_balance}** menjadi **{final_balance}**.")
+
+        # Memberikan konfirmasi di channel
+        await ctx.send(f"{ctx.author.mention}, Anda telah berhasil membeli bantuan!")
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.channel.id]
@@ -216,7 +215,7 @@ class EmojiQuiz(commands.Cog):
         # Menunggu jawaban dalam waktu yang ditentukan
         try:
             def check(m):
-                return m.channel == ctx.channel  # Mengizinkan semua pengguna di channel untuk menjawab
+                return m.channel == ctx.channel  # Memungkinkan semua pengguna di channel untuk menjawab
 
             while True:
                 try:
@@ -299,4 +298,3 @@ class EmojiQuiz(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
-    
