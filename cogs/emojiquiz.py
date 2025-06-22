@@ -39,7 +39,6 @@ class EmojiQuiz(commands.Cog):
             return json.load(f)
 
     async def get_user_image(self, ctx, user_data):
-        """Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna."""
         custom_image_url = user_data.get("image_url") or str(ctx.author.avatar.url)
 
         try:
@@ -51,7 +50,6 @@ class EmojiQuiz(commands.Cog):
                     else:
                         raise Exception("Invalid image URL")
         except Exception:
-            # Jika URL tidak valid, ambil gambar profil default
             default_image_url = str(ctx.author.avatar.url)
             async with aiohttp.ClientSession() as session:
                 async with session.get(default_image_url) as resp:
@@ -177,6 +175,10 @@ class EmojiQuiz(commands.Cog):
                     break
 
         await asyncio.sleep(2)
+
+        # Respons jika tidak ada jawaban benar
+        if not answer_found:
+            await ctx.send(f"❌ Tidak ada jawaban benar. Jawaban yang benar adalah: **{correct_answer}**")
 
         if answer_found:
             await ctx.send("➡️ Pertanyaan berikutnya...")
