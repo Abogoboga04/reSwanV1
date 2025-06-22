@@ -155,6 +155,7 @@ class EmojiQuiz(commands.Cog):
 
         game_data = self.active_games[ctx.author.id]
         
+        # Memastikan ada pertanyaan aktif
         if game_data["current_question"] is None:
             await ctx.send("❌ Tidak ada pertanyaan saat ini yang dapat dibantu.")
             return
