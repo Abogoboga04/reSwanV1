@@ -16,7 +16,7 @@ class EmojiQuiz(commands.Cog):
         self.questions = self.load_quiz_data()
         self.scores = {}  # Menyimpan skor peserta
 
-        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+        self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
         self.bantuan_price = 35  # Harga bantuan
         self.max_bantuan_per_session = 8  # Maksimal bantuan per sesi
         self.reward_per_correct_answer = 30  # Hadiah per pertanyaan benar
