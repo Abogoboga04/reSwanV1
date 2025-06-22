@@ -231,30 +231,6 @@ class Hangman(commands.Cog):
             earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
             final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
-            # Kartu hasil
-            embed = discord.Embed(
-                title="📝 Hasil Permainan Hangman",
-                color=0x00ff00
-            )
-            embed.add_field(name="Nama", value=ctx.author.display_name)
-            embed.add_field(name="Jawaban Benar", value=game_data['correct'])
-            embed.add_field(name="Jawaban Salah", value=game_data['wrong'])
-            embed.add_field(name="RSWN yang Diperoleh", value=earned_rsw)
-            embed.add_field(name="Saldo RSWN Awal", value=initial_balance)
-            embed.add_field(name="Saldo RSWN Akhir", value=final_balance)
-
-            # Menyimpan skor untuk leaderboard
-            self.scores[ctx.author.id]["score"] = final_balance
-            self.scores[ctx.author.id]["correct"] = game_data['correct']
-            self.scores[ctx.author.id]["wrong"] = game_data['wrong']
-
-            # Mengambil gambar pengguna
-            user_data = self.level_data.get(str(ctx.guild.id), {}).get(str(ctx.author.id), {})
-            image_data = await self.get_user_image(ctx, user_data)
-
-            # Mengirimkan kartu hasil dengan gambar pengguna
-            await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
-
             # Update bank_data.json
             self.bank_data[str(ctx.author.id)] = {
                 "balance": final_balance
@@ -275,28 +251,52 @@ class Hangman(commands.Cog):
             with open('data/level_data.json', 'w', encoding='utf-8') as f:
                 json.dump(self.level_data, f, indent=4)
 
-            # Menampilkan leaderboard jika ada 2 atau lebih peserta
-            if len(self.scores) >= 2:
-                await self.display_leaderboard(ctx)
+            # Menampilkan leaderboard
+            await self.display_leaderboard(ctx)
 
     async def display_leaderboard(self, ctx):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
 
-        # Mengambil peserta dari peringkat 2 hingga 5
-        for i, score in enumerate(sorted_scores[1:5], start=2):  # Mulai dari index 1 untuk juara 2
+        # Menampilkan semua peserta dan mengumpulkan URL gambar
+        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
+            user = score['user']
+            
+            # Mendapatkan ID pengguna
+            user_id_str = str(user.id)
+
+            # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
+            image_url = None
+            for guild_id, users in self.level_data.items():
+                if user_id_str in users:
+                    image_url = users[user_id_str].get('image_url', None)
+                    break
+
+            # Jika image_url tidak ada, gunakan gambar profil pengguna
+            if not image_url:
+                image_url = str(user.avatar.url)
+
+            # Mengunduh gambar menggunakan aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as response:
+                    if response.status == 200:
+                        image_bytes = BytesIO(await response.read())
+                        await ctx.send(file=discord.File(image_bytes, filename='user_image.png'))  # Kirim gambar
+                    else:
+                        await ctx.send("Gambar tidak ditemukan.")
+
+            # Menambahkan informasi pengguna ke embed
             embed.add_field(
-                name=f"{i}. {score['user'].display_name}",
+                name=f"{i}. {user.display_name}",
                 value=(
                     f"Saldo Akhir: {score['score']}\n"
                     f"Jawaban Benar: {score['correct']}\n"
-                    f"Jawaban Salah: {score['wrong']}\n"
-                    f"RSWN yang Diperoleh: {score['correct'] * 25}"
+                    f"Jawaban Salah: {score['wrong']}"
                 ),
                 inline=False
             )
 
-        await ctx.send(embed=embed)
+        await ctx.send(embed=embed)  # Mengirim leaderboard
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
