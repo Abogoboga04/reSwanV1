@@ -153,6 +153,12 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("Anda tidak sedang dalam sesi permainan EmojiQuiz.")
             return
 
+        game_data = self.active_games[ctx.author.id]
+        
+        if game_data["current_question"] is None:
+            await ctx.send("❌ Tidak ada pertanyaan saat ini yang dapat dibantu.")
+            return
+
         user_data = self.scores[ctx.author.id]
         
         if user_data["bantuan_used"] >= self.max_bantuan_per_session:
@@ -167,13 +173,10 @@ class EmojiQuiz(commands.Cog):
         user_data["bantuan_used"] += 1
 
         # Mengambil jawaban dari pertanyaan saat ini
-        current_question_index = user_data["current_question"]
+        current_question_index = game_data["current_question"]
+        current_question = game_data["questions"][current_question_index]
 
-        if current_question_index is not None:
-            current_question = self.active_games[ctx.author.id]["questions"][current_question_index]
-            await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
-        else:
-            await ctx.author.send("❌ Tidak ada pertanyaan saat ini yang dapat dibantu.")
+        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan adalah: **{current_question['answer']}**")
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.author.id]
