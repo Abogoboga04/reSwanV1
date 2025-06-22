@@ -127,6 +127,45 @@ class EmojiQuiz(commands.Cog):
 
         await ctx.send(embed=embed, view=view)
 
+    @commands.command(name="resplis", help="Membeli bantuan untuk jawaban pertanyaan saat ini.")
+    async def resplis(self, ctx):
+        user_id = str(ctx.author.id)  # Pastikan ID pengguna adalah string
+
+        # Memastikan bahwa data pengguna ada di bank_data
+        if user_id not in self.bank_data:
+            # Membuat akun baru untuk pengguna
+            self.bank_data[user_id] = {
+                "balance": 0,  # Set saldo awal ke 0 atau nilai lainnya sesuai kebutuhan
+                "debt": 0
+            }
+            await ctx.send("Akun Anda telah dibuat. Saldo awal Anda adalah 0 RSWN.")
+
+        user_data = self.bank_data[user_id]
+
+        if user_data.get('balance', 0) < self.bantuan_price:
+            await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
+            return
+
+        # Mengurangi saldo RSWN
+        initial_balance = user_data['balance']
+        user_data['balance'] -= self.bantuan_price
+        final_balance = user_data['balance']
+
+        # Mengambil jawaban dari pertanyaan saat ini
+        current_question_index = self.active_games[ctx.channel.id]["current_question"]
+        current_question = self.active_games[ctx.channel.id]["questions"][current_question_index]
+
+        # Kirim jawaban ke DM pengguna
+        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan saat ini adalah: **{current_question['answer']}**")
+        await ctx.author.send(f"✅ Pembelian bantuan berhasil! Saldo RSWN Anda berkurang dari **{initial_balance}** menjadi **{final_balance}**.")
+
+        # Memberikan konfirmasi di channel
+        await ctx.send(f"{ctx.author.mention}, Anda telah berhasil membeli bantuan!")
+
+        # Simpan perubahan ke file
+        with open('data/bank_data.json', 'w', encoding='utf-8') as f:
+            json.dump(self.bank_data, f, indent=4)
+
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.channel.id]
         game_data["start_time"] = asyncio.get_event_loop().time()
@@ -242,7 +281,6 @@ class EmojiQuiz(commands.Cog):
                 async with session.get(image_url) as response:
                     if response.status == 200:
                         image_bytes = BytesIO(await response.read())
-                        # Kirim gambar untuk peringkat pertama
                         await ctx.send(file=discord.File(image_bytes, filename='user_image.png'))  # Kirim gambar
                     else:
                         await ctx.send("Gambar tidak ditemukan.")
