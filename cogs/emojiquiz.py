@@ -20,6 +20,7 @@ class EmojiQuiz(commands.Cog):
         self.bantuan_price = 35  # Harga bantuan
         self.max_bantuan_per_session = 8  # Maksimal bantuan per sesi
         self.reward_per_correct_answer = 30  # Hadiah per pertanyaan benar
+        self.time_limit = 60  # Waktu batas untuk setiap pertanyaan
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -127,7 +128,7 @@ class EmojiQuiz(commands.Cog):
         start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
 
         async def start_game(interaction):
-            # Menambahkan pengguna ke active_games
+            # Menambahkan pengguna ke active_games dan mengatur data permainan
             self.active_games[ctx.author.id] = {
                 "user": ctx.author,
                 "correct": 0,
@@ -136,7 +137,8 @@ class EmojiQuiz(commands.Cog):
                 "questions": [],
                 "game_over": False,
                 "bantuan_used": 0,
-                "start_time": None
+                "start_time": None,
+                "time_limit": self.time_limit  # Menetapkan waktu batas
             }
             await self.play_game(ctx)
 
