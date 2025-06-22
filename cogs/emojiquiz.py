@@ -256,32 +256,42 @@ class EmojiQuiz(commands.Cog):
             await self.display_leaderboard(ctx)
 
     async def display_leaderboard(self, ctx):
-        sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
-        embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
+    sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
+    embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Mengirim gambar pengguna peringkat 1
-        if sorted_scores:
-            top_player = sorted_scores[0]['user']
-            avatar_url = top_player.avatar.url if top_player.avatar else None
+    # Menampilkan semua peserta dan mengumpulkan URL gambar
+    for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
+        user = score['user']
+        
+        # Mendapatkan ID pengguna
+        user_id_str = str(user.id)
 
-            # Kirim gambar juara 1
-            if avatar_url:
-                await ctx.send(avatar_url)  # Mengirim gambar sebagai pesan terpisah
+        # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
+        image_url = None
+        for guild_id, users in self.level_data.items():
+            if user_id_str in users:
+                image_url = users[user_id_str].get('image_url', None)
+                break
 
-        # Menampilkan semua peserta
-        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
-            user = score['user']
-            embed.add_field(
-                name=f"{i}. {user.display_name}",
-                value=(
-                    f"Saldo Akhir: {score['score']}\n"
-                    f"Jawaban Benar: {score['correct']}\n"
-                    f"Jawaban Salah: {score['wrong']}"
-                ),
-                inline=False
-            )
+        # Jika image_url tidak ada, gunakan gambar profil pengguna
+        if not image_url:
+            image_url = str(user.avatar.url)
 
-        await ctx.send(embed=embed)
+        # Kirim gambar sebelum leaderboard
+        await ctx.send(image_url)  # Mengirim gambar sebagai pesan terpisah
+
+        # Menambahkan informasi pengguna ke embed
+        embed.add_field(
+            name=f"{i}. {user.display_name}",
+            value=(
+                f"Saldo Akhir: {score['score']}\n"
+                f"Jawaban Benar: {score['correct']}\n"
+                f"Jawaban Salah: {score['wrong']}"
+            ),
+            inline=False
+        )
+
+    await ctx.send(embed=embed)  # Mengirim leaderboard
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
