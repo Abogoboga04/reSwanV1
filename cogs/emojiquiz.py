@@ -238,7 +238,7 @@ class EmojiQuiz(commands.Cog):
                         await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
                         # Tambahkan reward untuk jawaban benar
                         self.scores[user_answer.author.id]['score'] += self.reward_per_correct_answer
-                        break
+                        break  # Keluar dari loop untuk melanjutkan ke soal berikutnya
                     else:
                         game_data["wrong"] += 1
                         await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
@@ -267,6 +267,15 @@ class EmojiQuiz(commands.Cog):
     async def display_leaderboard(self, ctx):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
+
+        # Mengirim gambar pengguna peringkat 1
+        if sorted_scores:
+            top_player = sorted_scores[0]['user']
+            avatar_url = top_player.avatar.url if top_player.avatar else None
+
+            # Kirim gambar juara 1
+            if avatar_url:
+                await ctx.send(avatar_url)  # Mengirim gambar sebagai pesan terpisah
 
         # Menampilkan semua peserta
         for i, score in enumerate(sorted_scores, start=1):  # Menampilkan semua peserta
