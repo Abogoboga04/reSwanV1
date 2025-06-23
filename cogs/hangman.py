@@ -273,6 +273,7 @@ class Hangman(commands.Cog):
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
+                    f"Total RSWN: {score['total_rsw']}\n"  # Total RSWN dari sesi kuis
                     f"Jawaban Benar: {score['correct']}\n"
                     f"Jawaban Salah: {score['wrong']}"
                 ),
