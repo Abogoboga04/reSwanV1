@@ -88,7 +88,8 @@ class EmojiQuiz(commands.Cog):
             "wrong": 0,
             "user": ctx.author,
             "bantuan_used": 0,  # Menghitung bantuan yang digunakan per sesi
-            "current_question": None  # Menyimpan pertanyaan saat ini
+            "current_question": None,  # Menyimpan pertanyaan saat ini
+            "total_rsw": 0  # Menyimpan total RSWN yang diperoleh dari kuis
         }
 
         embed = discord.Embed(
@@ -124,6 +125,7 @@ class EmojiQuiz(commands.Cog):
                 "bantuan_used": 0,
                 "start_time": None,
                 "time_limit": self.time_limit  # Menetapkan waktu batas
+                "total_rsw": 0  # Total RSWN yang akan didapat dari kuis
             }
             await self.play_game(ctx)
 
@@ -222,6 +224,7 @@ class EmojiQuiz(commands.Cog):
                     # Cek jawaban
                     if user_answer.content.strip().lower() == question['answer'].lower():
                         game_data["correct"] += 1
+                        game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan ke total RSWN
                         await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
 
                         # Tambahkan reward untuk jawaban benar
@@ -238,6 +241,7 @@ class EmojiQuiz(commands.Cog):
                         # Keluar dari loop untuk melanjutkan ke soal berikutnya
                         break
                     else:
+                        game_data["wrong"] += 1
                         await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
                 except asyncio.TimeoutError:
                     await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
@@ -252,6 +256,7 @@ class EmojiQuiz(commands.Cog):
             # Menghitung skor akhir untuk pengguna
             for score in self.scores.values():
                 score["wrong"] = game_data["wrong"]
+                score["total_rsw"] = game_data["total_rsw"]  # Menyimpan total RSWN yang didapat
 
             # Simpan perubahan ke file
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
@@ -264,20 +269,20 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Hanya ambil peringkat pertama
-        if sorted_scores:
-            top_score = sorted_scores[0]  # Ambil skor tertinggi
-            user = top_score['user']
+        # Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna
+        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan peringkat 1 hingga 5
+            user = score['user']
             
             # Mendapatkan ID pengguna
             user_id_str = str(user.id)
+            server_id_str = str(ctx.guild.id)  # Mendapatkan ID server
 
             # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
             image_url = None
-            if user_id_str in self.level_data:
-                image_url = self.level_data[user_id_str].get('image_url', None)
+            if server_id_str in self.level_data and user_id_str in self.level_data[server_id_str]:
+                image_url = self.level_data[server_id_str][user_id_str].get('image_url', None)
 
-            # Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna
+            # Mengambil gambar pengguna
             custom_image_url = image_url or str(user.avatar.url)
 
             # Validasi URL gambar
@@ -297,20 +302,15 @@ class EmojiQuiz(commands.Cog):
             await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
 
             # Menambahkan informasi pengguna ke embed untuk peringkat 1-5
-            for i in range(min(5, len(sorted_scores))):  # Peringkat 1 sampai 5
-                score = sorted_scores[i]
-                user = score['user']
-                
-                # Menambahkan informasi pengguna ke embed
-                embed.add_field(
-                    name=f"{i + 1}. {user.display_name}",
-                    value=(
-                        f"Saldo Akhir: {score['score']}\n"
-                        f"Jawaban Benar: {score['correct']}\n"
-                        f"Jawaban Salah: {score['wrong']}"
-                    ),
-                    inline=False
-                )
+            embed.add_field(
+                name=f"{i}. {user.display_name}",
+                value=(
+                    f"Total RSWN: {score['total_rsw']}\n"  # Total RSWN dari sesi kuis
+                    f"Jawaban Benar: {score['correct']}\n"
+                    f"Jawaban Salah: {score['wrong']}"
+                ),
+                inline=False
+            )
 
         await ctx.send(embed=embed)  # Mengirim leaderboard
 
