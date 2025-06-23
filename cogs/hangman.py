@@ -207,14 +207,12 @@ class Hangman(commands.Cog):
     async def end_game(self, ctx):
         game_data = self.active_games.pop(ctx.author.id, None)
         if game_data:
-            # Hitung saldo awal dan akhir
-            initial_balance = self.bank_data.get(str(ctx.author.id), {}).get('balance', 0)
+            # Hitung saldo akhir dari sesi kuis
             earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
-            final_balance = initial_balance + earned_rsw + (50 if game_data['correct'] == 10 else 0)  # Bonus jika benar semua
 
-            # Update bank_data.json
+            # Update bank_data.json dengan saldo sesi
             self.bank_data[str(ctx.author.id)] = {
-                "balance": final_balance
+                "balance": earned_rsw  # Saldo akhir hanya dari sesi ini
             }
 
             # Update level_data.json dengan EXP
@@ -236,20 +234,21 @@ class Hangman(commands.Cog):
             await self.display_leaderboard(ctx)
 
     async def display_leaderboard(self, ctx):
-        sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
+        sorted_scores = sorted(self.scores.values(), key=lambda x: x["correct"], reverse=True)[:5]  # Hanya ambil 5 teratas
         embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
 
         # Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna
-        for i, score in enumerate(sorted_scores[:5], start=1):  # Menampilkan peringkat 1 hingga 5
+        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan peringkat 1 hingga 5
             user = score['user']
             
             # Mendapatkan ID pengguna
             user_id_str = str(user.id)
+            server_id_str = str(ctx.guild.id)  # Mendapatkan ID server
 
             # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
             image_url = None
-            if user_id_str in self.level_data:
-                image_url = self.level_data[user_id_str].get('image_url', None)
+            if server_id_str in self.level_data and user_id_str in self.level_data[server_id_str]:
+                image_url = self.level_data[server_id_str][user_id_str].get('image_url', None)
 
             # Mengambil gambar pengguna
             custom_image_url = image_url or str(user.avatar.url)
@@ -270,12 +269,10 @@ class Hangman(commands.Cog):
             # Kirim gambar
             await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
 
-            # Menambahkan informasi pengguna ke embed
-            balance = self.bank_data.get(user_id_str, {}).get('balance', 0)  # Ambil saldo
+            # Menambahkan informasi pengguna ke embed dengan data yang benar
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
-                    f"Saldo Akhir: {balance} 🪙RSWN\n"
                     f"Jawaban Benar: {score['correct']}\n"
                     f"Jawaban Salah: {score['wrong']}"
                 ),
