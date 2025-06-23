@@ -124,8 +124,8 @@ class EmojiQuiz(commands.Cog):
                 "game_over": False,
                 "bantuan_used": 0,
                 "start_time": None,
-                "time_limit": self.time_limit  # Menetapkan waktu batas
-                "total_rsw": 0  # Total RSWN yang akan didapat dari kuis
+                "time_limit": self.time_limit,  # Menetapkan waktu batas
+                "total_rsw": 0  # Menyimpan total RSWN yang diperoleh dari sesi ini
             }
             await self.play_game(ctx)
 
@@ -218,34 +218,30 @@ class EmojiQuiz(commands.Cog):
                 return m.channel == ctx.channel  # Memungkinkan semua pengguna di channel untuk menjawab
 
             while True:
-                try:
-                    user_answer = await self.bot.wait_for('message', timeout=self.time_limit, check=check)
+                user_answer = await self.bot.wait_for('message', timeout=self.time_limit, check=check)
 
-                    # Cek jawaban
-                    if user_answer.content.strip().lower() == question['answer'].lower():
-                        game_data["correct"] += 1
-                        game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan ke total RSWN
-                        await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+                # Cek jawaban
+                if user_answer.content.strip().lower() == question['answer'].lower():
+                    game_data["correct"] += 1
+                    game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan RSWN ke total RSWN
+                    await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
 
-                        # Tambahkan reward untuk jawaban benar
-                        if user_answer.author.id not in self.scores:
-                            self.scores[user_answer.author.id] = {
-                                "score": 0,
-                                "correct": 0,
-                                "wrong": 0,
-                                "user": user_answer.author
-                            }
-                        self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
-                        self.scores[user_answer.author.id]["correct"] += 1
+                    # Tambahkan reward untuk jawaban benar
+                    if user_answer.author.id not in self.scores:
+                        self.scores[user_answer.author.id] = {
+                            "score": 0,
+                            "correct": 0,
+                            "wrong": 0,
+                            "user": user_answer.author
+                        }
+                    self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
+                    self.scores[user_answer.author.id]["correct"] += 1
 
-                        # Keluar dari loop untuk melanjutkan ke soal berikutnya
-                        break
-                    else:
-                        game_data["wrong"] += 1
-                        await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
-                except asyncio.TimeoutError:
-                    await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
+                    # Keluar dari loop untuk melanjutkan ke soal berikutnya
                     break
+                else:
+                    game_data["wrong"] += 1
+                    await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
 
         except asyncio.TimeoutError:
             await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
@@ -301,7 +297,7 @@ class EmojiQuiz(commands.Cog):
             # Kirim gambar
             await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
 
-            # Menambahkan informasi pengguna ke embed untuk peringkat 1-5
+            # Menambahkan informasi pengguna ke embed
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
