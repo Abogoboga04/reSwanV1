@@ -53,7 +53,7 @@ LEVEL_BADGES = {
     15: "🥇",
 }
 
-LEVEL_ANNOUNCE_CHANNEL_ID = 765140300145360896  # Ganti dengan ID channel pengumuman
+LEVEL_ANNOUNCE_CHANNEL_ID = 7651403001460896  # Ganti dengan ID channel pengumuman
 
 LEVEL_DATA_PATH = "data/level_data.json"
 
