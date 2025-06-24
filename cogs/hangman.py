@@ -74,15 +74,16 @@ class Hangman(commands.Cog):
         if ctx.author.id in self.active_games:
             await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
             return
+
+        # Inisialisasi skor untuk pengguna
         if ctx.author.id not in self.scores:
             self.scores[ctx.author.id] = {
-                "user": ctx.author
+                "user": ctx.author,
+                "score": 0,
+                "correct": 0,
+                "wrong": 0,
+                "total_rsw": 0  # Inisialisasi total_rsw
             }
-            self.scores[user.id]["score"] += 1
-            self.scores[user.id]["correct"] += 1
-            self.scores[user.id]["total_rsw"] += 30  # contoh hadiah
-
-            })
 
         embed = discord.Embed(
             title="🎮 Cara Bermain Hangman",
@@ -188,6 +189,12 @@ class Hangman(commands.Cog):
                     game_data["correct"] += 1
                     game_data["answers"].append(user_answer.content.strip().lower())  # Simpan jawaban yang benar
                     await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+
+                    # Tambah skor dan RSWN
+                    self.scores[ctx.author.id]["score"] += 1
+                    self.scores[ctx.author.id]["correct"] += 1
+                    self.scores[ctx.author.id]["total_rsw"] += 30  # contoh hadiah
+
                     break  # Langsung lanjut ke soal berikutnya jika ada yang benar
                 else:
                     game_data["wrong"] += 1
@@ -213,9 +220,10 @@ class Hangman(commands.Cog):
             earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
 
             # Update bank_data.json dengan saldo sesi
-            self.bank_data[str(ctx.author.id)] = {
-                "balance": earned_rsw  # Saldo akhir hanya dari sesi ini
-            }
+            if str(ctx.author.id) not in self.bank_data:
+                self.bank_data[str(ctx.author.id)] = {"balance": 0}
+
+            self.bank_data[str(ctx.author.id)]["balance"] += earned_rsw  # Tambahkan saldo
 
             # Update level_data.json dengan EXP
             if str(ctx.author.id) in self.level_data:
@@ -243,46 +251,18 @@ class Hangman(commands.Cog):
         for i, score in enumerate(sorted_scores, start=1):  # Menampilkan peringkat 1 hingga 5
             user = score['user']
             
-            # Mendapatkan ID pengguna
-            user_id_str = str(user.id)
-            server_id_str = str(ctx.guild.id)  # Mendapatkan ID server
+            # Menambahkan informasi pengguna ke embed
+            embed.add_field(
+                name=f"{i}. {user.display_name}",
+                value=(
+                    f"Total RSWN: {score.get('total_rsw', 0)}\n"  # Cek total RSWN
+                    f"Jawaban Benar: {score['correct']}\n"
+                    f"Jawaban Salah: {score['wrong']}"
+                ),
+                inline=False
+            )
 
-            # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
-            image_url = None
-            if server_id_str in self.level_data and user_id_str in self.level_data[server_id_str]:
-                image_url = self.level_data[server_id_str][user_id_str].get('image_url', None)
-
-            # Mengambil gambar pengguna
-            custom_image_url = image_url or str(user.avatar.url)
-
-            # Validasi URL gambar
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(custom_image_url) as resp:
-                        if resp.status != 200:
-                            custom_image_url = str(user.avatar.url)  # Fallback ke avatar
-                        image_data = BytesIO(await resp.read())
-            except Exception:
-                custom_image_url = str(user.avatar.url)  # Fallback ke avatar
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(custom_image_url) as resp:
-                        image_data = BytesIO(await resp.read())
-
-            # Kirim gambar
-            await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
-
-            # Menambahkan informasi pengguna ke embed dengan data yang benar
-        embed.add_field(
-            name=f"{i}. {user.display_name}",
-            value=(
-                f"Total RSWN: {score.get('total_rsw', 0)}\n"  # Cek total RSWN
-                f"Jawaban Benar: {score['correct']}\n"
-                f"Jawaban Salah: {score['wrong']}"
-            ),
-            inline=False
-        )
-
-    await ctx.send(embed=embed)  # Mengirim leaderboard
+        await ctx.send(embed=embed)  # Mengirim leaderboard
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
