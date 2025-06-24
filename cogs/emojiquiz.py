@@ -16,7 +16,7 @@ class EmojiQuiz(commands.Cog):
         self.questions = self.load_quiz_data()
         self.scores = {}  # Menyimpan skor peserta
 
-        self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
+        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
         self.bantuan_price = 35  # Harga bantuan
         self.max_bantuan_per_session = 8  # Maksimal bantuan per sesi
         self.reward_per_correct_answer = 30  # Hadiah per pertanyaan benar
@@ -215,18 +215,13 @@ class EmojiQuiz(commands.Cog):
         # Menunggu jawaban dalam waktu yang ditentukan
         try:
             def check(m):
-                return m.channel == ctx.channel  # Memungkinkan semua pengguna di channel untuk menjawab
+                return m.channel == ctx.channel and m.author != self.bot.user  # Memungkinkan semua pengguna di channel untuk menjawab, kecuali pesan dari bot
 
             while True:
                 user_answer = await self.bot.wait_for('message', timeout=self.time_limit, check=check)
 
                 # Cek jawaban
                 if user_answer.content.strip().lower() == question['answer'].lower():
-                    game_data["correct"] += 1
-                    game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan RSWN ke total RSWN
-                    await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
-
-                    # Tambahkan reward untuk jawaban benar
                     if user_answer.author.id not in self.scores:
                         self.scores[user_answer.author.id] = {
                             "score": 0,
@@ -234,14 +229,19 @@ class EmojiQuiz(commands.Cog):
                             "wrong": 0,
                             "user": user_answer.author
                         }
-                    self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
-                    self.scores[user_answer.author.id]["correct"] += 1
 
-                    # Keluar dari loop untuk melanjutkan ke soal berikutnya
+                    # Pastikan hanya satu respon untuk jawaban benar
+                    if self.scores[user_answer.author.id]["correct"] == 0 and self.scores[user_answer.author.id]["wrong"] == 0:
+                        game_data["correct"] += 1
+                        game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan RSWN ke total RSWN
+                        await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+                        self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
+                        self.scores[user_answer.author.id]["correct"] += 1
                     break
                 else:
-                    game_data["wrong"] += 1
-                    await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
+                    if self.scores[user_answer.author.id]["correct"] == 0 and self.scores[user_answer.author.id]["wrong"] == 0:
+                        game_data["wrong"] += 1
+                        await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
 
         except asyncio.TimeoutError:
             await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
@@ -250,7 +250,7 @@ class EmojiQuiz(commands.Cog):
         game_data = self.active_games.pop(ctx.channel.id, None)
         if game_data:
             # Menghitung skor akhir untuk pengguna
-            for score in self.scores.values():
+            for user_id, score in self.scores.items():
                 score["wrong"] = game_data["wrong"]
                 score["total_rsw"] = game_data["total_rsw"]  # Menyimpan total RSWN yang didapat
 
@@ -265,48 +265,30 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna
-        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan peringkat 1 hingga 5
-            user = score['user']
-            
-            # Mendapatkan ID pengguna
-            user_id_str = str(user.id)
-            server_id_str = str(ctx.guild.id)  # Mendapatkan ID server
-
-            # Mencari URL gambar dari level_data berdasarkan struktur yang diberikan
-            image_url = None
-            if server_id_str in self.level_data and user_id_str in self.level_data[server_id_str]:
-                image_url = self.level_data[server_id_str][user_id_str].get('image_url', None)
-
-            # Mengambil gambar pengguna
-            custom_image_url = image_url or str(user.avatar.url)
-
-            # Validasi URL gambar
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(custom_image_url) as resp:
-                        if resp.status != 200:
-                            custom_image_url = str(user.avatar.url)  # Fallback ke avatar
-                        image_data = BytesIO(await resp.read())
-            except Exception:
-                custom_image_url = str(user.avatar.url)  # Fallback ke avatar
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(custom_image_url) as resp:
-                        image_data = BytesIO(await resp.read())
-
-            # Kirim gambar
-            await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
-
-            # Menambahkan informasi pengguna ke embed
+        # Menampilkan hanya pengguna peringkat pertama
+        if sorted_scores:
+            top_user = sorted_scores[0]  # Ambil pengguna peringkat pertama
+            user = top_user['user']
             embed.add_field(
-                name=f"{i}. {user.display_name}",
+                name=f"1. {user.display_name}",
                 value=(
-                    f"Total RSWN: {score['total_rsw']}\n"  # Total RSWN dari sesi kuis
-                    f"Jawaban Benar: {score['correct']}\n"
-                    f"Jawaban Salah: {score['wrong']}"
+                    f"Total RSWN: {top_user['total_rsw']}\n"  # Total RSWN dari sesi kuis
+                    f"Jawaban Benar: {top_user['correct']}\n"
+                    f"Jawaban Salah: {top_user['wrong']}"
                 ),
                 inline=False
             )
+
+            # Mengambil gambar pengguna
+            image_url = str(user.avatar.url) if user.avatar else str(user.default_avatar.url)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url) as resp:
+                        if resp.status == 200:
+                            image_data = BytesIO(await resp.read())
+                            await ctx.send(file=discord.File(image_data, filename='avatar.png'))  # Kirim gambar
+            except Exception as e:
+                print(f"Error fetching image for {user.display_name}: {e}")
 
         await ctx.send(embed=embed)  # Mengirim leaderboard
 
