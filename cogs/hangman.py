@@ -74,13 +74,16 @@ class Hangman(commands.Cog):
         if ctx.author.id in self.active_games:
             await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
             return
-
-        self.scores[ctx.author.id] = {
-            "score": 0,
-            "correct": 0,
-            "wrong": 0,
-            "user": ctx.author
-        }
+        if ctx.author.id not in self.scores:
+            self.scores[ctx.author.id] = {
+                "user": ctx.author
+            }
+            self.scores[ctx.author.id].update({
+                 "score": 0,
+                 "correct": 0,
+                 "wrong": 0,
+                "total_rsw": self.scores[ctx.author.id].get("total_rsw", 0),  # jaga nilai lama
+            })
 
         embed = discord.Embed(
             title="🎮 Cara Bermain Hangman",
@@ -273,7 +276,7 @@ class Hangman(commands.Cog):
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
-                    f"Total RSWN: {score['total_rsw']}\n"  # Total RSWN dari sesi kuis
+                    f"Total RSWN: {score.get('total_rsw', 0)}\n"
                     f"Jawaban Benar: {score['correct']}\n"
                     f"Jawaban Salah: {score['wrong']}"
                 ),
