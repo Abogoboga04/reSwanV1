@@ -223,7 +223,8 @@ class Hangman(commands.Cog):
             if str(ctx.author.id) not in self.bank_data:
                 self.bank_data[str(ctx.author.id)] = {"balance": 0}
 
-            self.bank_data[str(ctx.author.id)]["balance"] += earned_rsw  # Tambahkan saldo
+            # Tambahkan saldo yang diperoleh
+            self.bank_data[str(ctx.author.id)]["balance"] += earned_rsw
 
             # Update level_data.json dengan EXP
             if str(ctx.author.id) in self.level_data:
@@ -251,6 +252,12 @@ class Hangman(commands.Cog):
         for i, score in enumerate(sorted_scores, start=1):  # Menampilkan peringkat 1 hingga 5
             user = score['user']
             
+            # Mendapatkan URL gambar pengguna
+            if user.avatar:
+                image_url = str(user.avatar.url)
+            else:
+                image_url = str(user.default_avatar.url)  # Gambar default jika avatar tidak ada
+
             # Menambahkan informasi pengguna ke embed
             embed.add_field(
                 name=f"{i}. {user.display_name}",
@@ -261,6 +268,16 @@ class Hangman(commands.Cog):
                 ),
                 inline=False
             )
+
+            # Mengambil gambar pengguna
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url) as resp:
+                        if resp.status == 200:
+                            image_data = BytesIO(await resp.read())
+                            await ctx.send(file=discord.File(image_data, filename='avatar.png'))  # Kirim gambar
+            except Exception as e:
+                print(f"Error fetching image for {user.display_name}: {e}")
 
         await ctx.send(embed=embed)  # Mengirim leaderboard
 
