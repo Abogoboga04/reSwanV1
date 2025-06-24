@@ -239,8 +239,17 @@ class EmojiQuiz(commands.Cog):
                         self.scores[user_answer.author.id]["correct"] += 1
                     break
                 else:
-                    if self.scores[user_answer.author.id]["correct"] == 0 and self.scores[user_answer.author.id]["wrong"] == 0:
-                        game_data["wrong"] += 1
+                    user_id = user_answer.author.id
+                    if user_id not in self.scores:
+                        self.scores[user_id] = {
+                            "correct": 0,
+                            "wrong": 0,
+                            "score": 0,
+                            "total_rsw": 0,
+                            "user": user_answer.author
+                        }
+
+                    if self.scores[user_id]["correct"] == 0 and self.scores[user_id]["wrong"] == 0:
                         await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
 
         except asyncio.TimeoutError:
