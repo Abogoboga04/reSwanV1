@@ -78,11 +78,10 @@ class Hangman(commands.Cog):
             self.scores[ctx.author.id] = {
                 "user": ctx.author
             }
-            self.scores[ctx.author.id].update({
-                 "score": 0,
-                 "correct": 0,
-                 "wrong": 0,
-                "total_rsw": self.scores[ctx.author.id].get("total_rsw", 0),  # jaga nilai lama
+            self.scores[user.id]["score"] += 1
+            self.scores[user.id]["correct"] += 1
+            self.scores[user.id]["total_rsw"] += 30  # contoh hadiah
+
             })
 
         embed = discord.Embed(
@@ -276,9 +275,10 @@ class Hangman(commands.Cog):
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
-                    f"Total RSWN: {score.get('total_rsw', 0)}\n"
-                    f"Jawaban Benar: {score['correct']}\n"
-                    f"Jawaban Salah: {score['wrong']}"
+                    f"👤 {score['user'].mention}\n"
+                    f"✅ Jawaban Benar: {score.get('correct', 0)}\n"
+                    f"❌ Jawaban Salah: {score.get('wrong', 0)}\n"
+                    f"💰 Total RSWN: {score.get('total_rsw', 0)}\n\n"
                 ),
                 inline=False
             )
