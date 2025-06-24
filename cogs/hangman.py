@@ -272,18 +272,17 @@ class Hangman(commands.Cog):
             await ctx.send(file=discord.File(image_data, filename='user_image.png'))  # Kirim gambar
 
             # Menambahkan informasi pengguna ke embed dengan data yang benar
-            embed.add_field(
-                name=f"{i}. {user.display_name}",
-                value=(
-                    f"👤 {score['user'].mention}\n"
-                    f"✅ Jawaban Benar: {score.get('correct', 0)}\n"
-                    f"❌ Jawaban Salah: {score.get('wrong', 0)}\n"
-                    f"💰 Total RSWN: {score.get('total_rsw', 0)}\n\n"
-                ),
-                inline=False
-            )
+        embed.add_field(
+            name=f"{i}. {user.display_name}",
+            value=(
+                f"Total RSWN: {score.get('total_rsw', 0)}\n"  # Cek total RSWN
+                f"Jawaban Benar: {score['correct']}\n"
+                f"Jawaban Salah: {score['wrong']}"
+            ),
+            inline=False
+        )
 
-        await ctx.send(embed=embed)  # Mengirim leaderboard
+    await ctx.send(embed=embed)  # Mengirim leaderboard
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
