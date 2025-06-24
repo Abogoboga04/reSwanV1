@@ -269,7 +269,7 @@ class Hangman(commands.Cog):
                 inline=False
             )
             print(f"User {ctx.author.id} EXP before: {self.level_data[str(ctx.author.id)]['exp']}")
-            self.level_data[str(ctx.author.id)]["exp"] += game_data['correct'] * 10
+            self.level_data[str(ctx.author.id)]["exp"] += score.get('correct', 0) * 10
             print(f"User {ctx.author.id} EXP after: {self.level_data[str(ctx.author.id)]['exp']}")
             # Mengambil gambar pengguna
             try:
