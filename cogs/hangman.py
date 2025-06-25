@@ -257,17 +257,9 @@ class Hangman(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["correct"], reverse=True)[:5]  # Hanya ambil 5 teratas
         embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
 
-        # Mengambil gambar pengguna dari URL yang disimpan atau menggunakan avatar pengguna
+        # Mengambil informasi untuk leaderboard
         for i, score in enumerate(sorted_scores, start=1):  # Menampilkan peringkat 1 hingga 5
             user = score['user']
-            
-            # Mendapatkan URL gambar pengguna
-            if user.avatar:
-                image_url = str(user.avatar.url)
-            else:
-                image_url = str(user.default_avatar.url)  # Gambar default jika avatar tidak ada
-
-            # Menambahkan informasi pengguna ke embed
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
@@ -278,6 +270,13 @@ class Hangman(commands.Cog):
                 inline=False
             )
 
+        await ctx.send(embed=embed)  # Mengirim leaderboard
+
+        # Hanya mengirim gambar untuk pengguna peringkat pertama
+        if sorted_scores:
+            top_user = sorted_scores[0]['user']
+            image_url = str(top_user.avatar.url) if top_user.avatar else str(top_user.default_avatar.url)
+
             # Mengambil gambar pengguna
             try:
                 async with aiohttp.ClientSession() as session:
@@ -286,9 +285,7 @@ class Hangman(commands.Cog):
                             image_data = BytesIO(await resp.read())
                             await ctx.send(file=discord.File(image_data, filename='avatar.png'))  # Kirim gambar
             except Exception as e:
-                print(f"Error fetching image for {user.display_name}: {e}")
-
-        await ctx.send(embed=embed)  # Mengirim leaderboard
+                print(f"Error fetching image for {top_user.display_name}: {e}")
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
