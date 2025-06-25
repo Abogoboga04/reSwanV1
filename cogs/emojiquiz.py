@@ -18,7 +18,6 @@ class EmojiQuiz(commands.Cog):
 
         self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
         self.bantuan_price = 35  # Harga bantuan
-        self.max_bantuan_per_session = 8  # Maksimal bantuan per sesi
         self.reward_per_correct_answer = 30  # Hadiah per pertanyaan benar
         self.time_limit = 60  # Waktu batas untuk setiap pertanyaan
 
@@ -55,7 +54,7 @@ class EmojiQuiz(commands.Cog):
     def load_quiz_data(self):
         current_dir = os.path.dirname(__file__)  # Folder cogs/
         file_path = os.path.join(current_dir, '..', 'data', 'emoji_questions.json')
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, "r", encoding='utf-8') as f:
             try:
                 data = json.load(f)
                 if isinstance(data["questions"], list) and len(data["questions"]) > 0:
@@ -81,16 +80,6 @@ class EmojiQuiz(commands.Cog):
             return
         
         self.scores = {}  # Reset skor untuk setiap permainan baru
-
-        self.scores[ctx.author.id] = {
-            "score": 0,
-            "correct": 0,
-            "wrong": 0,
-            "user": ctx.author,
-            "bantuan_used": 0,  # Menghitung bantuan yang digunakan per sesi
-            "current_question": None,  # Menyimpan pertanyaan saat ini
-            "total_rsw": 0  # Menyimpan total RSWN yang diperoleh dari kuis
-        }
 
         embed = discord.Embed(
             title="🎮 Cara Bermain EmojiQuiz",
@@ -124,7 +113,6 @@ class EmojiQuiz(commands.Cog):
                 "game_over": False,
                 "bantuan_used": 0,
                 "start_time": None,
-                "time_limit": self.time_limit,  # Menetapkan waktu batas
                 "total_rsw": 0  # Menyimpan total RSWN yang diperoleh dari sesi ini
             }
             await self.play_game(ctx)
@@ -271,12 +259,12 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Menampilkan hanya pengguna peringkat pertama
-        if sorted_scores:
-            top_user = sorted_scores[0]  # Ambil pengguna peringkat pertama
+        # Menampilkan hingga 5 pengguna teratas
+        for i in range(min(5, len(sorted_scores))):
+            top_user = sorted_scores[i]  # Ambil pengguna peringkat ke-i
             user = top_user['user']
             embed.add_field(
-                name=f"1. {user.display_name}",
+                name=f"{i + 1}. {user.display_name}",
                 value=(
                     f"Total RSWN: {top_user['total_rsw']}\n"  # Total RSWN dari sesi kuis
                     f"Jawaban Benar: {top_user['correct']}\n"
