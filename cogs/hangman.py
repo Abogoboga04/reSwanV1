@@ -190,10 +190,19 @@ class Hangman(commands.Cog):
                     game_data["answers"].append(user_answer.content.strip().lower())  # Simpan jawaban yang benar
                     await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
 
-                    # Tambah skor dan RSWN
-                    self.scores[ctx.author.id]["score"] += 1
-                    self.scores[ctx.author.id]["correct"] += 1
-                    self.scores[ctx.author.id]["total_rsw"] += 30  # contoh hadiah
+                    # Tambah skor dan RSWN untuk semua pengguna
+                    if user_answer.author.id not in self.scores:
+                        self.scores[user_answer.author.id] = {
+                            "user": user_answer.author,
+                            "score": 0,
+                            "correct": 0,
+                            "wrong": 0,
+                            "total_rsw": 0
+                        }
+
+                    self.scores[user_answer.author.id]["score"] += 1
+                    self.scores[user_answer.author.id]["correct"] += 1
+                    self.scores[user_answer.author.id]["total_rsw"] += 30  # contoh hadiah
 
                     break  # Langsung lanjut ke soal berikutnya jika ada yang benar
                 else:
@@ -268,9 +277,7 @@ class Hangman(commands.Cog):
                 ),
                 inline=False
             )
-            print(f"User {ctx.author.id} EXP before: {self.level_data[str(ctx.author.id)]['exp']}")
-            self.level_data[str(ctx.author.id)]["exp"] += score.get('correct', 0) * 10
-            print(f"User {ctx.author.id} EXP after: {self.level_data[str(ctx.author.id)]['exp']}")
+
             # Mengambil gambar pengguna
             try:
                 async with aiohttp.ClientSession() as session:
