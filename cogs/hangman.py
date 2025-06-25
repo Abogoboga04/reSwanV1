@@ -71,13 +71,14 @@ class Hangman(commands.Cog):
             await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
             return
 
-        if ctx.author.id in self.active_games:
-            await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
+        # Memeriksa apakah sesi aktif untuk channel ini
+        if ctx.channel.id in self.active_games:
+            await ctx.send("Permainan sudah sedang berlangsung di channel ini. Silakan tunggu hingga selesai.")
             return
 
         self.scores = {}  # Reset skor setiap kali sesi baru dimulai
 
-        self.active_games[ctx.author.id] = {
+        self.active_games[ctx.channel.id] = {
             "score": 0,
             "correct": 0,
             "wrong": 0,
@@ -108,11 +109,7 @@ class Hangman(commands.Cog):
         start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
 
         async def start_game(interaction):
-            if ctx.author.id in self.active_games:
-                await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
-                return
-
-            self.active_games[ctx.author.id]["current_question"] = 0
+            self.active_games[ctx.channel.id]["current_question"] = 0
             await ctx.send(f"{ctx.author.mention}, permainan Hangman dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
             await self.play_game(ctx)
 
@@ -123,14 +120,14 @@ class Hangman(commands.Cog):
 
         # Tunggu 1 menit sebelum reset jika tidak ada yang menekan tombol
         await asyncio.sleep(60)
-        if ctx.author.id not in self.active_games:
+        if ctx.channel.id not in self.active_games:
             await message.delete()
             await ctx.send("Waktu habis! Permainan Hangman di-reset. Silakan coba lagi.")
         else:
             await message.delete()  # Hapus pesan instruksi jika game dimulai
 
     async def play_game(self, ctx):
-        game_data = self.active_games[ctx.author.id]
+        game_data = self.active_games[ctx.channel.id]
         game_data["start_time"] = asyncio.get_event_loop().time()
 
         # Cek apakah ada pertanyaan yang tersedia
@@ -155,7 +152,7 @@ class Hangman(commands.Cog):
             await self.end_game(ctx)
 
     async def ask_question(self, ctx, question):
-        game_data = self.active_games[ctx.author.id]
+        game_data = self.active_games[ctx.channel.id]
 
         embed = discord.Embed(
             title=f"❓ Pertanyaan {game_data['current_question']}",
@@ -216,7 +213,7 @@ class Hangman(commands.Cog):
         return displayed_word
 
     async def end_game(self, ctx):
-        game_data = self.active_games.pop(ctx.author.id, None)
+        game_data = self.active_games.pop(ctx.channel.id, None)
         if game_data:
             # Hitung saldo akhir dari sesi kuis
             earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
