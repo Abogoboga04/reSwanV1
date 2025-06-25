@@ -189,11 +189,11 @@ class EmojiQuiz(commands.Cog):
         game_data["questions"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
 
         for index, question in enumerate(game_data["questions"]):
-            if game_data["game_over"]:
-                break
-
             game_data["current_question"] = index  # Simpan indeks pertanyaan saat ini
             await self.ask_question(ctx, question)
+
+            if game_data["game_over"]:
+                break
 
         if not game_data["game_over"]:
             await self.end_game(ctx)
@@ -230,26 +230,24 @@ class EmojiQuiz(commands.Cog):
                             "user": user_answer.author
                         }
 
-                    if self.scores[user_answer.author.id]["correct"] == 0 and self.scores[user_answer.author.id]["wrong"] == 0:
-                        game_data["correct"] += 1
-                        game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan RSWN ke total RSWN
-                        await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
-                        self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
-                        self.scores[user_answer.author.id]["correct"] += 1
-                    break
+                    game_data["correct"] += 1
+                    game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan RSWN ke total RSWN
+                    self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
+                    self.scores[user_answer.author.id]["correct"] += 1
+
+                    await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
+                    break  # Langsung lanjut ke soal berikutnya
                 else:
-                    user_id = user_answer.author.id
-                    if user_id not in self.scores:
-                        self.scores[user_id] = {
+                    if user_answer.author.id not in self.scores:
+                        self.scores[user_answer.author.id] = {
+                            "score": 0,
                             "correct": 0,
                             "wrong": 0,
-                            "score": 0,
-                            "total_rsw": 0,
                             "user": user_answer.author
                         }
 
-                    if self.scores[user_id]["correct"] == 0 and self.scores[user_id]["wrong"] == 0:
-                        await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
+                    self.scores[user_answer.author.id]["wrong"] += 1
+                    await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
 
         except asyncio.TimeoutError:
             await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
