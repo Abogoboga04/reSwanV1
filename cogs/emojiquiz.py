@@ -230,7 +230,6 @@ class EmojiQuiz(commands.Cog):
                             "user": user_answer.author
                         }
 
-                    # Pastikan hanya satu respon untuk jawaban benar
                     if self.scores[user_answer.author.id]["correct"] == 0 and self.scores[user_answer.author.id]["wrong"] == 0:
                         game_data["correct"] += 1
                         game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan RSWN ke total RSWN
