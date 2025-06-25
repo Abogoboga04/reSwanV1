@@ -14,9 +14,9 @@ class Hangman(commands.Cog):
         self.bank_data = self.load_bank_data()
         self.level_data = self.load_level_data()
         self.questions = self.load_hangman_data()
-        self.scores = {}  # Menyimpan skor peserta
+        self.scores = {}  # Menyimpan skor peserta per sesi
 
-        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+        self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -76,14 +76,16 @@ class Hangman(commands.Cog):
             return
 
         # Inisialisasi skor untuk pengguna
-        if ctx.author.id not in self.scores:
-            self.scores[ctx.author.id] = {
-                "user": ctx.author,
-                "score": 0,
-                "correct": 0,
-                "wrong": 0,
-                "total_rsw": 0  # Inisialisasi total_rsw
-            }
+        self.scores = {}  # Reset skor setiap kali sesi baru dimulai
+        self.active_games[ctx.author.id] = {
+            "current_question": 0,
+            "time_limit": 120,  # 2 menit
+            "game_over": False,
+            "answers": [],
+            "correct": 0,
+            "wrong": 0,
+            "total_rsw": 0
+        }
 
         embed = discord.Embed(
             title="🎮 Cara Bermain Hangman",
@@ -104,28 +106,12 @@ class Hangman(commands.Cog):
         start_button = discord.ui.Button(label="🔵 START", style=discord.ButtonStyle.primary)
 
         async def start_game(interaction):
-            if ctx.author.id in self.active_games:
-                await ctx.send("Anda sudah sedang bermain Hangman. Silakan tunggu hingga selesai.")
-                return
-
-            self.active_games[ctx.author.id] = {
-                "score": 0,
-                "correct": 0,
-                "wrong": 0,
-                "current_question": 0,
-                "time_limit": 120,  # 2 menit
-                "start_time": None,
-                "question": None,
-                "game_over": False,
-                "answers": []
-            }
-
+            self.active_games[ctx.author.id]["current_question"] = 0
             await ctx.send(f"{ctx.author.mention}, permainan Hangman dimulai! Anda memiliki 2 menit untuk menjawab 10 soal.")
             await self.play_game(ctx)
 
         start_button.callback = start_game
         view.add_item(start_button)
-
         message = await ctx.send(embed=embed, view=view)
 
         # Tunggu 1 menit sebelum reset jika tidak ada yang menekan tombol
@@ -190,7 +176,7 @@ class Hangman(commands.Cog):
                     game_data["answers"].append(user_answer.content.strip().lower())  # Simpan jawaban yang benar
                     await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
 
-                    # Tambah skor dan RSWN untuk semua pengguna
+                    # Update skor untuk pengguna
                     if user_answer.author.id not in self.scores:
                         self.scores[user_answer.author.id] = {
                             "user": user_answer.author,
@@ -226,7 +212,7 @@ class Hangman(commands.Cog):
         game_data = self.active_games.pop(ctx.author.id, None)
         if game_data:
             # Hitung saldo akhir dari sesi kuis
-            earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
+            earned_rsw = game_data["correct"] * 25  # RSWN yang diperoleh dari hasil kuis
 
             # Update bank_data.json dengan saldo sesi
             if str(ctx.author.id) not in self.bank_data:
@@ -237,10 +223,10 @@ class Hangman(commands.Cog):
 
             # Update level_data.json dengan EXP
             if str(ctx.author.id) in self.level_data:
-                self.level_data[str(ctx.author.id)]["exp"] += game_data['correct'] * 10  # 10 EXP per soal yang benar
+                self.level_data[str(ctx.author.id)]["exp"] += game_data["correct"] * 10  # 10 EXP per soal yang benar
             else:
                 self.level_data[str(ctx.author.id)] = {
-                    "exp": game_data['correct'] * 10
+                    "exp": game_data["correct"] * 10
                 }
 
             # Simpan perubahan ke file
@@ -250,10 +236,10 @@ class Hangman(commands.Cog):
             with open('data/level_data.json', 'w', encoding='utf-8') as f:
                 json.dump(self.level_data, f, indent=4)
 
-            # Menampilkan leaderboard
-            await self.display_leaderboard(ctx)
+            # Menampilkan leaderboard berdasarkan sesi
+            await self.display_leaderboard(ctx, game_data)
 
-    async def display_leaderboard(self, ctx):
+    async def display_leaderboard(self, ctx, game_data):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["correct"], reverse=True)[:5]  # Hanya ambil 5 teratas
         embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
 
