@@ -74,7 +74,7 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("Permainan EmojiQuiz hanya bisa dimainkan di channel yang ditentukan.")
             return
 
-        # Memeriksa apakah sesi aktif untuk pengguna lain
+        # Memeriksa apakah sesi aktif untuk channel ini
         if ctx.channel.id in self.active_games:
             await ctx.send("Permainan sudah sedang berlangsung di channel ini.")
             return
@@ -245,8 +245,7 @@ class EmojiQuiz(commands.Cog):
         if game_data:
             # Menghitung skor akhir untuk pengguna
             for user_id, score in self.scores.items():
-                score["wrong"] = game_data["wrong"]
-                score["total_rsw"] = game_data["total_rsw"]  # Menyimpan total RSWN yang didapat
+                score["total_rsw"] = score["score"]  # Menyimpan total RSWN yang didapat dari jawaban benar
 
             # Simpan perubahan ke file
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
@@ -259,12 +258,12 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Menampilkan hingga 5 pengguna teratas
-        for i in range(min(5, len(sorted_scores))):
-            top_user = sorted_scores[i]  # Ambil pengguna peringkat ke-i
+        # Menampilkan hanya pengguna peringkat pertama
+        if sorted_scores:
+            top_user = sorted_scores[0]  # Ambil pengguna peringkat pertama
             user = top_user['user']
             embed.add_field(
-                name=f"{i + 1}. {user.display_name}",
+                name=f"1. {user.display_name}",
                 value=(
                     f"Total RSWN: {top_user['total_rsw']}\n"  # Total RSWN dari sesi kuis
                     f"Jawaban Benar: {top_user['correct']}\n"
