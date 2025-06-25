@@ -258,12 +258,12 @@ class EmojiQuiz(commands.Cog):
         sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
         embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
 
-        # Menampilkan hanya pengguna peringkat pertama
-        if sorted_scores:
-            top_user = sorted_scores[0]  # Ambil pengguna peringkat pertama
+        # Menampilkan hingga 5 pengguna teratas
+        for i in range(min(5, len(sorted_scores))):
+            top_user = sorted_scores[i]  # Ambil pengguna peringkat ke-i
             user = top_user['user']
             embed.add_field(
-                name=f"1. {user.display_name}",
+                name=f"{i + 1}. {user.display_name}",
                 value=(
                     f"Total RSWN: {top_user['total_rsw']}\n"  # Total RSWN dari sesi kuis
                     f"Jawaban Benar: {top_user['correct']}\n"
@@ -272,7 +272,10 @@ class EmojiQuiz(commands.Cog):
                 inline=False
             )
 
-            # Mengambil gambar pengguna
+        # Mengambil gambar pengguna hanya untuk peringkat pertama
+        if sorted_scores:
+            top_user = sorted_scores[0]  # Ambil pengguna peringkat pertama
+            user = top_user['user']
             image_url = str(user.avatar.url) if user.avatar else str(user.default_avatar.url)
             try:
                 async with aiohttp.ClientSession() as session:
