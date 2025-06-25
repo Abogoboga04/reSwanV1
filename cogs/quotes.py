@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class Quotes(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.channel_id = 1255226119221940265
+        self.channel_id = 1255226119221940265  # Ganti dengan ID channel yang sesuai
         self.quotes_file_path = os.path.join('data', 'quotes.json')
         self.bank_file_path = os.path.join('data', 'bank_data.json')
         self.level_file_path = os.path.join('data', 'level_data.json')
@@ -27,9 +27,24 @@ class Quotes(commands.Cog):
         logging.info(f"Admin {user_name} ({user_id}) telah mengirim kutipan: {quote_text}")
 
         # Kirim kutipan ke channel yang ditentukan
-        embed = discord.Embed(title="Quotes", description=quote_text, color=0x00ff00)
-        embed.set_footer(text=f"Quotes by {user_name}")
-        await ctx.send(embed=embed)
+        channel = self.bot.get_channel(self.channel_id)
+        if channel:
+            embed = discord.Embed(title="Quotes", description=quote_text, color=0x00ff00)
+            embed.set_footer(text=f"Quotes by {user_name}")
+            msg = await channel.send(embed=embed)  # Kirim ke channel yang ditentukan
+
+            # Tambahkan buttons untuk review oleh admin
+            view = discord.ui.View(timeout=43200)  # Timeout 12 jam (43200 detik)
+            approve_button = discord.ui.Button(label="Approve", style=discord.ButtonStyle.green)
+            deny_button = discord.ui.Button(label="Deny", style=discord.ButtonStyle.red)
+
+            approve_button.callback = lambda inter: self.approve_quote(inter, user_id, quote_text, msg.id)
+            deny_button.callback = lambda inter: self.deny_quote(inter, msg)
+
+            view.add_item(approve_button)
+            view.add_item(deny_button)
+
+            await msg.edit(view=view)  # Edit pesan untuk menambahkan tombol
 
         await ctx.message.delete()  # Hapus pesan admin setelah mengirim kutipan
 
@@ -44,22 +59,24 @@ class Quotes(commands.Cog):
         logging.info(f"User {user_name} ({user_id}) telah mengirim kutipan: {quote_text}")
 
         # Kirim ke channel yang ditentukan
-        embed = discord.Embed(title="Quotes", description=quote_text, color=0x00ff00)
-        embed.set_footer(text=f"Quotes by {display_name}")
-        msg = await ctx.send(embed=embed)
+        channel = self.bot.get_channel(self.channel_id)
+        if channel:
+            embed = discord.Embed(title="Quotes", description=quote_text, color=0x00ff00)
+            embed.set_footer(text=f"Quotes by {display_name}")
+            msg = await channel.send(embed=embed)  # Kirim ke channel yang ditentukan
 
-        # Tambahkan buttons untuk review oleh admin
-        view = discord.ui.View()
-        approve_button = discord.ui.Button(label="Approve", style=discord.ButtonStyle.green)
-        deny_button = discord.ui.Button(label="Deny", style=discord.ButtonStyle.red)
+            # Tambahkan buttons untuk review oleh admin
+            view = discord.ui.View(timeout=43200)  # Timeout 12 jam (43200 detik)
+            approve_button = discord.ui.Button(label="Approve", style=discord.ButtonStyle.green)
+            deny_button = discord.ui.Button(label="Deny", style=discord.ButtonStyle.red)
 
-        approve_button.callback = lambda inter: self.approve_quote(inter, user_id, quote_text, msg.id)
-        deny_button.callback = lambda inter: self.deny_quote(inter, msg)
+            approve_button.callback = lambda inter: self.approve_quote(inter, user_id, quote_text, msg.id)
+            deny_button.callback = lambda inter: self.deny_quote(inter, msg)
 
-        view.add_item(approve_button)
-        view.add_item(deny_button)
+            view.add_item(approve_button)
+            view.add_item(deny_button)
 
-        await msg.edit(view=view)
+            await msg.edit(view=view)  # Edit pesan untuk menambahkan tombol
 
         await ctx.message.delete()  # Hapus pesan pengguna setelah mengirim kutipan
 
