@@ -89,8 +89,6 @@ class AutoSetup(commands.Cog):
             except discord.Forbidden:
                 print(f"[❌] Gagal kasih role '{role.name}' ke {member.name} (cek permission)")
 
-
-
     @commands.Cog.listener()
     async def on_member_join(self, member):
         role_name = self.settings.get("auto_role")
@@ -118,24 +116,6 @@ class AutoSetup(commands.Cog):
         self.save_settings()
 
         await ctx.send(f"✅ Role **{role.name}** akan diberikan saat react {emoji} di pesan ID `{message_id}`.")
-
-        # Kirim pesan sambutan dengan embed
-        welcome_channel_id = self.settings.get("welcome_channel")
-        if welcome_channel_id:
-            channel = self.bot.get_channel(welcome_channel_id)
-            if channel:
-                welcome_message = self.settings["welcome_message"].format(user=member.mention)
-
-                # Membuat embed
-                embed = discord.Embed(
-                    title="Selamat Datang!",
-                    description=welcome_message,
-                    color=discord.Color.blue()
-                )
-                embed.set_thumbnail(url=member.avatar.url)  # Menambahkan thumbnail foto pengguna
-                embed.set_footer(text="Kami senang Anda bergabung!")
-
-                await channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -185,18 +165,6 @@ class AutoSetup(commands.Cog):
             self.save_settings()
         return self.settings[str(channel_id)]
 
-    @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        if user == self.bot.user:
-            return
-
-        if reaction.message.id in self.settings["reaction_roles"]:
-            role_name = self.settings["reaction_roles"][reaction.message.id].get(str(reaction.emoji))
-            if role_name:
-                role = discord.utils.get(reaction.message.guild.roles, name=role_name)
-                if role:
-                    await reaction.message.guild.get_member(user.id).add_roles(role)
-
     @commands.command(name="setup", help="Mengatur semua fitur dalam satu perintah.")
     @commands.has_permissions(manage_roles=True)
     async def setup(self, ctx):
@@ -210,9 +178,13 @@ class AutoSetup(commands.Cog):
         auto_role_button = discord.ui.Button(label="Set Auto Role", style=discord.ButtonStyle.primary)
 
         async def set_auto_role_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             await interaction.response.send_message("Silakan masukkan ID role yang ingin diberikan kepada pengguna baru:")
             try:
-                msg = await self.bot.wait_for('message', check=lambda m: m.author == ctx.author, timeout=30)
+                msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user, timeout=30)
                 role_id = int(msg.content)
                 role = ctx.guild.get_role(role_id)
                 if role:
@@ -233,11 +205,19 @@ class AutoSetup(commands.Cog):
         unmute_button = discord.ui.Button(label="Unmute", style=discord.ButtonStyle.green)
 
         async def mute_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             self.settings["mute_status"] = True
             await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
             await interaction.response.send_message(f"{ctx.channel.mention} telah dimute.", ephemeral=True)
 
         async def unmute_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             self.settings["mute_status"] = False
             await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
             await interaction.response.send_message(f"{ctx.channel.mention} telah diunmute.", ephemeral=True)
@@ -250,11 +230,19 @@ class AutoSetup(commands.Cog):
         unhide_button = discord.ui.Button(label="Unhide", style=discord.ButtonStyle.green)
 
         async def hide_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             self.settings["hide_status"] = True
             await ctx.channel.set_permissions(ctx.guild.default_role, read_messages=False)
             await interaction.response.send_message(f"{ctx.channel.mention} telah disembunyikan.", ephemeral=True)
 
         async def unhide_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             self.settings["hide_status"] = False
             await ctx.channel.set_permissions(ctx.guild.default_role, read_messages=True)
             await interaction.response.send_message(f"{ctx.channel.mention} telah ditampilkan.", ephemeral=True)
@@ -266,8 +254,12 @@ class AutoSetup(commands.Cog):
         set_welcome_button = discord.ui.Button(label="Set Welcome Msg", style=discord.ButtonStyle.primary)
 
         async def set_welcome_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             await interaction.response.send_message("Silakan masukkan pesan sambutan (gunakan {user} untuk menyebut pengguna baru):", ephemeral=True)
-            msg = await self.bot.wait_for('message', check=lambda m: m.author == ctx.author)
+            msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user)
             self.settings["welcome_message"] = msg.content[:200]  # Batasi panjang pesan sambutan
             self.save_settings()
             await interaction.followup.send(f"Pesan sambutan diatur ke: {msg.content}", ephemeral=True)
@@ -278,8 +270,12 @@ class AutoSetup(commands.Cog):
         add_bad_word_button = discord.ui.Button(label="Add Bad Word", style=discord.ButtonStyle.primary)
 
         async def add_bad_word_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             await interaction.response.send_message("Silakan masukkan kata kasar yang ingin ditambahkan:", ephemeral=True)
-            msg = await self.bot.wait_for('message', check=lambda m: m.author == ctx.author)
+            msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user)
             if 1 <= len(msg.content) <= 25:  # Validasi panjang kata kasar
                 self.filters["bad_words"].append(msg.content)
                 self.save_filters()
@@ -293,8 +289,12 @@ class AutoSetup(commands.Cog):
         add_link_pattern_button = discord.ui.Button(label="Add Link Regex", style=discord.ButtonStyle.primary)
 
         async def add_link_pattern_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             await interaction.response.send_message("Silakan masukkan pola regex untuk link yang ingin ditambahkan:", ephemeral=True)
-            msg = await self.bot.wait_for('message', check=lambda m: m.author == ctx.author)
+            msg = await self.bot.wait_for('message', check=lambda m: m.author == interaction.user)
             if len(msg.content) > 0:  # Pastikan pola regex tidak kosong
                 self.filters["link_patterns"].append(msg.content)
                 self.save_filters()
@@ -308,6 +308,10 @@ class AutoSetup(commands.Cog):
         channel_settings_button = discord.ui.Button(label="Set Channel Settings", style=discord.ButtonStyle.secondary)
 
         async def set_channel_settings_callback(interaction):
+            if not interaction.user.guild_permissions.manage_roles:
+                await interaction.response.send_message("🚫 Anda tidak memiliki izin untuk melakukan ini.", ephemeral=True)
+                return
+
             channel_settings = self.get_channel_settings(ctx.channel.id)
 
             # Dropdown untuk mengatur setiap aturan
@@ -335,7 +339,6 @@ class AutoSetup(commands.Cog):
 
             await interaction.response.defer()
             await interaction.followup.send("Silakan pilih aturan yang ingin diatur:", view=view)
-
 
         channel_settings_button.callback = set_channel_settings_callback
 
