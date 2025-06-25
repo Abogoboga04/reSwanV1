@@ -270,7 +270,6 @@ class Hangman(commands.Cog):
                 inline=False
             )
 
-        await ctx.send(embed=embed)  # Mengirim leaderboard
 
         # Hanya mengirim gambar untuk pengguna peringkat pertama
         if sorted_scores:
@@ -286,6 +285,8 @@ class Hangman(commands.Cog):
                             await ctx.send(file=discord.File(image_data, filename='avatar.png'))  # Kirim gambar
             except Exception as e:
                 print(f"Error fetching image for {top_user.display_name}: {e}")
+
+          await ctx.send(embed=embed)  # Mengirim leaderboard
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
