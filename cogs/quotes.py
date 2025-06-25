@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class Quotes(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.channel_id = 1379762287740715060
+        self.channel_id = 1255226119221940265
         self.quotes_file_path = os.path.join('data', 'quotes.json')
         self.bank_file_path = os.path.join('data', 'bank_data.json')
         self.level_file_path = os.path.join('data', 'level_data.json')
