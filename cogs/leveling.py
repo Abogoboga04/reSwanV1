@@ -404,11 +404,16 @@ class Leveling(commands.Cog):
         guild_id = str(ctx.guild.id)
         user_id = str(ctx.author.id)
 
+        # Memastikan file quest harian ada
+        daily_quest_file = f"data/daily_quest_{guild_id}.json"
+        if not os.path.exists(daily_quest_file):
+            return await ctx.send("❌ Belum ada quest harian yang ditentukan!")
+
         try:
-            with open(f"data/daily_quest_{guild_id}.json", "r") as f:
+            with open(daily_quest_file, "r") as f:
                 daily_quest = json.load(f)
 
-            # Load user data
+            # Load data pengguna
             data = load_data(guild_id)
             if user_id not in data:
                 data[user_id] = {
@@ -440,8 +445,11 @@ class Leveling(commands.Cog):
             save_bank_data(bank_data)
 
             await ctx.send(f"✅ Kamu telah menyelesaikan quest harian! Reward: {daily_quest['reward_exp']} EXP dan {daily_quest['reward_coins']} 🪙RSWN.")
-        except FileNotFoundError:
-            await ctx.send("❌ Belum ada quest harian yang ditentukan!")
+    
+        except json.JSONDecodeError:
+            await ctx.send("❌ Terjadi kesalahan saat membaca quest harian.")
+        except Exception as e:
+            await ctx.send(f"❌ Terjadi kesalahan: {str(e)}")
 
     @commands.command()
     @commands.has_permissions(administrator=True)
@@ -768,6 +776,44 @@ class Leveling(commands.Cog):
         embed.add_field(name="EXP", value=user_data["exp"], inline=True)
 
         await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def reduce_user(self, ctx, member: discord.Member, exp: int, rswn: int, *, reason: str):
+        """Mengurangi EXP dan RSWN dari pengguna dengan alasan."""
+        guild_id = str(ctx.guild.id)
+        user_id = str(member.id)
+
+        # Menghapus pesan perintah
+        await ctx.message.delete()
+
+        # Load data pengguna
+        data = load_data(guild_id)
+        bank_data = load_bank_data()
+
+        # Pastikan pengguna ada dalam data
+        if user_id not in data:
+            return await ctx.send("❌ Pengguna tidak ditemukan dalam data!")
+
+        # Periksa apakah pengguna memiliki cukup EXP
+        if data[user_id]["exp"] < exp:
+            return await ctx.send("❌ Pengguna tidak memiliki cukup EXP untuk dikurangi!")
+
+        # Periksa apakah pengguna memiliki cukup RSWN
+        if user_id not in bank_data or bank_data[user_id]["balance"] < rswn:
+            return await ctx.send("❌ Pengguna tidak memiliki cukup RSWN untuk dikurangi!")
+
+        # Kurangi EXP dan RSWN
+        data[user_id]["exp"] -= exp
+        bank_data[user_id]["balance"] -= rswn
+
+        # Simpan perubahan
+        save_data(guild_id, data)
+        save_bank_data(bank_data)
+
+        # Kirim pesan konfirmasi
+        await ctx.send(f"✅ {member.mention} telah dikurangi {exp} EXP dan {rswn} RSWN! Alasan: {reason}")
+
 
     @commands.command()
     @commands.has_permissions(administrator=True)
