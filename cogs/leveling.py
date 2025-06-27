@@ -77,7 +77,7 @@ def save_data(guild_id, data):
         json.dump(all_data, f, indent=2)
 # ========== FUNGSI UTILITAS ==========
 def calculate_level(exp):
-    return exp // 3200
+    return exp // 3500
 
 def load_data(guild_id):
     # Implementasi untuk memuat data dari file JSON
