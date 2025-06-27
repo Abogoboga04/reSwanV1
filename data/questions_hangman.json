@@ -10,543 +10,1213 @@
         "clue": "Kisi-kisi: Makanan dari daging cincang berbentuk bulat."
     },
     {
-        "word": "Drum",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Alat musik tabuh berbentuk silinder."
-    },
-    {
-        "word": "Klepon",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Kue basah tradisional Indonesia."
-    },
-    {
-        "word": "Tangan",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh untuk menggenggam."
-    },
-    {
-        "word": "Celengan",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Benda untuk menyimpan uang logam."
-    },
-    {
-        "word": "Gurita",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan laut dengan delapan lengan."
-    },
-    {
-        "word": "Kapal",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Alat transportasi air."
-    },
-    {
-        "word": "Soeharto",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Pemimpin G30S."
-    },
-    {
-        "word": "Ular",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan kecil bertaring dan bisa berbisa."
-    },
-    {
-        "word": "Teh",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Minuman yang terbuat dari daun teh."
-    },
-    {
-        "word": "Tempe",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Makanan dari kedelai yang difermentasi."
-    },
-    {
-        "word": "Blitar",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Kota tempat lahirnya Soekarno."
-    },
-    {
-        "word": "Popcorn",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Makanan dari jagung dibakar."
-    },
-    {
-        "word": "Cutnyak",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Pahlawan wanita dari Aceh."
-    },
-    {
-        "word": "Kelelawar",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan penghisap darah malam hari."
-    },
-    {
-        "word": "Gunting",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Alat tajam untuk menggunting."
-    },
-    {
-        "word": "Kursi",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Benda untuk duduk."
-    },
-    {
-        "word": "Kanguru",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan berkantung dari Australia."
-    },
-    {
-        "word": "Penggaris",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Alat untuk menggambar garis lurus."
-    },
-    {
-        "word": "Revolusi",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Lintasan bumi mengelilingi matahari."
-    },
-    {
-        "word": "Optimisme",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Pola pikir positif terhadap diri sendiri."
-    },
-    {
-        "word": "Uranus",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet dengan kemiringan ekstrem."
-    },
-    {
-        "word": "Diponegoro",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Pahlawan yang memimpin perang Diponegoro."
-    },
-    {
-        "word": "Idulfitri",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Hari besar agama Islam."
-    },
-    {
-        "word": "Bahu",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh yang menghubungkan lengan ke badan."
-    },
-    {
-        "word": "Mars",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet keempat dari matahari."
-    },
-    {
-        "word": "Blackhole",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Lubang hitam besar di angkasa."
-    },
-    {
-        "word": "Lemari",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Perabot untuk menyimpan pakaian."
-    },
-    {
-        "word": "Belanda",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Penjajah yang menguasai Indonesia."
-    },
-    {
-        "word": "Paralaks",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Perubahan posisi bintang di langit."
-    },
-    {
-        "word": "Galaksi",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Kumpulan bintang besar."
-    },
-    {
-        "word": "Meja",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Benda tempat makan."
-    },
-    {
-        "word": "Rumah",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Tempat tinggal manusia."
-    },
-    {
-        "word": "Garuda",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Simbol negara."
-    },
-    {
-        "word": "Mangkuk",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Wadah makan berbentuk bundar."
-    },
-    {
-        "word": "Masjid",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Bangunan ibadah umat Islam."
-    },
-    {
-        "word": "Jantung",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh yang berdenyut saat takut."
-    },
-    {
-        "word": "Hidung",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh untuk mencium."
-    },
-    {
-        "word": "Ikan",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan bersirip dan hidup di air."
-    },
-    {
-        "word": "Venus",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet dengan atmosfer tebal beracun."
-    },
-    {
-        "word": "Biola",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Instrumen utama dalam orkestra."
-    },
-    {
-        "word": "Depresi",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Suasana hati sangat sedih dan putus asa."
-    },
-    {
-        "word": "Otak",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh tempat berpikir."
-    },
-    {
-        "word": "Cola",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Minuman bersoda manis."
-    },
-    {
-        "word": "Sabun",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Benda yang digunakan untuk mencuci."
-    },
-    {
-        "word": "Neptunus",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet terdingin dalam tata surya."
-    },
-    {
-        "word": "Komposer",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Orang yang membuat musik."
-    },
-    {
-        "word": "Sepeda",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Kendaraan roda dua."
-    },
-    {
-        "word": "Empati",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Kemampuan memahami perasaan orang lain."
-    },
-    {
-        "word": "Fobia",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Gangguan rasa takut berlebihan."
-    },
-    {
-        "word": "Astronomi",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Ilmu yang mempelajari benda langit."
-    },
-    {
-        "word": "Brownies",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Makanan manis berbentuk kotak."
-    },
-    {
-        "word": "Jazz",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Genre musik yang penuh improvisasi."
-    },
-    {
-        "word": "Jam",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Alat untuk melihat waktu."
-    },
-    {
-        "word": "Meteor",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Benda luar angkasa jatuh ke bumi."
-    },
-    {
-        "word": "Panik",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Perasaan takut yang datang tiba-tiba."
-    },
-    {
-        "word": "Kaki",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh yang digunakan untuk menendang."
-    },
-    {
-        "word": "Kabel",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Alat penghubung listrik."
-    },
-    {
-        "word": "Merkurius",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet yang tidak punya satelit alami."
+        "word": "Angklung",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Alat musik dari bambu khas Sunda yang dimainkan dengan cara digoyangkan."
     },
     {
         "word": "Gajah",
         "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan besar di Afrika dengan belalai."
-    },
-    {
-        "word": "Esdoger",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Minuman dingin dengan es dan sirup."
-    },
-    {
-        "word": "Kuas",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Alat untuk menggambar."
-    },
-    {
-        "word": "Beruang",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan pemangsa di kutub utara."
-    },
-    {
-        "word": "Bipolar",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Kondisi jiwa yang tidak stabil."
-    },
-    {
-        "word": "Lutut",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Persendian antara paha dan betis."
-    },
-    {
-        "word": "Pembuka",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Alat untuk membuka kaleng."
-    },
-    {
-        "word": "Otak",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh lunak di dalam kepala."
-    },
-    {
-        "word": "Psikologi",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Ilmu tentang perilaku manusia."
-    },
-    {
-        "word": "Bumi",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet ketiga dari matahari."
-    },
-    {
-        "word": "Payung",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Benda yang digunakan saat hujan."
-    },
-    {
-        "word": "Orbit",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Jalur planet mengelilingi matahari."
-    },
-    {
-        "word": "Kebaya",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Pakaian tradisional Jawa."
-    },
-    {
-        "word": "Merkurius",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet terdekat dengan matahari."
-    },
-    {
-        "word": "Penguin",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Burung laut yang pandai menyelam."
-    },
-    {
-        "word": "Sumpah",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Organisasi pemuda tahun 1928."
-    },
-    {
-        "word": "Cheetah",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan tercepat di darat."
-    },
-    {
-        "word": "Kompor",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Perangkat yang digunakan untuk memasak."
-    },
-    {
-        "word": "Cutter",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Benda pemotong kertas."
-    },
-    {
-        "word": "Pensil",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Benda yang digunakan untuk menulis."
-    },
-    {
-        "word": "Bulan",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Benda langit yang memantulkan cahaya matahari."
-    },
-    {
-        "word": "Gamelan",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Alat musik tradisional Bali."
-    },
-    {
-        "word": "Tujuhbelas",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Tanggal kemerdekaan Indonesia."
-    },
-    {
-        "word": "Yoghurt",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Minuman fermentasi dari susu."
-    },
-    {
-        "word": "Sultanhasan",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Pahlawan dari Makassar."
-    },
-    {
-        "word": "Mulut",
-        "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Organ yang digunakan untuk berbicara."
-    },
-    {
-        "word": "Sapu",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Alat untuk menyapu lantai."
-    },
-    {
-        "word": "Not",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Simbol pada lembar musik."
+        "clue": "Kisi-kisi: Mamalia darat terbesar dengan belalai."
     },
     {
         "word": "Jupiter",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet dengan rotasi tercepat."
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet terbesar di Tata Surya kita."
     },
     {
-        "word": "Bunglon",
-        "category": "Hewan",
-        "clue": "Kisi-kisi: Hewan yang berubah warna."
+        "word": "Sumpah Pemuda",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Ikrar persatuan yang diucapkan pada 28 Oktober 1928."
     },
     {
-        "word": "Bantal",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Benda yang digunakan untuk tidur."
-    },
-    {
-        "word": "Termometer",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Alat untuk mengukur suhu."
-    },
-    {
-        "word": "Nada",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Satuan suara dalam musik."
-    },
-    {
-        "word": "Disleksia",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Kondisi mental saat tidak bisa fokus."
-    },
-    {
-        "word": "Skizofrenia",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Kondisi mental dengan delusi dan halusinasi."
-    },
-    {
-        "word": "Hidung",
+        "word": "Jantung",
         "category": "Bagian Tubuh",
-        "clue": "Kisi-kisi: Bagian tubuh untuk mencium aroma."
+        "clue": "Kisi-kisi: Organ yang berfungsi memompa darah ke seluruh tubuh."
     },
     {
-        "word": "Harmonika",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Alat musik kecil ditiup dan digetarkan."
+        "word": "Durian",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah dengan julukan 'Raja Buah' karena aroma dan kulitnya."
     },
     {
-        "word": "Lem",
-        "category": "Benda",
-        "clue": "Kisi-kisi: Alat untuk menempelkan kertas."
+        "word": "Gamelan",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Ansambel musik yang terdiri dari berbagai alat musik pukul, khas Jawa dan Bali."
     },
     {
-        "word": "Pluto",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet terkecil."
+        "word": "Fotosintesis",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Proses memasak makanan pada tumbuhan hijau."
     },
     {
-        "word": "Matahari",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Bintang terdekat dari bumi."
+        "word": "Hari Kemerdekaan",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Dirayakan setiap tanggal 17 Agustus."
     },
     {
-        "word": "Samosa",
-        "category": "Makanan Minuman",
-        "clue": "Kisi-kisi: Makanan gurih berbentuk segitiga."
-    },
-    {
-        "word": "Rotasi",
-        "category": "Astronomi",
-        "clue": "Kisi-kisi: Pergerakan benda langit."
+        "word": "Brokoli",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sayuran hijau yang bentuknya menyerupai pohon kecil."
     },
     {
         "word": "Proklamasi",
         "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Peristiwa 1945."
+        "clue": "Kisi-kisi: Pernyataan kemerdekaan bangsa Indonesia pada 17 Agustus 1945."
     },
     {
-        "word": "Klarinet",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Alat musik tiup kayu bernada lembut."
+        "word": "Paru-paru",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ utama dalam sistem pernapasan manusia."
     },
     {
-        "word": "Soekarno",
-        "category": "Sejarah Indonesia",
-        "clue": "Kisi-kisi: Presiden pertama Indonesia."
+        "word": "Surabaya",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Dikenal dengan julukan 'Kota Pahlawan'."
     },
     {
-        "word": "Hairdryer",
-        "category": "Objek",
-        "clue": "Kisi-kisi: Alat untuk mengeringkan rambut."
+        "word": "Rendang",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Masakan daging pedas dari Minangkabau yang diakui dunia."
+    },
+    {
+        "word": "Komodo",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Kadal raksasa endemik dari Indonesia."
     },
     {
         "word": "Saturnus",
-        "category": "Planet",
-        "clue": "Kisi-kisi: Planet dengan cincin es yang jelas."
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet yang terkenal karena memiliki cincin."
     },
     {
-        "word": "Sopran",
-        "category": "Musik",
-        "clue": "Kisi-kisi: Suara tinggi wanita dalam musik."
+        "word": "Puncak Jaya Wijaya",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Puncak gunung tertinggi di Indonesia yang memiliki salju abadi."
     },
     {
-        "word": "Perpustakaan",
-        "category": "Lain-lain",
-        "clue": "Kisi-kisi: Tempat umum untuk membaca buku."
+        "word": "Otak",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Pusat kendali sistem saraf."
     },
     {
-        "word": "Narsisme",
-        "category": "Psikologi",
-        "clue": "Kisi-kisi: Ketertarikan pada diri sendiri secara ekstrem."
+        "word": "Gajah Mada",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Mahapatih Majapahit yang terkenal dengan Sumpah Palapa."
+    },
+    {
+        "word": "Mangga",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah tropis berwarna kuning atau hijau saat matang."
+    },
+    {
+        "word": "Gravitasi",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Gaya tarik yang menyebabkan benda jatuh ke bawah."
+    },
+    {
+        "word": "Air",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... beriak tanda tak dalam."
+    },
+    {
+        "word": "Sasando",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Alat musik petik dari daun lontar khas Pulau Rote, NTT."
+    },
+    {
+        "word": "Wortel",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sayuran berwarna oranye yang baik untuk mata."
+    },
+    {
+        "word": "Hari Pahlawan",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati setiap tanggal 10 November."
+    },
+    {
+        "word": "Ekuator",
+        "category": "Geografi",
+        "clue": "Kisi-kisi: Garis khayal yang membagi bumi menjadi belahan utara dan selatan."
+    },
+    {
+        "word": "Kelelawar",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Satu-satunya mamalia yang dapat terbang."
+    },
+    {
+        "word": "Yogyakarta",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Dikenal dengan julukan 'Kota Pelajar' dan 'Kota Gudeg'."
+    },
+    {
+        "word": "Lambung",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ pencernaan yang berfungsi mencerna makanan."
+    },
+    {
+        "word": "Bandung Lautan Api",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Peristiwa pembumihangusan kota Bandung oleh pejuang kemerdekaan."
+    },
+    {
+        "word": "Sate",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Daging yang ditusuk lalu dibakar."
+    },
+    {
+        "word": "Merkurius",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet terdekat dengan Matahari."
+    },
+    {
+        "word": "Keris",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Senjata tikam tradisional Indonesia yang sering dianggap memiliki kekuatan magis."
+    },
+    {
+        "word": "Alpukat",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah berdaging lembut dengan biji besar di tengah."
+    },
+    {
+        "word": "DNA",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Molekul yang membawa materi genetik."
+    },
+    {
+        "word": "Hari Kartini",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati setiap tanggal 21 April untuk menghormati emansipasi wanita."
+    },
+    {
+        "word": "Hati",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi menyaring racun dari darah."
+    },
+    {
+        "word": "Candi Borobudur",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Candi Buddha terbesar di dunia yang berada di Magelang."
+    },
+    {
+        "word": "Ular",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Reptil melata yang tidak memiliki kaki."
+    },
+    {
+        "word": "Mars",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet yang dijuluki 'Planet Merah'."
+    },
+    {
+        "word": "Bayam",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sayuran hijau yang identik dengan tokoh kartun Popeye."
+    },
+    {
+        "word": "Medan",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Ibu kota provinsi Sumatra Utara."
+    },
+    {
+        "word": "Soekarno",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Presiden pertama Republik Indonesia, sang Proklamator."
+    },
+    {
+        "word": "Gurun Sahara",
+        "category": "Geografi",
+        "clue": "Kisi-kisi: Gurun pasir terluas di dunia."
+    },
+    {
+        "word": "Tifa",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Gendang tradisional khas dari wilayah Papua dan Maluku."
+    },
+    {
+        "word": "Oksigen",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Gas yang kita butuhkan untuk bernapas."
+    },
+    {
+        "word": "Api",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: Bermain ... hangus, bermain air basah."
+    },
+    {
+        "word": "Ginjal",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Sepasang organ yang berfungsi menyaring darah dan memproduksi urin."
+    },
+    {
+        "word": "Hari Pendidikan Nasional",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati setiap tanggal 2 Mei."
+    },
+    {
+        "word": "Nasi Goreng",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Makanan khas Indonesia dari nasi yang digoreng."
+    },
+    {
+        "word": "Pisang",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah berwarna kuning yang disukai monyet."
+    },
+    {
+        "word": "Harimau",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Kucing besar dengan loreng di tubuhnya."
+    },
+    {
+        "word": "Neptunus",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet terjauh dari Matahari."
+    },
+    {
+        "word": "Bendera Merah Putih",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Nama lain untuk bendera pusaka Indonesia adalah Sang Saka."
+    },
+    {
+        "word": "Telinga",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi untuk mendengar."
+    },
+    {
+        "word": "Orangutan",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Kera besar berbulu kemerahan yang hidup di hutan Kalimantan dan Sumatra."
+    },
+    {
+        "word": "Bandung",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Dikenal dengan julukan 'Kota Kembang' atau 'Paris van Java'."
+    },
+    {
+        "word": "Buaya",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Reptil predator yang hidup di air dan darat."
+    },
+    {
+        "word": "Tomat",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sering dianggap sayur, padahal secara botani adalah buah."
+    },
+    {
+        "word": "Matahari",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Pusat dari sistem tata surya kita."
+    },
+    {
+        "word": "R.A. Kartini",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Pahlawan emansipasi wanita Indonesia."
+    },
+    {
+        "word": "Lidah",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Indera pengecap rasa."
+    },
+    {
+        "word": "Atmosfer",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Lapisan gas yang menyelimuti planet."
+    },
+    {
+        "word": "Jerapah",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan darat tertinggi dengan leher yang sangat panjang."
+    },
+    {
+        "word": "Kolintang",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Alat musik pukul dari bilah-bilah kayu khas Minahasa, Sulawesi Utara."
+    },
+    {
+        "word": "Gado-gado",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Salad sayuran dengan saus kacang khas Indonesia."
+    },
+    {
+        "word": "Semangka",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah besar dengan daging merah dan banyak air."
+    },
+    {
+        "word": "Bulan",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Satelit alami yang mengorbit Bumi."
+    },
+    {
+        "word": "Kulit",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ terluar yang melindungi seluruh tubuh."
+    },
+    {
+        "word": "Jakarta",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Ibu kota negara Republik Indonesia."
+    },
+    {
+        "word": "Pinguin",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Burung yang tidak bisa terbang dan hidup di kutub selatan."
+    },
+    {
+        "word": "Batik",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Kain bergambar khas Indonesia yang diakui UNESCO sebagai warisan budaya."
+    },
+    {
+        "word": "VOC",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Kongsi dagang Belanda yang pernah menguasai nusantara."
+    },
+    {
+        "word": "Kopi",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Minuman hitam dari biji sangrai yang membuat orang terjaga."
+    },
+    {
+        "word": "Hari Buruh",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati secara internasional setiap tanggal 1 Mei."
+    },
+    {
+        "word": "Hidung",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Indera penciuman."
+    },
+    {
+        "word": "Kangguru",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Mamalia berkantung dari Australia yang melompat-lompat."
+    },
+    {
+        "word": "Nanas",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah tropis dengan mahkota dan 'mata' di kulitnya."
+    },
+    {
+        "word": "Sepandai-pandainya",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... tupai melompat, akhirnya jatuh juga."
+    },
+    {
+        "word": "Vaksin",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Zat yang dimasukkan ke tubuh untuk membentuk kekebalan terhadap penyakit."
+    },
+    {
+        "word": "Cendrawasih",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Burung indah dari Papua yang dijuluki 'Burung Surga'."
+    },
+    {
+        "word": "Kangkung",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sayuran hijau yang sering ditumis dengan terasi."
+    },
+    {
+        "word": "Suling",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Alat musik tiup tradisional yang terbuat dari bambu."
+    },
+    {
+        "word": "Tulang",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Kerangka keras yang menopang tubuh."
+    },
+    {
+        "word": "Denpasar",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Ibu kota provinsi Bali."
+    },
+    {
+        "word": "Kecap",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Bumbu cair berwarna hitam manis dari kedelai."
+    },
+    {
+        "word": "Bima Sakti",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Nama galaksi tempat sistem tata surya kita berada (Milky Way)."
+    },
+    {
+        "word": "Kupu-kupu",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Serangga dengan sayap indah yang berasal dari ulat."
+    },
+    {
+        "word": "B.J. Habibie",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Presiden ke-3 Indonesia yang juga seorang ahli pesawat terbang."
+    },
+    {
+        "word": "Hari Lahir Pancasila",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati setiap tanggal 1 Juni."
+    },
+    {
+        "word": "Anggur",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah kecil yang tumbuh bergerombol, bisa dibuat menjadi kismis."
+    },
+    {
+        "word": "Otot",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Jaringan dalam tubuh yang berfungsi sebagai alat gerak aktif."
+    },
+    {
+        "word": "Gempa Bumi",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Getaran atau guncangan yang terjadi di permukaan bumi."
+    },
+    {
+        "word": "Panda",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Beruang dari Tiongkok yang makanannya adalah bambu."
+    },
+    {
+        "word": "Makassar",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Ibu kota Sulawesi Selatan, terkenal dengan Pantai Losari."
+    },
+    {
+        "word": "Uranus",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet ketujuh dari Matahari yang berotasi miring."
+    },
+    {
+        "word": "Terong",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sayuran berwarna ungu panjang yang sering dibuat balado."
+    },
+    {
+        "word": "Cut Nyak Dien",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Pahlawan wanita dari Aceh yang gigih melawan penjajahan Belanda."
+    },
+    {
+        "word": "Bagai",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... pinang dibelah dua (sangat mirip)."
+    },
+    {
+        "word": "Tsunami",
+        "category": "Geografi",
+        "clue": "Kisi-kisi: Gelombang laut dahsyat yang disebabkan oleh gempa di dasar laut."
+    },
+    {
+        "word": "Koala",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Mamalia berkantung dari Australia yang suka tidur dan makan daun eukaliptus."
+    },
+    {
+        "word": "Rambut",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Tumbuh di kepala dan berfungsi sebagai mahkota."
+    },
+    {
+        "word": "Garuda Pancasila",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Lambang negara Republik Indonesia."
+    },
+    {
+        "word": "Teh",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Minuman yang dibuat dengan menyeduh daun kering."
+    },
+    {
+        "word": "Stroberi",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah kecil berwarna merah dengan bintik-bintik di luarnya."
+    },
+    {
+        "word": "Hiu",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Ikan predator puncak di lautan."
+    },
+    {
+        "word": "Bogor",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Dikenal dengan julukan 'Kota Hujan'."
+    },
+    {
+        "word": "Venus",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet kedua dari Matahari yang sering disebut Bintang Fajar."
+    },
+    {
+        "word": "Gigi",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian keras di dalam mulut untuk mengunyah makanan."
+    },
+    {
+        "word": "Gunung Krakatau",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Gunung berapi di Selat Sunda yang letusannya sangat dahsyat pada 1883."
+    },
+    {
+        "word": "Nyamuk",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Serangga penghisap darah yang bisa menyebarkan penyakit."
+    },
+    {
+        "word": "Wayang Kulit",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Seni pertunjukan bayangan dari kulit, khas Jawa dan Bali."
+    },
+    {
+        "word": "Hari Pramuka",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati setiap tanggal 14 Agustus."
+    },
+    {
+        "word": "Jeruk",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah berwarna oranye yang kaya akan Vitamin C."
+    },
+    {
+        "word": "Evolusi",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Perubahan sifat terwariskan suatu populasi dari satu generasi ke generasi berikutnya."
+    },
+    {
+        "word": "Cacing",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan bertubuh lunak dan panjang yang hidup di tanah."
+    },
+    {
+        "word": "Pangeran Diponegoro",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Pahlawan Nasional yang memimpin Perang Jawa melawan Belanda."
+    },
+    {
+        "word": "Tahu",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Makanan dari endapan perasan biji kedelai."
+    },
+    {
+        "word": "Palembang",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Terkenal dengan Jembatan Ampera dan makanan pempek."
+    },
+    {
+        "word": "Keringat",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Cairan yang dikeluarkan tubuh untuk mendinginkan suhu."
+    },
+    {
+        "word": "Abdurrahman Wahid",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Presiden ke-4 Indonesia, sering disapa Gus Dur."
+    },
+    {
+        "word": "Ayam",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Unggas yang diternakkan untuk diambil daging dan telurnya."
+    },
+    {
+        "word": "Tong",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... kosong nyaring bunyinya."
+    },
+    {
+        "word": "Samudra Hindia",
+        "category": "Geografi",
+        "clue": "Kisi-kisi: Samudra yang berbatasan dengan pantai selatan Pulau Jawa."
+    },
+    {
+        "word": "Tari Saman",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Tarian dari Gayo, Aceh, dengan gerakan tangan yang sangat cepat dan kompak."
+    },
+    {
+        "word": "Tupai",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan pengerat yang pandai melompat antar pohon."
+    },
+    {
+        "word": "Relativitas",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Teori fisika terkenal yang dikemukakan oleh Albert Einstein."
+    },
+    {
+        "word": "Kadal",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Reptil bersisik yang bisa memutuskan ekornya."
+    },
+    {
+        "word": "Hari Ibu",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati di Indonesia setiap tanggal 22 Desember."
+    },
+    {
+        "word": "Badak Jawa",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Mamalia langka bercula satu yang hanya ditemukan di Taman Nasional Ujung Kulon."
+    },
+    {
+        "word": "Klorofil",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Zat hijau daun yang berperan dalam fotosintesis."
+    },
+    {
+        "word": "Danau Toba",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Danau vulkanik terbesar di Indonesia yang terletak di Sumatra Utara."
+    },
+    {
+        "word": "Kalajengking",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan berbisa dengan capit dan sengat di ekornya."
+    },
+    {
+        "word": "Jayapura",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Ibu kota provinsi Papua."
+    },
+    {
+        "word": "Katak",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Amfibi yang mengalami metamorfosis dari berudu."
+    },
+    {
+        "word": "Kerajaan Majapahit",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Kerajaan Hindu-Buddha terbesar di nusantara dengan pusat di Jawa Timur."
+    },
+    {
+        "word": "Salak",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah dengan kulit bersisik seperti ular."
+    },
+    {
+        "word": "Kecapi",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Alat musik petik dari Sunda, sering dimainkan bersama suling."
+    },
+    {
+        "word": "Kumis",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Rambut yang tumbuh di atas bibir atas pria."
+    },
+    {
+        "word": "Raja Ampat",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Gugusan kepulauan di Papua Barat yang terkenal dengan keindahan bawah lautnya."
+    },
+    {
+        "word": "Anoa",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Mamalia endemik Sulawesi, mirip kerbau kecil atau sapi hutan."
+    },
+    {
+        "word": "Besar",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... pasak daripada tiang."
+    },
+    {
+        "word": "Pempek",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Makanan khas Palembang dari ikan dan sagu, disajikan dengan kuah cuka."
+    },
+    {
+        "word": "Pulau Kalimantan",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Di dunia internasional dikenal sebagai Borneo, tempat bagi tiga negara."
+    },
+    {
+        "word": "Kuda",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan berkaki empat yang sering digunakan untuk transportasi atau olahraga."
+    },
+    {
+        "word": "Saluang",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Seruling bambu tipis khas Minangkabau, Sumatra Barat."
+    },
+    {
+        "word": "Bensin",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Bahan bakar cair untuk sebagian besar kendaraan bermotor."
+    },
+    {
+        "word": "Ki Hajar Dewantara",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Bapak Pendidikan Nasional Indonesia."
+    },
+    {
+        "word": "Kacang Panjang",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sayuran polong yang bentuknya panjang dan ramping."
+    },
+    {
+        "word": "Semarang",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Ibu kota Jawa Tengah, terkenal dengan Lawang Sewu dan lumpia."
+    },
+    {
+        "word": "Monumen Nasional",
+        "category": "Bangunan",
+        "clue": "Kisi-kisi: Tugu peringatan di Jakarta dengan puncak api berlapis emas, biasa disebut Monas."
+    },
+    {
+        "word": "Udang",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan air dengan tubuh melengkung yang berubah warna saat dimasak."
+    },
+    {
+        "word": "Gudeg",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Masakan khas Yogyakarta dari nangka muda yang dimasak dengan santan."
+    },
+    {
+        "word": "Jenggot",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Rambut yang tumbuh di dagu dan pipi."
+    },
+    {
+        "word": "Mohammad Hatta",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Wakil Presiden pertama Indonesia, dikenal sebagai Bapak Koperasi."
+    },
+    {
+        "word": "Rambutan",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah dengan kulit berambut."
+    },
+    {
+        "word": "Kendang",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Gendang dua sisi yang menjadi pengatur irama dalam musik gamelan."
+    },
+    {
+        "word": "Bumi",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Planet ketiga dari Matahari, tempat kita tinggal."
+    },
+    {
+        "word": "Rumah Gadang",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Rumah adat Minangkabau dengan atap runcing seperti tanduk kerbau."
+    },
+    {
+        "word": "Laba-laba",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan berkaki delapan yang membuat jaring untuk menangkap mangsa."
+    },
+    {
+        "word": "Ada",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... udang di balik batu."
+    },
+    {
+        "word": "Hujan Asam",
+        "category": "Pengetahuan Umum",
+        "clue": "Kisi-kisi: Hujan dengan tingkat keasaman tinggi akibat polusi udara."
+    },
+    {
+        "word": "Pulau Bali",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Pulau yang dikenal dengan sebutan 'Pulau Dewata'."
+    },
+    {
+        "word": "Kucing",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan peliharaan populer yang suka mengejar tikus."
+    },
+    {
+        "word": "Rebab",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Alat musik gesek mirip biola, bagian penting dalam Gamelan."
+    },
+    {
+        "word": "Kuku",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Bagian keras yang melindungi ujung jari tangan dan kaki."
+    },
+    {
+        "word": "Kerajaan Sriwijaya",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Kerajaan maritim besar yang berpusat di Sumatra."
+    },
+    {
+        "word": "Cendol",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Minuman manis dengan butiran hijau dari tepung beras, santan, dan gula merah cair."
+    },
+    {
+        "word": "Bintang Laut",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan laut berbentuk bintang dengan lima lengan."
+    },
+    {
+        "word": "Tahun Baru Imlek",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Perayaan tahun baru dalam penanggalan Tionghoa."
+    },
+    {
+        "word": "Rafflesia Arnoldii",
+        "category": "Tumbuhan Endemik",
+        "clue": "Kisi-kisi: Bunga raksasa berbau busuk yang ditemukan di hutan Sumatra dan Kalimantan."
+    },
+    {
+        "word": "Kelapa",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah serbaguna, airnya bisa diminum, dagingnya bisa dibuat santan."
+    },
+    {
+        "word": "Anjing",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan peliharaan yang dikenal sebagai sahabat manusia."
+    },
+    {
+        "word": "Candi Prambanan",
+        "category": "Bangunan",
+        "clue": "Kisi-kisi: Kompleks candi Hindu terbesar di Indonesia, didedikasikan untuk Trimurti."
+    },
+    {
+        "word": "Padang",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Ibu kota Sumatra Barat, terkenal dengan masakan rendangnya."
+    },
+    {
+        "word": "Pencak Silat",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Seni bela diri tradisional asli dari Indonesia."
+    },
+    {
+        "word": "Meteor",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Batuan luar angkasa yang terbakar saat memasuki atmosfer Bumi, disebut juga bintang jatuh."
+    },
+    {
+        "word": "Tarsius",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Primata terkecil di dunia dengan mata yang sangat besar dari Sulawesi."
+    },
+    {
+        "word": "Fatmawati",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Ibu Negara pertama Indonesia, penjahit Bendera Pusaka."
+    },
+    {
+        "word": "Terumbu Karang",
+        "category": "Ekosistem",
+        "clue": "Kisi-kisi: Ekosistem bawah laut yang menjadi rumah bagi banyak spesies ikan."
+    },
+    {
+        "word": "Ketoprak",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Makanan khas Jakarta berisi tahu, bihun, dan lontong dengan bumbu kacang."
+    },
+    {
+        "word": "Jalak Bali",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Burung endemik Bali berwarna putih bersih dengan jambul di kepalanya."
+    },
+    {
+        "word": "Sambil",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... menyelam minum air."
+    },
+    {
+        "word": "Sudirman",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Panglima Besar Tentara Nasional Indonesia pertama."
+    },
+    {
+        "word": "Bonang",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Bagian dari gamelan, berbentuk seperti gong kecil yang diletakkan berderet."
+    },
+    {
+        "word": "Lidah Buaya",
+        "category": "Tumbuhan",
+        "clue": "Kisi-kisi: Tumbuhan dengan daun berdaging tebal, gelnya bermanfaat untuk kulit dan rambut."
+    },
+    {
+        "word": "Tikus",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan pengerat yang sering dianggap hama di rumah dan sawah."
+    },
+    {
+        "word": "Upacara Ngaben",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Upacara pembakaran jenazah umat Hindu di Bali."
+    },
+    {
+        "word": "Sistem Tanam Paksa",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Kebijakan pemerintah kolonial Belanda yang mewajibkan petani menanam komoditas ekspor."
+    },
+    {
+        "word": "Ambon",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Dikenal sebagai 'Kota Musik', ibu kota provinsi Maluku."
+    },
+    {
+        "word": "Bekantan",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Monyet dari Kalimantan dengan hidung panjang dan besar."
+    },
+    {
+        "word": "Papeda",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Makanan pokok dari sagu khas Maluku dan Papua, teksturnya seperti lem."
+    },
+    {
+        "word": "Hari Kesaktian Pancasila",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Diperingati setiap tanggal 1 Oktober, terkait peristiwa G30S/PKI."
+    },
+    {
+        "word": "Megawati Soekarnoputri",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Presiden wanita pertama di Indonesia."
+    },
+    {
+        "word": "Spons",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan laut sederhana yang tubuhnya berpori-pori."
+    },
+    {
+        "word": "Tari Kecak",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Tarian dari Bali yang penarinya meneriakkan 'cak-cak-cak'."
+    },
+    {
+        "word": "Sedia",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... payung sebelum hujan."
+    },
+    {
+        "word": "Kambing",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan ternak yang sering dijadikan sate atau gulai."
+    },
+    {
+        "word": "Konferensi Meja Bundar",
+        "category": "Sejarah Indonesia",
+        "clue": "Kisi-kisi: Perundingan di Den Haag yang menghasilkan pengakuan kedaulatan Indonesia oleh Belanda."
+    },
+    {
+        "word": "Selat Malaka",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Jalur pelayaran tersibuk, memisahkan Pulau Sumatra dan Semenanjung Malaya."
+    },
+    {
+        "word": "Natal",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Hari raya umat Kristen yang diperingati setiap 25 Desember."
+    },
+    {
+        "word": "Sapi",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan ternak penghasil susu dan daging."
+    },
+    {
+        "word": "Lumpia",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Makanan gulung berisi rebung atau sayuran, khas Semarang."
+    },
+    {
+        "word": "Komet",
+        "category": "Tata Surya",
+        "clue": "Kisi-kisi: Benda langit berekor yang mengorbit Matahari."
+    },
+    {
+        "word": "Padi",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: Ilmu ... , semakin berisi semakin merunduk."
+    },
+    {
+        "word": "Joko Widodo",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Presiden ke-7 Republik Indonesia, sering disapa Jokowi."
+    },
+    {
+        "word": "Banjarmasin",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Dikenal dengan julukan 'Kota Seribu Sungai'."
+    },
+    {
+        "word": "Timun",
+        "category": "Sayur",
+        "clue": "Kisi-kisi: Sayuran hijau panjang yang menyegarkan, sering jadi lalapan."
+    },
+    {
+        "word": "Gong",
+        "category": "Alat Musik Indonesia",
+        "clue": "Kisi-kisi: Alat musik pukul besar dan bundar, penanda akhir dalam Gamelan."
+    },
+    {
+        "word": "Lebaran",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Sebutan lain untuk Hari Raya Idul Fitri."
+    },
+    {
+        "word": "Soto",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Sup berkuah kuning khas Indonesia dengan banyak variasi daerah."
+    },
+    {
+        "word": "Manggis",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah dengan kulit ungu tebal dan daging putih manis."
+    },
+    {
+        "word": "Maleo",
+        "category": "Hewan Endemik",
+        "clue": "Kisi-kisi: Burung endemik Sulawesi yang tidak mengerami telurnya sendiri."
+    },
+    {
+        "word": "Jembatan Suramadu",
+        "category": "Bangunan",
+        "clue": "Kisi-kisi: Jembatan yang menghubungkan Pulau Jawa dan Pulau Madura."
+    },
+    {
+        "word": "Soeharto",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Presiden ke-2 Indonesia, dikenal sebagai Bapak Pembangunan."
+    },
+    {
+        "word": "Mata",
+        "category": "Bagian Tubuh",
+        "clue": "Kisi-kisi: Organ yang berfungsi untuk melihat."
+    },
+    {
+        "word": "Samudra Pasifik",
+        "category": "Geografi",
+        "clue": "Kisi-kisi: Samudra terluas di dunia."
+    },
+    {
+        "word": "Hemat",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: ... pangkal kaya."
+    },
+    {
+        "word": "Reog Ponorogo",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Kesenian dari Jawa Timur dengan topeng singa besar berhias bulu merak."
+    },
+    {
+        "word": "Kelinci",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Mamalia dengan telinga panjang yang suka makan wortel."
+    },
+    {
+        "word": "Waisak",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Hari suci umat Buddha."
+    },
+    {
+        "word": "Pulau Komodo",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Habitat asli hewan Komodo, bagian dari Taman Nasional."
+    },
+    {
+        "word": "Pepaya",
+        "category": "Buah",
+        "clue": "Kisi-kisi: Buah dengan daging oranye dan banyak biji hitam kecil di tengahnya."
+    },
+    {
+        "word": "Cengkeh",
+        "category": "Rempah",
+        "clue": "Kisi-kisi: Rempah asli Indonesia, sering digunakan dalam rokok dan masakan."
+    },
+    {
+        "word": "Kerbau",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan besar bertanduk yang sering digunakan untuk membajak sawah."
+    },
+    {
+        "word": "Pontianak",
+        "category": "Kota di Indonesia",
+        "clue": "Kisi-kisi: Kota yang dilalui oleh Garis Khatulistiwa."
+    },
+    {
+        "word": "Idul Adha",
+        "category": "Hari Besar Nasional",
+        "clue": "Kisi-kisi: Hari raya Islam yang identik dengan penyembelihan hewan kurban."
+    },
+    {
+        "word": "Martabak",
+        "category": "Makanan Minuman",
+        "clue": "Kisi-kisi: Makanan yang ada versi manis (terang bulan) dan asin (telur)."
+    },
+    {
+        "word": "Sutan Sjahrir",
+        "category": "Tokoh Indonesia",
+        "clue": "Kisi-kisi: Perdana Menteri pertama Indonesia."
+    },
+    {
+        "word": "Bambu",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: Bagai air di daun talas atau seperti ... runcing."
+    },
+    {
+        "word": "Pulau Sumatra",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Pulau besar di bagian barat Indonesia."
+    },
+    {
+        "word": "Terasi",
+        "category": "Bumbu",
+        "clue": "Kisi-kisi: Bumbu dari fermentasi udang, bahan utama sambal."
+    },
+    {
+        "word": "Ondel-ondel",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Boneka raksasa khas Betawi (Jakarta)."
+    },
+    {
+        "word": "Nasi",
+        "category": "Peribahasa",
+        "clue": "Kisi-kisi: Sudah menjadi bubur."
+    },
+    {
+        "word": "Kemerdekaan",
+        "category": "Lagu Wajib",
+        "clue": "Kisi-kisi: Judul lagu: Hari ..."
+    },
+    {
+        "word": "Lebah",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Serangga penghasil madu."
+    },
+    {
+        "word": "Papan",
+        "category": "Kebutuhan Pokok",
+        "clue": "Kisi-kisi: Salah satu dari tiga kebutuhan primer manusia: sandang, pangan, dan ..."
+    },
+    {
+        "word": "Tari Piring",
+        "category": "Budaya Indonesia",
+        "clue": "Kisi-kisi: Tarian dari Minangkabau yang menggunakan piring sebagai properti."
+    },
+    {
+        "word": "Presiden",
+        "category": "Pemerintahan",
+        "clue": "Kisi-kisi: Jabatan untuk kepala negara dan kepala pemerintahan di Indonesia."
+    },
+    {
+        "word": "Selat Sunda",
+        "category": "Geografi Indonesia",
+        "clue": "Kisi-kisi: Selat yang memisahkan Pulau Jawa dan Pulau Sumatra."
+    },
+    {
+        "word": "Ikan",
+        "category": "Hewan",
+        "clue": "Kisi-kisi: Hewan yang hidup di air dan bernapas dengan insang."
+    },
+    {
+        "word": "Indonesia Raya",
+        "category": "Lagu Wajib",
+        "clue": "Kisi-kisi: Lagu kebangsaan Republik Indonesia."
     }
 ]
