@@ -19,7 +19,7 @@ class GameLanjutan(commands.Cog):
         self.sambung_kata_words = self.load_json('data/sambung_kata_words.json')
 
         # Game Configuration
-        self.game_channel_id = 765140300145360896 # ID channel yang diizinkan
+        self.game_channel_id = 1379458566452154438 # ID channel yang diizinkan
         self.scramble_reward = {"rsw": 25, "exp": 15}
         self.sambung_kata_winner_reward = {"rsw": 150, "exp": 100}
         self.scramble_time_limit = 30 # Detik per soal acak kata
