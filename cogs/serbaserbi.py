@@ -26,7 +26,7 @@ class SerbaSerbiGame(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         # Game State Management
-        self.active_games = set() # Mencegah game berbeda berjalan bersamaan di channel yang sama
+        self.active_games = set()
         
         # Game Data
         self.siapakah_aku_data = load_json_from_root('data/siapakah_aku.json')
@@ -38,18 +38,15 @@ class SerbaSerbiGame(commands.Cog):
         self.reward = {"rsw": 50, "exp": 100}
 
     def give_rewards(self, user: discord.Member, guild_id: int):
-        """Memberikan RSWN dan EXP kepada pengguna."""
         user_id_str = str(user.id)
         guild_id_str = str(guild_id)
         
-        # Beri RSWN
         bank_data = load_json_from_root('data/bank_data.json')
         if user_id_str not in bank_data:
             bank_data[user_id_str] = {'balance': 0, 'debt': 0}
         bank_data[user_id_str]['balance'] += self.reward['rsw']
         save_json_to_root(bank_data, 'data/bank_data.json')
         
-        # Beri EXP
         level_data = load_json_from_root('data/level_data.json')
         if guild_id_str not in level_data:
             level_data[guild_id_str] = {}
@@ -61,7 +58,6 @@ class SerbaSerbiGame(commands.Cog):
         save_json_to_root(level_data, 'data/level_data.json')
         
     async def start_game_check(self, ctx):
-        """Mencegah game duplikat di channel yang sama."""
         if ctx.channel.id in self.active_games:
             await ctx.send("Maaf, sudah ada permainan lain yang sedang berlangsung di channel ini. Mohon tunggu hingga selesai.", delete_after=10)
             return False
@@ -69,16 +65,15 @@ class SerbaSerbiGame(commands.Cog):
         return True
 
     def end_game_cleanup(self, channel_id):
-        """Membersihkan status game aktif."""
         self.active_games.discard(channel_id)
 
-    # --- GAME 1: SIAPAKAH AKU? ---
+    # --- GAME 1: SIAPAKAH AKU? (DENGAN FEEDBACK) ---
     @commands.command(name="siapakahaku", help="Mulai game tebak-tebakan dengan petunjuk bertahap.")
     async def siapakahaku(self, ctx):
         if not await self.start_game_check(ctx): return
         
         item = random.choice(self.siapakah_aku_data)
-        word = item['name']
+        word = item['name'].lower()
         clues = item['clues']
         
         embed = discord.Embed(title="🕵️‍♂️ Siapakah Aku?", description=f"Kategori: **{item['category']}**", color=0x1abc9c)
@@ -87,31 +82,44 @@ class SerbaSerbiGame(commands.Cog):
         msg = await ctx.send(embed=embed)
         
         answered = False
-        def check(m):
-            return m.channel == ctx.channel and not m.author.bot and m.content.lower() == word.lower()
-
+        
         for i, clue in enumerate(clues):
             embed.add_field(name=f"Petunjuk #{i+1}", value=f"_{clue}_", inline=False)
             await msg.edit(embed=embed)
             
             try:
-                winner_msg = await self.bot.wait_for('message', timeout=15.0, check=check)
+                # Loop untuk mendengarkan jawaban selama 15 detik
+                async def listen_for_answer():
+                    while True: # Loop ini akan dipotong oleh timeout
+                        message = await self.bot.wait_for(
+                            "message", 
+                            check=lambda m: m.channel == ctx.channel and not m.author.bot
+                        )
+                        if message.content.lower() == word:
+                            return message # Jawaban benar, kembalikan pesan
+                        else:
+                            await message.add_reaction("❌") # Jawaban salah, beri feedback
+
+                winner_msg = await asyncio.wait_for(listen_for_answer(), timeout=15.0)
+                
+                # Jika kode sampai sini, berarti ada jawaban benar
                 winner = winner_msg.author
                 self.give_rewards(winner, ctx.guild.id)
-                await ctx.send(f"🎉 **Benar!** {winner.mention} berhasil menebak **{word}** dan mendapatkan hadiah!")
+                await ctx.send(f"🎉 **Benar!** {winner.mention} berhasil menebak **{item['name']}** dan mendapatkan hadiah!")
                 answered = True
-                break
+                break # Keluar dari loop petunjuk
             except asyncio.TimeoutError:
-                continue
+                continue # Lanjut ke petunjuk berikutnya jika waktu habis
                 
         if not answered:
-            await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{word}**.")
+            await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{item['name']}**.")
             
         self.end_game_cleanup(ctx.channel.id)
         
     # --- GAME 2: PERNAH GAK PERNAH ---
     @commands.command(name="pernahgak", help="Mulai game 'Pernah Gak Pernah' di voice channel.")
     async def pernahgak(self, ctx):
+        # ... (Kode ini tidak perlu diubah karena berbasis reaksi, bukan pesan) ...
         if not ctx.author.voice or not ctx.author.voice.channel:
             return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", delete_after=10)
         
@@ -127,10 +135,10 @@ class SerbaSerbiGame(commands.Cog):
         embed.set_footer(text="Jawab dengan jujur menggunakan reaksi di bawah! Semua peserta dapat hadiah.")
         
         msg = await ctx.send(embed=embed)
-        await msg.add_reaction("✅") # Pernah
-        await msg.add_reaction("❌") # Gak Pernah
+        await msg.add_reaction("✅")
+        await msg.add_reaction("❌")
 
-        await asyncio.sleep(20) # Waktu untuk bereaksi
+        await asyncio.sleep(20)
 
         try:
             cached_msg = await ctx.channel.fetch_message(msg.id)
@@ -159,7 +167,7 @@ class SerbaSerbiGame(commands.Cog):
 
         self.end_game_cleanup(ctx.channel.id)
 
-    # --- GAME 3: HITUNG CEPAT ---
+    # --- GAME 3: HITUNG CEPAT (DENGAN FEEDBACK) ---
     @commands.command(name="hitungcepat", help="Mulai game adu kecepatan berhitung.")
     async def hitungcepat(self, ctx):
         if not await self.start_game_check(ctx): return
@@ -172,10 +180,22 @@ class SerbaSerbiGame(commands.Cog):
         await ctx.send(embed=embed)
         
         try:
-            def check(m):
-                return m.channel == ctx.channel and not m.author.bot and m.content.strip() == answer
-            
-            winner_msg = await self.bot.wait_for('message', timeout=30.0, check=check)
+            # Loop untuk mendengarkan jawaban selama 30 detik
+            async def listen_for_math_answer():
+                while True: # Loop ini akan dipotong oleh timeout
+                    message = await self.bot.wait_for(
+                        "message",
+                        check=lambda m: m.channel == ctx.channel and not m.author.bot
+                    )
+                    if message.content.strip() == answer:
+                        return message # Jawaban benar
+                    else:
+                        # Cek apakah jawaban salahnya adalah angka, agar tidak mereaksi ke semua chat
+                        if message.content.strip().replace('-', '').isdigit():
+                            await message.add_reaction("❌") # Jawaban salah, beri feedback
+
+            winner_msg = await asyncio.wait_for(listen_for_math_answer(), timeout=30.0)
+
             winner = winner_msg.author
             self.give_rewards(winner, ctx.guild.id)
             await ctx.send(f"⚡ **Luar Biasa Cepat!** {winner.mention} menjawab **{answer}** dengan benar dan mendapat hadiah!")
@@ -187,6 +207,7 @@ class SerbaSerbiGame(commands.Cog):
     # --- GAME 4: MATA-MATA (SPYFALL) ---
     @commands.command(name="matamata", help="Mulai game deduksi sosial 'Mata-Mata'.")
     async def matamata(self, ctx):
+        # ... (Kode ini tidak perlu diubah karena berbasis diskusi dan perintah !tuduh) ...
         if not ctx.author.voice or not ctx.author.voice.channel:
             return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", delete_after=10)
         
@@ -221,7 +242,6 @@ class SerbaSerbiGame(commands.Cog):
         embed.set_footer(text="Diskusi bisa dimulai sekarang!")
         await ctx.send(embed=embed)
         
-        # Simpan state untuk voting
         if not hasattr(self.bot, 'active_spyfall_games'):
             self.bot.active_spyfall_games = {}
         self.bot.active_spyfall_games[ctx.channel.id] = {'spy': spy, 'location': location, 'players': members}
