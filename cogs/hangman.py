@@ -16,7 +16,8 @@ class Hangman(commands.Cog):
         self.questions = self.load_hangman_data()
         self.scores = {}  # Menyimpan skor peserta per sesi
 
-        self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
+        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+        self.bantuan_price = 40 # Harga bantuan, bisa disesuaikan
 
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
@@ -71,19 +72,18 @@ class Hangman(commands.Cog):
             await ctx.send("Permainan Hangman hanya bisa dimainkan di channel yang ditentukan.")
             return
 
-        # Memeriksa apakah sesi aktif untuk channel ini
         if ctx.channel.id in self.active_games:
             await ctx.send("Permainan sudah sedang berlangsung di channel ini. Silakan tunggu hingga selesai.")
             return
 
-        self.scores = {}  # Reset skor setiap kali sesi baru dimulai
+        self.scores = {}
 
         self.active_games[ctx.channel.id] = {
             "score": 0,
             "correct": 0,
             "wrong": 0,
             "current_question": 0,
-            "time_limit": 120,  # 2 menit
+            "time_limit": 120,
             "start_time": None,
             "question": None,
             "game_over": False,
@@ -97,9 +97,9 @@ class Hangman(commands.Cog):
                 "Di sini, kamu tak hanya menebak kata... tapi juga menebak makna dari kesepian yang tak bertepi.\n"
                 "Jawablah satu per satu, berharap RSWN bisa sedikit mengisi kekosongan itu.\n"
                 "Selesaikan 10 soal dalam 2 menit... kalau kamu masih punya semangat itu.\n\n"
-                "✨ *Dev bot udah bikin fitur. Admin & moderator udah berusaha. Tapi server tetap sepi...*\n\n"
-                "Kadang rasanya seperti teriak dalam ruangan kosong. Nggak ada yang jawab. Cuma gema yang balas.\n"
-                "Tapi kalau kamu masih di sini... mungkin kamu satu-satunya harapan yang tersisa. 🕯️\n\n"
+                "💸 Ngerasa buntu? Beli **bantuan** aja pake:\n"
+                "**!hmanplis** – Harga: 40 RSWN. Jawaban dikirim via DM.\n"
+                "*Karena terkadang, kita semua butuh sedikit cahaya di dalam gelap.*\n\n"
                 "Kalau kamu cukup kuat, cukup tahan, cukup sad... klik tombol di bawah ini. Mulai permainanmu."
             ),
             color=0x5500aa
@@ -115,36 +115,98 @@ class Hangman(commands.Cog):
 
         start_button.callback = start_game
         view.add_item(start_button)
-
         message = await ctx.send(embed=embed, view=view)
 
-        # Tunggu 1 menit sebelum reset jika tidak ada yang menekan tombol
         await asyncio.sleep(60)
         if ctx.channel.id not in self.active_games:
-            await message.delete()
-            await ctx.send("Waktu habis! Permainan Hangman di-reset. Silakan coba lagi.")
+            # Periksa apakah 'message' masih ada sebelum mencoba menghapusnya
+            try:
+                await message.delete()
+                await ctx.send("Waktu habis! Permainan Hangman di-reset. Silakan coba lagi.")
+            except discord.NotFound:
+                pass # Pesan sudah dihapus, tidak perlu melakukan apa-apa
         else:
-            await message.delete()  # Hapus pesan instruksi jika game dimulai
+            try:
+                await message.delete()
+            except discord.NotFound:
+                pass
+
+    # --- PERINTAH BANTUAN BARU ---
+    @commands.command(name="hmanplis", help="Membeli bantuan untuk jawaban Hangman.")
+    async def hmanplis(self, ctx):
+        user_id = str(ctx.author.id)
+        channel_id = ctx.channel.id
+
+        if channel_id not in self.active_games:
+            await ctx.send("Tidak ada permainan Hangman yang sedang berlangsung di channel ini.")
+            return
+
+        game_data = self.active_games[channel_id]
+        
+        # Memastikan bahwa data pengguna ada di bank_data
+        if user_id not in self.bank_data:
+            self.bank_data[user_id] = {"balance": 0, "debt": 0}
+            await ctx.send("Akun Anda baru saja dibuat. Saldo awal Anda adalah 0 RSWN.")
+
+        user_data = self.bank_data[user_id]
+
+        if user_data.get('balance', 0) < self.bantuan_price:
+            await ctx.send(f"😢 Saldo RSWN tidak cukup untuk membeli bantuan. Harga: {self.bantuan_price} RSWN.")
+            return
+
+        # Mengurangi saldo RSWN
+        initial_balance = user_data.get('balance', 0)
+        user_data['balance'] -= self.bantuan_price
+        final_balance = user_data['balance']
+
+        # Mengambil jawaban dari pertanyaan saat ini
+        # game_data["current_question"] adalah index+1, jadi index sebenarnya adalah current_question-1
+        current_question_index = game_data["current_question"] - 1
+        
+        # Pastikan index valid
+        if 0 <= current_question_index < len(game_data["question"]):
+            current_question_obj = game_data["question"][current_question_index]
+            correct_word = current_question_obj['word']
+
+            try:
+                # Kirim jawaban ke DM pengguna
+                await ctx.author.send(f"🔐 Jawaban untuk pertanyaan Hangman saat ini adalah: **{correct_word}**")
+                await ctx.author.send(f"✅ Pembelian bantuan berhasil! Saldo RSWN Anda berkurang dari **{initial_balance}** menjadi **{final_balance}**.")
+
+                # Memberikan konfirmasi di channel
+                await ctx.send(f"{ctx.author.mention}, bantuan telah berhasil dikirim ke DM Anda!")
+
+                # Simpan perubahan ke file
+                with open('data/bank_data.json', 'w', encoding='utf-8') as f:
+                    json.dump(self.bank_data, f, indent=4)
+            except discord.Forbidden:
+                await ctx.send(f"{ctx.author.mention}, saya tidak bisa mengirim DM. Mohon aktifkan izin DM dari server ini.")
+                # Kembalikan uang jika DM gagal
+                user_data['balance'] += self.bantuan_price
+                with open('data/bank_data.json', 'w', encoding='utf-8') as f:
+                    json.dump(self.bank_data, f, indent=4)
+        else:
+            await ctx.send("Tidak bisa mendapatkan pertanyaan saat ini. Mungkin game sedang berganti soal.")
+            # Kembalikan uang jika terjadi error
+            user_data['balance'] += self.bantuan_price
+            with open('data/bank_data.json', 'w', encoding='utf-8') as f:
+                    json.dump(self.bank_data, f, indent=4)
+
 
     async def play_game(self, ctx):
         game_data = self.active_games[ctx.channel.id]
         game_data["start_time"] = asyncio.get_event_loop().time()
 
-        # Cek apakah ada pertanyaan yang tersedia
-        if not self.questions:
-            await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan questions_hangman.json diisi dengan benar.")
+        if not self.questions or len(self.questions) < 10:
+            await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Hubungi admin.")
+            self.active_games.pop(ctx.channel.id, None)
             return
 
-        if len(self.questions) < 10:
-            await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di questions_hangman.json.")
-            return
-
-        game_data["question"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
+        game_data["question"] = random.sample(self.questions, 10)
 
         for index, question in enumerate(game_data["question"]):
             if game_data["game_over"]:
                 break
-
             game_data["current_question"] = index + 1
             await self.ask_question(ctx, question)
 
@@ -166,21 +228,18 @@ class Hangman(commands.Cog):
         
         await ctx.send(embed=embed)
 
-        # Menunggu jawaban dalam waktu yang ditentukan
         try:
             def check(m):
-                return m.channel == ctx.channel  # Setiap orang di channel dapat menjawab
+                return m.channel == ctx.channel
 
             while True:
                 user_answer = await self.bot.wait_for('message', timeout=game_data["time_limit"], check=check)
 
-                # Cek jawaban
                 if user_answer.content.strip().lower() == question['word'].lower():
                     game_data["correct"] += 1
-                    game_data["answers"].append(user_answer.content.strip().lower())  # Simpan jawaban yang benar
+                    game_data["answers"].append(user_answer.content.strip().lower())
                     await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
 
-                    # Tambah skor dan RSWN untuk semua pengguna
                     if user_answer.author.id not in self.scores:
                         self.scores[user_answer.author.id] = {
                             "user": user_answer.author,
@@ -192,9 +251,9 @@ class Hangman(commands.Cog):
 
                     self.scores[user_answer.author.id]["score"] += 1
                     self.scores[user_answer.author.id]["correct"] += 1
-                    self.scores[user_answer.author.id]["total_rsw"] += 30  # contoh hadiah
+                    self.scores[user_answer.author.id]["total_rsw"] += 30
 
-                    break  # Langsung lanjut ke soal berikutnya jika ada yang benar
+                    break
                 else:
                     game_data["wrong"] += 1
                     await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
@@ -208,74 +267,64 @@ class Hangman(commands.Cog):
             await self.end_game(ctx)
 
     def display_word(self, word, guessed_letters):
-        """Menampilkan kata dengan huruf yang sudah ditebak dan garis bawah untuk huruf yang belum ditebak."""
         displayed_word = ''.join([letter if letter in guessed_letters else '_' for letter in word])
         return displayed_word
 
     async def end_game(self, ctx):
         game_data = self.active_games.pop(ctx.channel.id, None)
         if game_data:
-            # Hitung saldo akhir dari sesi kuis
-            earned_rsw = game_data['correct'] * 25  # RSWN yang diperoleh dari hasil kuis
+            earned_rsw = game_data['correct'] * 25
 
-            # Update bank_data.json dengan saldo sesi
             if str(ctx.author.id) not in self.bank_data:
                 self.bank_data[str(ctx.author.id)] = {"balance": 0}
 
-            # Tambahkan saldo yang diperoleh
             self.bank_data[str(ctx.author.id)]["balance"] += earned_rsw
 
-            # Update level_data.json dengan EXP
             if str(ctx.author.id) in self.level_data:
-                self.level_data[str(ctx.author.id)]["exp"] += game_data['correct'] * 10  # 10 EXP per soal yang benar
+                self.level_data[str(ctx.author.id)]["exp"] += game_data['correct'] * 10
             else:
-                self.level_data[str(ctx.author.id)] = {
-                    "exp": game_data['correct'] * 10
-                }
+                self.level_data[str(ctx.author.id)] = {"exp": game_data['correct'] * 10}
 
-            # Simpan perubahan ke file
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
                 json.dump(self.bank_data, f, indent=4)
-
             with open('data/level_data.json', 'w', encoding='utf-8') as f:
                 json.dump(self.level_data, f, indent=4)
-
-            # Menampilkan leaderboard berdasarkan sesi
             await self.display_leaderboard(ctx)
 
     async def display_leaderboard(self, ctx):
-        sorted_scores = sorted(self.scores.values(), key=lambda x: x["correct"], reverse=True)[:5]  # Hanya ambil 5 teratas
+        if not self.scores:
+            await ctx.send("Tidak ada yang berpartisipasi dalam sesi Hangman kali ini. 💔")
+            return
+            
+        sorted_scores = sorted(self.scores.values(), key=lambda x: x["correct"], reverse=True)[:5]
         embed = discord.Embed(title="🏆 Leaderboard Hangman", color=0x00ff00)
 
-        # Mengambil informasi untuk leaderboard
-        for i, score in enumerate(sorted_scores, start=1):  # Menampilkan peringkat 1 hingga 5
+        for i, score in enumerate(sorted_scores, start=1):
             user = score['user']
             embed.add_field(
                 name=f"{i}. {user.display_name}",
                 value=(
-                    f"Total RSWN: {score.get('total_rsw', 0)}\n"  # Cek total RSWN
+                    f"Total RSWN: {score.get('total_rsw', 0)}\n"
                     f"Jawaban Benar: {score['correct']}\n"
                     f"Jawaban Salah: {score['wrong']}"
                 ),
                 inline=False
             )
 
-        # Hanya mengirim gambar untuk pengguna peringkat pertama
         if sorted_scores:
             top_user = sorted_scores[0]['user']
             image_url = str(top_user.avatar.url) if top_user.avatar else str(top_user.default_avatar.url)
-
-            # Mengambil gambar pengguna
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(image_url) as resp:
                         if resp.status == 200:
                             image_data = BytesIO(await resp.read())
-                            await ctx.send(file=discord.File(image_data, filename='avatar.png'))  # Kirim gambar
+                            await ctx.send(file=discord.File(image_data, filename='avatar.png'))
             except Exception as e:
                 print(f"Error fetching image for {top_user.display_name}: {e}")
 
-        await ctx.send(embed=embed)  # Mengirim leaderboard
+        await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
+
