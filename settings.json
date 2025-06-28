@@ -12,6 +12,13 @@
                 "disallow_prefix": false,
                 "disallow_url": false,
                 "auto_delete_seconds": 0
+            },
+            "1379458566452154438": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
             }
         }
     },
@@ -35,6 +42,50 @@
                 "auto_delete_seconds": 0
             },
             "1382047607702028339": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            }
+        }
+    },
+    "765138959625486357": {
+        "auto_role_id": null,
+        "welcome_channel_id": null,
+        "welcome_message": "Selamat datang di **{guild_name}**, {user}! 🎉",
+        "log_channel_id": null,
+        "reaction_roles": {},
+        "channel_rules": {
+            "765140300145360896": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "1255219778407366688": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "851069782803742720": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "1255226119221940265": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "1388480998060331102": {
                 "disallow_bots": false,
                 "disallow_media": false,
                 "disallow_prefix": false,
