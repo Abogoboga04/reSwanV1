@@ -1,16 +1,16 @@
 {
     "1039509114008649778": {
         "1000737066822410311": {
-            "exp": 10070,
+            "exp": 10090,
             "level": 4,
-            "weekly_exp": 8800,
+            "weekly_exp": 8810,
             "badges": [
                 "🐣",
                 "🏅",
                 "💀",
                 "👩"
             ],
-            "last_active": "2025-06-20T14:40:49.267252",
+            "last_active": "2025-06-28T12:54:55.063436",
             "booster": {},
             "last_completed_quest": null,
             "last_exp_purchase": "2025-06-16T12:55:36.833552",
@@ -287,7 +287,7 @@
             "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A10.png"
         },
         "771662040502763531": {
-            "exp": 26210,
+            "exp": 26735,
             "level": 7,
             "last_active": "2025-06-26T17:12:03.005255",
             "weekly_exp": 21495,
@@ -663,7 +663,7 @@
             "booster": {}
         },
         "1307128782750224507": {
-            "exp": 20,
+            "exp": 1625,
             "weekly_exp": 10,
             "level": 0,
             "badges": [],
