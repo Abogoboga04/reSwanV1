@@ -77,7 +77,7 @@ class SerbaSerbiGame(commands.Cog):
         clues = item['clues']
         
         embed = discord.Embed(title="🕵️‍♂️ Siapakah Aku?", description=f"Kategori: **{item['category']}**", color=0x1abc9c)
-        embed.set_thumbnail(url="https://i.imgur.com/b43a2t9.png")
+        embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AB1.jpeg")
         embed.set_footer(text="Tebak jawabannya kapan saja!")
         msg = await ctx.send(embed=embed)
         
