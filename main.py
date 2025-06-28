@@ -10,6 +10,7 @@ import json
 from io import BytesIO
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from datetime import datetime # Ditambahkan untuk timestamp di MongoDB
 
 load_dotenv()
 
@@ -52,80 +53,87 @@ async def on_ready():
     print(f"ðŸ¤– Bot {bot.user} is now online!")
     print(f"Command yang terdaftar: {[command.name for command in bot.commands]}")
 
-# Command untuk backup data dari folder data/ dan config/
+# =======================================================================================
+# ---> BAGIAN INI TELAH DIREVISI SESUAI PERMINTAAN ANDA <---
+# =======================================================================================
+
+# Command untuk backup data dari folder root, data/, dan config/
 @bot.command()
+@commands.is_owner() # Ditambahkan untuk keamanan, hanya pemilik bot yang bisa menjalankan
 async def backupnow(ctx):
+    await ctx.send("Memulai proses backup...")
     backup_data = {}
 
-    # Backup semua file JSON dari folder data/
-    data_folder = 'data/'
-    config_folder = 'config/'
+    # Daftar direktori yang akan di-backup. '.' merepresentasikan root.
+    directories_to_scan = ['.', 'data/', 'config/']
 
-    # Backup file dari folder data/
-    for filename in os.listdir(data_folder):
-        if filename.endswith('.json'):
-            file_path = os.path.join(data_folder, filename)
-            with open(file_path, 'r') as f:
+    for directory in directories_to_scan:
+        # Cek apakah direktori ada untuk menghindari error
+        if not os.path.isdir(directory):
+            print(f"Peringatan: Direktori '{directory}' tidak ditemukan, dilewati.")
+            continue
+        
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            # Pastikan itu adalah file dan berakhiran .json
+            if filename.endswith('.json') and os.path.isfile(file_path):
                 try:
-                    json_data = json.load(f)
-                    backup_data[filename] = json_data
-                    print(f"âœ… File {filename} berhasil dibaca dari data/")
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        json_data = json.load(f)
+                        # Menggunakan path sebagai kunci untuk menghindari duplikasi nama file
+                        backup_data[file_path] = json_data 
+                        print(f"✅ File '{file_path}' berhasil dibaca.")
                 except json.JSONDecodeError:
-                    await ctx.send(f"âŒ Gagal membaca file {filename} dari data/")
-                    print(f"âŒ Gagal membaca file {filename} dari data/")
-
-    # Backup file dari folder config/
-    for filename in os.listdir(config_folder):
-        if filename.endswith('.json'):
-            file_path = os.path.join(config_folder, filename)
-            with open(file_path, 'r') as f:
-                try:
-                    json_data = json.load(f)
-                    backup_data[filename] = json_data
-                    print(f"âœ… File {filename} berhasil dibaca dari config/")
-                except json.JSONDecodeError:
-                    await ctx.send(f"âŒ Gagal membaca file {filename} dari config/")
-                    print(f"âŒ Gagal membaca file {filename} dari config/")
+                    await ctx.send(f"❌ Gagal membaca file JSON: `{file_path}`")
+                    print(f"❌ Gagal membaca file JSON: {file_path}")
+                except Exception as e:
+                    await ctx.send(f"❌ Terjadi error saat membaca `{file_path}`: {e}")
 
     # Simpan data backup ke dalam koleksi MongoDB
     if backup_data:
         try:
-            print(f"âœ… Data yang akan disimpan ke MongoDB: {backup_data}")  # Logging data sebelum disimpan
-            result = collection.insert_one({"backup": backup_data})
+            # ---> DITERAPKAN: Menggunakan update_one dengan upsert=True untuk efisiensi
+            # Ini akan selalu menimpa satu dokumen backup saja, tidak membuat yang baru.
+            collection.update_one(
+                {"_id": "latest_backup"},  # Selalu menargetkan dokumen dengan ID ini
+                {"$set": {
+                    "backup": backup_data,
+                    "timestamp": datetime.utcnow() # Menambahkan waktu backup
+                }},
+                upsert=True  # Membuat dokumen jika belum ada
+            )
             
-            if result.inserted_id:
-                print(f"âœ… Data backup berhasil disimpan ke MongoDB dengan ID: {result.inserted_id}")
+            print("✅ Data backup berhasil disimpan ke MongoDB.")
+            await ctx.send("✅ Data backup berhasil disimpan ke MongoDB!")
 
-                # Kirim data ke pengguna dengan ID tertentu
-                user_id = 1000737066822410311  # Ganti dengan ID pengguna kamu
-                user = await bot.fetch_user(user_id)
-                await user.send(f"Backup Data: {json.dumps(backup_data, indent=4)}")
-                print(f"âœ… Data backup berhasil dikirim ke DM pengguna dengan ID {user_id}.")
-                await ctx.send("âœ… Data backup berhasil disimpan dan dikirim ke DM!")
-            else:
-                await ctx.send("âŒ Gagal menyimpan data ke MongoDB, ID tidak ditemukan.")
         except Exception as e:
-            await ctx.send("âŒ Gagal menyimpan data ke MongoDB.")
-            print(f"âŒ Gagal menyimpan data ke MongoDB: {e}")
+            await ctx.send(f"❌ Gagal menyimpan data ke MongoDB: {e}")
+            print(f"❌ Gagal menyimpan data ke MongoDB: {e}")
     else:
-        await ctx.send("âŒ Tidak ada data untuk dibackup.")
+        await ctx.send("🤷 Tidak ada file .json yang ditemukan untuk dibackup.")
 
 # Command untuk mengirim data backup ke DM
 @bot.command()
+@commands.is_owner() # Ditambahkan untuk keamanan
 async def sendbackup(ctx):
     user_id = 1000737066822410311  # Ganti dengan ID kamu
     user = await bot.fetch_user(user_id)
 
     try:
-        stored_data = collection.find_one(sort=[('_id', -1)])
+        # ---> DITERAPKAN: Mencari dokumen backup berdasarkan ID yang pasti
+        stored_data = collection.find_one({"_id": "latest_backup"})
         if not stored_data or 'backup' not in stored_data:
-            await ctx.send("âŒ Tidak ada data backup yang tersedia.")
+            await ctx.send("❌ Tidak ada data backup yang tersedia.")
             return
 
         backup_data = stored_data["backup"]
-        await ctx.send("ðŸ“¤ Mengirim file backup satu per satu ke DM...")
+        await ctx.send("📬 Mengirim file backup satu per satu ke DM...")
 
-        for filename, content in backup_data.items():
+        # ---> DIREVISI: Menggunakan file_path dari dictionary
+        for file_path, content in backup_data.items():
+            # Mengambil nama file asli dari path lengkapnya
+            filename = os.path.basename(file_path)
+            
             string_buffer = io.StringIO()
             json.dump(content, string_buffer, indent=4, ensure_ascii=False)
             string_buffer.seek(0)
@@ -136,18 +144,22 @@ async def sendbackup(ctx):
             file = discord.File(fp=byte_buffer, filename=filename)
 
             try:
-                await user.send(content=f"ðŸ“„ Berikut file backup: **{filename}**", file=file)
+                # Menambahkan info path asal file untuk kejelasan
+                await user.send(content=f"📄 Berikut file backup dari `/{file_path}`:", file=file)
             except discord.HTTPException as e:
-                await ctx.send(f"âŒ Gagal kirim file {filename}: {e}")
+                await ctx.send(f"❌ Gagal kirim file `{filename}`: {e}")
 
-        await ctx.send("âœ… Semua file backup berhasil dikirim ke DM!")
+        await ctx.send("✅ Semua file backup berhasil dikirim ke DM!")
 
     except discord.Forbidden:
-        await ctx.send("âŒ Gagal mengirim DM. Pastikan saya dapat mengirim DM ke pengguna ini.")
+        await ctx.send("❌ Gagal mengirim DM. Pastikan saya dapat mengirim DM ke pengguna ini.")
     except Exception as e:
-        await ctx.send("âŒ Terjadi kesalahan saat mengambil data backup.")
-        print(f"âŒ Error: {e}")
+        await ctx.send(f"❌ Terjadi kesalahan saat mengambil data backup: {e}")
+        print(f"❌ Error saat sendbackup: {e}")
 
+# =======================================================================================
+# Kode Anda yang lain di bawah ini tidak diubah sama sekali
+# =======================================================================================
 
 # Muat semua cog yang ada
 async def load_cogs():
@@ -181,3 +193,4 @@ keep_alive()
 
 # Token bot Discord Anda dari secrets
 bot.run(os.getenv("DISCORD_TOKEN"))
+
