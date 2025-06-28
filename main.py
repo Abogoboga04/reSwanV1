@@ -174,7 +174,8 @@ async def load_cogs():
         await bot.load_extension("cogs.hangman") 
         await bot.load_extension("cogs.quotes")
         await bot.load_extension("cogs.newgame")
-        await bot.load_extension("cogs.serbaserbi") 
+        await bot.load_extension("cogs.serbaserbi")
+        await bot.load_extension("cogs.multigame")
         print("âœ… Semua cogs berhasil dimuat.")
     except Exception as e:
         print(f"âŒ Gagal memuat cogs: {e}")
