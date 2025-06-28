@@ -1,15 +1,21 @@
 {
-  "auto_role": null,
-  "welcome_channel": null,
-  "welcome_message": "Selamat datang di server kami, {user}!",
-  "reaction_roles": {},
-  "channel_configs": {},
-  "mute_status": false,
-  "hide_status": false,
-  "1379458566452154438": {
-    "disallow_bot": false,
-    "disallow_links": false,
-    "disallow_media": false,
-    "disallow_prefix": false
-  }
+    "788337048997199882": {
+        "auto_role_id": null,
+        "welcome_channel_id": 788337048997199885,
+        "welcome_message": "Hai {user}! Selamat datang di Server Gaming Keren. Jangan lupa baca peraturan ya!",
+        "log_channel_id": 1382047607702028339,
+        "reaction_roles": {
+            "1384604148053442782": {
+                "👨‍🦱": 1266493929792995438,
+                "👩": 1270461543234146396,
+            }
+        }
+    },
+    "998877665544332211": {
+        "auto_role_id": null,
+        "welcome_channel_id": 998877665544332215,
+        "welcome_message": "Selamat datang di Server Belajar Bareng, {user}!",
+        "log_channel_id": 998877665544332216,
+        "reaction_roles": {}
+    }
 }
