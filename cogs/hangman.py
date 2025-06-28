@@ -16,7 +16,7 @@ class Hangman(commands.Cog):
         self.questions = self.load_hangman_data()
         self.scores = {}  # Menyimpan skor peserta per sesi
 
-        self.game_channel_id = 1379458566452154438  # ID channel yang diizinkan
+        self.game_channel_id = 765140300145360896  # ID channel yang diizinkan
         self.bantuan_price = 40 # Harga bantuan, bisa disesuaikan
 
     def load_bank_data(self):
