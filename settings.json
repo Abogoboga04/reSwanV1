@@ -1,21 +1,46 @@
 {
-    "788337048997199882": {
+    "1039509114008649778": {
         "auto_role_id": null,
-        "welcome_channel_id": 788337048997199885,
-        "welcome_message": "Hai {user}! Selamat datang di Server Gaming Keren. Jangan lupa baca peraturan ya!",
-        "log_channel_id": 1382047607702028339,
-        "reaction_roles": {
-            "1384604148053442782": {
-                "👨‍🦱": 1266493929792995438,
-                "👩": 1270461543234146396,
+        "welcome_channel_id": null,
+        "welcome_message": "Selamat datang di **{guild_name}**, {user}! 🎉",
+        "log_channel_id": null,
+        "reaction_roles": {},
+        "channel_rules": {
+            "1379762287149187162": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
             }
         }
     },
-    "998877665544332211": {
+    "788337048997199882": {
         "auto_role_id": null,
-        "welcome_channel_id": 998877665544332215,
-        "welcome_message": "Selamat datang di Server Belajar Bareng, {user}!",
-        "log_channel_id": 998877665544332216,
-        "reaction_roles": {}
+        "welcome_channel_id": null,
+        "welcome_message": "Selamat datang di **{guild_name}**, {user}! 🎉",
+        "log_channel_id": null,
+        "reaction_roles": {
+            "1384604148053442782": {
+                "👨‍🦱": 1266493929792995438,
+                "👩": 1270461543234146396
+            }
+        },
+        "channel_rules": {
+            "1384603362787590246": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "1382047607702028339": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            }
+        }
     }
 }
