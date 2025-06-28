@@ -81,7 +81,7 @@ class GameLanjutan(commands.Cog):
             "4. Permainan terdiri dari 10 ronde.\n\n"
             "Klik tombol di bawah untuk memulai petualangan katamu!"
         )
-        embed.set_thumbnail(url="https://i.imgur.com/gJ9w0a1.png") # Puzzle icon
+        embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AB6.jpeg") # Puzzle icon
         embed.set_footer(text="Hanya pemanggil perintah yang bisa memulai permainan.")
         
         view = discord.ui.View(timeout=60)
@@ -160,7 +160,7 @@ class GameLanjutan(commands.Cog):
             f"4. Pemenang terakhir mendapat **{self.sambung_kata_winner_reward['rsw']} RSWN** & **{self.sambung_kata_winner_reward['exp']} EXP**.\n"
         )
         embed.add_field(name="👥 Pemain Bergabung", value=player_mentions)
-        embed.set_thumbnail(url="https://i.imgur.com/wA2O6b4.png") # Chain icon
+        embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AB5.jpeg") # Chain icon
         
         await ctx.send(embed=embed)
         await asyncio.sleep(5)
