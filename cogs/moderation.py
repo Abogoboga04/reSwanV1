@@ -6,6 +6,7 @@ import re
 import asyncio
 from typing import Optional
 from datetime import datetime, timedelta
+import time
 
 # =======================================================================================
 # UTILITY FUNCTIONS - Fungsi bantuan
@@ -53,6 +54,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         self.bot = bot
         self.settings_file = "settings.json"
         self.filters_file = "filters.json"
+        self.warnings_file = "warnings.json" # ---> DITAMBAHKAN: File baru untuk data peringatan
         
         # ---> DITAMBAHKAN: Regex dan prefix untuk aturan channel
         self.common_prefixes = ('!', '.', '?', '-', '$', '%', '&', '#', '+', '=')
@@ -65,6 +67,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         
         self.settings = load_data(self.settings_file)
         self.filters = load_data(self.filters_file)
+        self.warnings = load_data(self.warnings_file) # ---> DITAMBAHKAN: Memuat data peringatan saat bot mulai
 
     # --- Helper Methods for Data Management ---
     def get_guild_settings(self, guild_id: int):
@@ -105,6 +108,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         
     def save_settings(self): save_data(self.settings_file, self.settings)
     def save_filters(self): save_data(self.filters_file, self.filters)
+    def save_warnings(self): save_data(self.warnings_file, self.warnings) # ---> DITAMBAHKAN: Fungsi untuk menyimpan peringatan
 
     # --- Helper Methods for UI & Logging ---
     def _create_embed(self, title: str = "", description: str = "", color: int = 0, author_name: str = "", author_icon_url: str = ""):
@@ -293,7 +297,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         await ctx.send(embed=self._create_embed(description=f"✅ Blokir untuk **{user_to_unban}** telah dibuka.", color=self.color_success))
         await self.log_action(ctx.guild, "🤝 Blokir Dibuka", {"Pengguna": f"{user_to_unban} ({user_to_unban.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_success)
 
-    # ---> PERINTAH BARU: WARN <---
     @commands.command(name="warn")
     @commands.has_permissions(kick_members=True)
     async def warn(self, ctx, member: discord.Member, *, reason: str):
@@ -304,6 +307,24 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         if member.bot:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberi peringatan kepada bot.", color=self.color_error))
             return
+
+        # ---> DITAMBAHKAN: Logika untuk menyimpan peringatan <---
+        timestamp = int(time.time())
+        warning_data = {
+            "moderator_id": ctx.author.id,
+            "timestamp": timestamp,
+            "reason": reason
+        }
+        guild_id_str = str(ctx.guild.id)
+        member_id_str = str(member.id)
+        if guild_id_str not in self.warnings:
+            self.warnings[guild_id_str] = {}
+        if member_id_str not in self.warnings[guild_id_str]:
+            self.warnings[guild_id_str][member_id_str] = []
+        
+        self.warnings[guild_id_str][member_id_str].append(warning_data)
+        self.save_warnings()
+        # ---> Akhir dari logika penyimpanan <---
 
         # Kirim DM ke pengguna
         try:
@@ -323,6 +344,59 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         await ctx.send(embed=self._create_embed(description=confirm_desc, color=self.color_success))
         await self.log_action(ctx.guild, "⚠️ Member Diperingatkan", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_warning)
 
+    # ---> PERINTAH BARU: UNWARN <---
+    @commands.command(name="unwarn")
+    @commands.has_permissions(kick_members=True)
+    async def unwarn(self, ctx, member: discord.Member, warning_index: int, *, reason: Optional[str] = "Kesalahan admin."):
+        """Menghapus peringatan spesifik dari anggota."""
+        guild_id_str = str(ctx.guild.id)
+        member_id_str = str(member.id)
+        
+        user_warnings = self.warnings.get(guild_id_str, {}).get(member_id_str, [])
+        
+        if not user_warnings:
+            return await ctx.send(embed=self._create_embed(description=f"❌ **{member.display_name}** tidak memiliki peringatan.", color=self.color_error))
+
+        if not (0 < warning_index <= len(user_warnings)):
+            return await ctx.send(embed=self._create_embed(description=f"❌ Indeks peringatan tidak valid. Gunakan `!warnings {member.mention}` untuk melihat daftar peringatan.", color=self.color_error))
+        
+        removed_warning = self.warnings[guild_id_str][member_id_str].pop(warning_index - 1)
+        self.save_warnings()
+        
+        await ctx.send(embed=self._create_embed(description=f"✅ Peringatan ke-{warning_index} untuk **{member.display_name}** telah dihapus.", color=self.color_success))
+        
+        log_fields = {
+            "Member": f"{member} ({member.id})", 
+            "Moderator": ctx.author.mention, 
+            "Alasan Hapus": reason,
+            "Peringatan yang Dihapus": f"`{removed_warning['reason']}`"
+        }
+        await self.log_action(ctx.guild, "👍 Peringatan Dihapus", log_fields, self.color_success)
+
+    # ---> PERINTAH BARU: WARNINGS <---
+    @commands.command(name="warnings", aliases=["history"])
+    @commands.has_permissions(kick_members=True)
+    async def warnings(self, ctx, member: discord.Member):
+        """Melihat riwayat peringatan seorang anggota."""
+        guild_id_str = str(ctx.guild.id)
+        member_id_str = str(member.id)
+        
+        user_warnings = self.warnings.get(guild_id_str, {}).get(member_id_str, [])
+        
+        if not user_warnings:
+            return await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** tidak memiliki riwayat peringatan.", color=self.color_success))
+
+        embed = self._create_embed(title=f"Riwayat Peringatan untuk {member.display_name}", color=self.color_info)
+        embed.set_thumbnail(url=member.display_avatar.url)
+
+        for idx, warn_data in enumerate(user_warnings, 1):
+            moderator = await self.bot.fetch_user(warn_data.get('moderator_id', 0))
+            timestamp = warn_data.get('timestamp', 0)
+            reason = warn_data.get('reason', 'N/A')
+            field_value = f"**Alasan:** {reason}\n**Moderator:** {moderator.mention if moderator else 'Tidak diketahui'}\n**Tanggal:** <t:{timestamp}:F>"
+            embed.add_field(name=f"Peringatan #{idx}", value=field_value, inline=False)
+            
+        await ctx.send(embed=embed)
 
     @commands.command(name="timeout", aliases=["mute"])
     @commands.has_permissions(moderate_members=True)
@@ -373,6 +447,52 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         await target_channel.set_permissions(ctx.guild.default_role, send_messages=None)
         await ctx.send(embed=self._create_embed(description=f"🔓 Kunci channel {target_channel.mention} telah dibuka.", color=self.color_success))
         await self.log_action(ctx.guild, "🔓 Kunci Dibuka", {"Channel": target_channel.mention, "Moderator": ctx.author.mention}, self.color_success)
+
+    # ---> PERINTAH BARU: ADDROLE & REMOVEROLE <---
+    @commands.command(name="addrole")
+    @commands.has_permissions(manage_roles=True)
+    async def add_role(self, ctx, member: discord.Member, role: discord.Role):
+        """Memberikan role kepada seorang anggota."""
+        if ctx.author.top_role <= role:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan role yang lebih tinggi atau setara dengan role Anda.", color=self.color_error))
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah role anggota yang posisinya lebih tinggi atau setara.", color=self.color_error))
+
+        await member.add_roles(role, reason=f"Diberikan oleh {ctx.author}")
+        await ctx.send(embed=self._create_embed(description=f"✅ Role {role.mention} telah diberikan kepada {member.mention}.", color=self.color_success))
+        await self.log_action(ctx.guild, "➕ Role Diberikan", {"Member": member.mention, "Role": role.mention, "Moderator": ctx.author.mention}, self.color_info)
+
+    @commands.command(name="removerole")
+    @commands.has_permissions(manage_roles=True)
+    async def remove_role(self, ctx, member: discord.Member, role: discord.Role):
+        """Menghapus role dari seorang anggota."""
+        if ctx.author.top_role <= role:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa menghapus role yang lebih tinggi atau setara dengan role Anda.", color=self.color_error))
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah role anggota yang posisinya lebih tinggi atau setara.", color=self.color_error))
+            
+        await member.remove_roles(role, reason=f"Dihapus oleh {ctx.author}")
+        await ctx.send(embed=self._create_embed(description=f"✅ Role {role.mention} telah dihapus dari {member.mention}.", color=self.color_success))
+        await self.log_action(ctx.guild, "➖ Role Dihapus", {"Member": member.mention, "Role": role.mention, "Moderator": ctx.author.mention}, self.color_info)
+
+    # ---> PERINTAH BARU: NICK <---
+    @commands.command(name="nick")
+    @commands.has_permissions(manage_nicknames=True)
+    async def nick(self, ctx, member: discord.Member, *, new_nickname: Optional[str] = None):
+        """Mengubah atau mereset nickname seorang anggota."""
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah nickname anggota dengan role lebih tinggi atau setara.", color=self.color_error))
+
+        old_nickname = member.display_name
+        await member.edit(nick=new_nickname, reason=f"Diubah oleh {ctx.author}")
+        
+        if new_nickname:
+            await ctx.send(embed=self._create_embed(description=f"✅ Nickname **{old_nickname}** telah diubah menjadi **{new_nickname}**.", color=self.color_success))
+            await self.log_action(ctx.guild, "👤 Nickname Diubah", {"Member": member.mention, "Dari": old_nickname, "Menjadi": new_nickname, "Moderator": ctx.author.mention}, self.color_info)
+        else:
+            await ctx.send(embed=self._create_embed(description=f"✅ Nickname untuk **{old_nickname}** telah direset.", color=self.color_success))
+            await self.log_action(ctx.guild, "👤 Nickname Direset", {"Member": member.mention, "Moderator": ctx.author.mention}, self.color_info)
+
 
     # =======================================================================================
     # ---> DITAMBAHKAN: Perintah dan UI untuk `channelrules`
