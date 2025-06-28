@@ -20,8 +20,8 @@ class GameLanjutan(commands.Cog):
 
         # Game Configuration
         self.game_channel_id = 765140300145360896 # ID channel yang diizinkan
-        self.scramble_reward = {"rsw": 25, "exp": 15}
-        self.sambung_kata_winner_reward = {"rsw": 150, "exp": 100}
+        self.scramble_reward = {"rsw": 50, "exp": 100}
+        self.sambung_kata_winner_reward = {"rsw": 50, "exp": 100}
         self.scramble_time_limit = 30 # Detik per soal acak kata
         self.sambung_kata_time_limit = 20 # Detik per giliran sambung kata
 
