@@ -131,7 +131,12 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             embed = self._create_embed(description=f"❌ Anda tidak memiliki izin `{', '.join(error.missing_permissions)}` untuk menjalankan perintah ini.", color=self.color_error)
             await ctx.send(embed=embed, delete_after=15)
         elif isinstance(error, commands.CommandNotFound): pass
+        elif isinstance(error, commands.MemberNotFound):
+            await ctx.send(embed=self._create_embed(description=f"❌ Anggota tidak ditemukan.", color=self.color_error))
+        elif isinstance(error, commands.UserNotFound):
+            await ctx.send(embed=self._create_embed(description=f"❌ Pengguna tidak ditemukan.", color=self.color_error))
         else: print(f"Error pada perintah '{ctx.command}': {error}")
+
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -236,7 +241,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             await member.remove_roles(role, reason="Reaction Role Removed")
 
     # =======================================================================================
-    # MODERATION COMMANDS (TETAP UTUH)
+    # MODERATION COMMANDS
     # =======================================================================================
 
     @commands.command(name="kick")
@@ -254,6 +259,70 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         await member.ban(reason=reason)
         await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** telah diblokir.", color=self.color_success))
         await self.log_action(ctx.guild, "🔨 Member Diblokir", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_error)
+
+    # ---> PERINTAH BARU: UNBAN <---
+    @commands.command(name="unban")
+    @commands.has_permissions(ban_members=True)
+    async def unban(self, ctx, *, user_identifier: str, reason: Optional[str] = "Tidak ada alasan."):
+        """Membuka blokir pengguna berdasarkan Nama#Tag atau ID."""
+        ban_entries = [entry async for entry in ctx.guild.bans()]
+        banned_user_entry = None
+
+        try:
+            # Coba cari berdasarkan ID dulu, ini cara paling akurat
+            user_id = int(user_identifier)
+            target_user = await self.bot.fetch_user(user_id)
+            banned_user_entry = await ctx.guild.fetch_ban(target_user)
+        except ValueError:
+            # Jika bukan ID, cari berdasarkan Nama#Tag
+            for entry in ban_entries:
+                if str(entry.user) == user_identifier:
+                    banned_user_entry = entry
+                    break
+        except discord.NotFound:
+             await ctx.send(embed=self._create_embed(description=f"❌ Pengguna dengan ID `{user_identifier}` tidak ditemukan dalam daftar blokir.", color=self.color_error))
+             return
+
+
+        if banned_user_entry is None:
+            await ctx.send(embed=self._create_embed(description=f"❌ Pengguna `{user_identifier}` tidak ditemukan dalam daftar blokir. Coba gunakan ID pengguna.", color=self.color_error))
+            return
+
+        user_to_unban = banned_user_entry.user
+        await ctx.guild.unban(user_to_unban, reason=reason)
+        await ctx.send(embed=self._create_embed(description=f"✅ Blokir untuk **{user_to_unban}** telah dibuka.", color=self.color_success))
+        await self.log_action(ctx.guild, "🤝 Blokir Dibuka", {"Pengguna": f"{user_to_unban} ({user_to_unban.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_success)
+
+    # ---> PERINTAH BARU: WARN <---
+    @commands.command(name="warn")
+    @commands.has_permissions(kick_members=True)
+    async def warn(self, ctx, member: discord.Member, *, reason: str):
+        """Memberi peringatan kepada anggota."""
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberi peringatan kepada anggota dengan role setara atau lebih tinggi.", color=self.color_error))
+            return
+        if member.bot:
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberi peringatan kepada bot.", color=self.color_error))
+            return
+
+        # Kirim DM ke pengguna
+        try:
+            dm_embed = self._create_embed(title=f"🚨 Anda Menerima Peringatan di {ctx.guild.name}", color=self.color_warning)
+            dm_embed.add_field(name="Alasan Peringatan", value=reason, inline=False)
+            dm_embed.set_footer(text=f"Peringatan diberikan oleh {ctx.author.display_name}")
+            await member.send(embed=dm_embed)
+            dm_sent = True
+        except discord.Forbidden:
+            dm_sent = False
+
+        # Kirim konfirmasi di channel & log
+        confirm_desc = f"✅ **{member.display_name}** telah diperingatkan."
+        if not dm_sent:
+            confirm_desc += "\n*(Pesan peringatan tidak dapat dikirim ke DM pengguna.)*"
+            
+        await ctx.send(embed=self._create_embed(description=confirm_desc, color=self.color_success))
+        await self.log_action(ctx.guild, "⚠️ Member Diperingatkan", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_warning)
+
 
     @commands.command(name="timeout", aliases=["mute"])
     @commands.has_permissions(moderate_members=True)
@@ -350,8 +419,21 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         await ctx.send(embed=embed, view=ChannelRuleView(self, ctx.author, target_channel))
         
     # =======================================================================================
-    # SETUP COMMANDS (TETAP UTUH)
+    # SETUP COMMANDS
     # =======================================================================================
+
+    @commands.command(name="setwelcomechannel")
+    @commands.has_permissions(manage_guild=True)
+    async def set_welcome_channel(self, ctx, channel: discord.TextChannel):
+        """Mengatur channel untuk pesan selamat datang."""
+        guild_settings = self.get_guild_settings(ctx.guild.id)
+        guild_settings["welcome_channel_id"] = channel.id
+        self.save_settings()
+        embed = self._create_embed(
+            description=f"✅ Channel selamat datang telah berhasil diatur ke {channel.mention}.",
+            color=self.color_success
+        )
+        await ctx.send(embed=embed)
 
     @commands.command(name="setreactionrole")
     @commands.has_permissions(manage_roles=True)
