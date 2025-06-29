@@ -135,7 +135,7 @@ class DuniaHidup(commands.Cog):
         expired_users = [uid for uid, expiry in list(self.protected_users.items()) if now >= datetime.fromisoformat(expiry)]
         for uid in expired_users:
             del self.protected_users[uid]
-        if expired_users: save_json_to_root(self.protected_users, 'data/protected_users.json')
+        if expired_users: save_json_from_root(self.protected_users, 'data/protected_users.json')
 
     async def spawn_monster(self):
         self.current_monster = random.choice(self.monsters_data['monsters']).copy()
@@ -182,7 +182,7 @@ class DuniaHidup(commands.Cog):
             level_data[str(guild.id)][user_id_to_attack]['exp'] = max(0, level_data[str(guild.id)][user_id_to_attack].get('exp', 0) - exp_loss)
         if user_id_to_attack in bank_data:
             bank_data[user_id_to_attack]['balance'] = max(0, bank_data[user_id_to_attack].get('balance', 0) - rswn_loss)
-        save_json_to_root(level_data, 'data/level_data.json'); save_json_to_root(bank_data, 'data/bank_data.json')
+        save_json_from_root(level_data, 'data/level_data.json'); save_json_from_root(bank_data, 'data/bank_data.json')
         
         channel = self.bot.get_channel(self.event_channel_id)
         if channel:
@@ -228,7 +228,7 @@ class DuniaHidup(commands.Cog):
             if member:
                 bank_data.setdefault(str(user_id), {'balance': 0})['balance'] += reward_rswn
                 level_data.setdefault(str(channel.guild.id), {}).setdefault(str(user_id), {'exp': 0})['exp'] += reward_exp
-        save_json_to_root(bank_data, 'data/bank_data.json'); save_json_to_root(level_data, 'data/level_data.json')
+        save_json_from_root(bank_data, 'data/bank_data.json'); save_json_from_root(level_data, 'data/level_data.json')
         self.current_monster, self.monster_attack_queue, self.monster_attackers = None, [], set()
 
     async def trigger_anomaly(self):
@@ -269,7 +269,7 @@ class DuniaHidup(commands.Cog):
             bank_data, level_data = load_json_from_root('data/bank_data.json'), load_json_from_root('data/level_data.json')
             bank_data.setdefault(str(ctx.author.id), {'balance': 0})['balance'] += reward['rswn']
             level_data.setdefault(str(ctx.guild.id), {}).setdefault(str(ctx.author.id), {'exp': 0})['exp'] += reward['exp']
-            save_json_to_root(bank_data, 'data/bank_data.json'); save_json_to_root(level_data, 'data/level_data.json')
+            save_json_from_root(bank_data, 'data/bank_data.json'); save_json_from_root(level_data, 'data/level_data.json')
             await ctx.send(f"🎉 Selamat {ctx.author.mention}! Kamu berhasil mengklaim hadiah **{reward['rswn']} RSWN** dan **{reward['exp']} EXP**!")
         else:
             await ctx.send("Kode tidak valid atau sudah hangus.", delete_after=10)
@@ -322,13 +322,16 @@ class DuniaHidup(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        # Abaikan pesan dari bot atau pesan di luar guild (DM)
         if message.author.bot or not message.guild:
-            if not message.author.bot: await self.bot.process_commands(message)
+            # Penting: Jangan panggil process_commands di sini untuk pesan DM atau bot,
+            # karena bot utama sudah menangani ini.
             return
         
         user_id = message.author.id
         sick_role = message.guild.get_role(self.sick_role_id)
 
+        # Logika untuk role "sakit"
         if sick_role and sick_role in message.author.roles:
             now = datetime.utcnow()
             last_message_time = self.sick_users_cooldown.get(user_id)
@@ -340,9 +343,14 @@ class DuniaHidup(commands.Cog):
                         await message.delete()
                         await message.author.send(f"Kamu sedang sakit dan masih lemas... Kamu butuh istirahat **{int(time_left.total_seconds())} detik** lagi sebelum bisa berbicara.", delete_after=60)
                     except (discord.Forbidden, discord.NotFound): pass
-                    return
+                    return # Penting: Hentikan pemrosesan lebih lanjut jika user sedang cooldown sakit
             self.sick_users_cooldown[user_id] = now
         
+        # Biarkan bot utama (main.py) memproses perintah.
+        # Jika pesan adalah perintah, process_commands akan menanganinya.
+        # Jika bukan, bot utama juga akan melanjutkan ke on_message global lainnya.
+        # Cogs lain yang memiliki on_message sendiri juga akan dipanggil.
+        # Ini memastikan hanya ada SATU kali pemanggilan process_commands per pesan.
         await self.bot.process_commands(message)
 
     @commands.command(name="minumobat")
@@ -394,4 +402,3 @@ class DuniaHidup(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(DuniaHidup(bot))
-
