@@ -43,7 +43,7 @@
             "riddle": "Jika sebuah kapal telah diganti semua bagiannya satu per satu, mulai dari papan kayu hingga tiang layarnya, apakah kapal itu masih bisa disebut kapal yang sama?",
             "answer": "Paradoks Kapal Theseus",
             "hint": "Ini bukan soal jawaban benar atau salah. Ini adalah sebuah paradoks filosofis terkenal tentang konsep identitas. Sebutkan nama paradoksnya.",
-            "image_url": "https://i.imgur.com/OslzS33.png"
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/M6.jpg"
         },
         {
             "name": "Oracle Sibylline, Peramal Nasib",
@@ -51,7 +51,7 @@
             "riddle": "Kamu mengikuti kuis dengan 3 pintu. Di balik satu pintu ada mobil, dua lainnya kambing. Kamu memilih Pintu 1. Pembawa acara, yang tahu di mana mobilnya, kemudian membuka Pintu 3 dan menunjukkan seekor kambing. Dia lalu bertanya, 'Apakah kamu mau tetap di Pintu 1, atau pindah ke Pintu 2?' Jawaban apa yang memberimu peluang menang lebih besar?",
             "answer": "Pindah ke Pintu 2",
             "hint": "Cari 'Masalah Monty Hall'. Peluangmu menang menjadi 2/3 jika kamu pindah. Ini adalah soal probabilitas, bukan keberuntungan.",
-            "image_url": "https://i.imgur.com/2s3xS6N.png"
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/M7.jpg"
         },
         {
             "name": "Ahli Logika Gila dari Dimensi Cermin",
@@ -59,7 +59,7 @@
             "riddle": "Seorang tahanan dijatuhi hukuman mati. Sang raja memberinya satu kesempatan terakhir: mengucapkan satu kalimat. Jika kalimat yang diucapkan itu **benar**, dia akan digantung. Jika kalimatnya **salah**, dia akan ditembak. Kalimat apa yang harus diucapkan si tahanan agar ia bisa selamat?",
             "answer": "Saya akan ditembak",
             "hint": "Pikirkan sebuah kalimat yang menciptakan paradoks bagi sang algojo. Kalimat yang membuat pilihan 'digantung' dan 'ditembak' menjadi tidak mungkin secara bersamaan.",
-            "image_url": "https://i.imgur.com/T0fVw8u.png"
+            "image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/M8.jpg"
         }
     ]
 }
