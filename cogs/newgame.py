@@ -4,6 +4,30 @@ import json
 import random
 import asyncio
 import os
+from datetime import datetime, time
+
+# Helper Functions to handle JSON data from the bot's root directory
+def load_json_from_root(file_path):
+    """Memuat data JSON dari direktori utama bot dengan aman."""
+    try:
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        full_path = os.path.join(base_dir, file_path)
+        with open(full_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Peringatan Kritis: Gagal memuat '{file_path}'. Error: {e}")
+        # Mengembalikan struktur data kosong yang sesuai untuk menghindari error
+        if any(name in file_path for name in ['bank_data', 'level_data']):
+            return {}
+        return []
+
+def save_json_to_root(data, file_path):
+    """Menyimpan data ke file JSON di direktori utama bot."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    full_path = os.path.join(base_dir, file_path)
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    with open(full_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
 
 class GameLanjutan(commands.Cog):
     def __init__(self, bot):
@@ -13,10 +37,8 @@ class GameLanjutan(commands.Cog):
         self.active_sambung_games = {}
         
         # Load Data
-        self.bank_data = self.load_json('data/bank_data.json')
-        self.level_data = self.load_json('data/level_data.json')
-        self.scramble_questions = self.load_json('data/questions_hangman.json')
-        self.sambung_kata_words = self.load_json('data/sambung_kata_words.json')
+        self.scramble_questions = load_json_from_root('data/questions_hangman.json')
+        self.sambung_kata_words = load_json_from_root('data/sambung_kata_words.json')
 
         # Game Configuration
         self.game_channel_id = 765140300145360896 # ID channel yang diizinkan
@@ -25,56 +47,40 @@ class GameLanjutan(commands.Cog):
         self.scramble_time_limit = 30 # Detik per soal acak kata
         self.sambung_kata_time_limit = 20 # Detik per giliran sambung kata
 
-    # --- PENAMBAHAN: Helper untuk "berkomunikasi" dengan cog DuniaHidup ---
+    # --- FUNGSI INTEGRASI & PEMBERIAN HADIAH ---
     def get_anomaly_multiplier(self):
         """Mengecek apakah ada anomali EXP boost aktif dari cog DuniaHidup."""
         dunia_cog = self.bot.get_cog('DuniaHidup')
         if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
             return dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
         return 1
-    # ----------------------------------------------------------------------
 
-    def load_json(self, file_path):
-        """Helper function to load a JSON file."""
-        try:
-            base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-            full_path = os.path.join(base_dir, file_path)
-            with open(full_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            print(f"Warning: Could not load {file_path}. A new file might be created.")
-            return {} if 'bank' in file_path or 'level' in file_path else []
-
-    def save_json(self, data, file_path):
-        """Helper function to save data to a JSON file."""
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        full_path = os.path.join(base_dir, file_path)
-        with open(full_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-
-    def give_rewards(self, user_id, guild_id, rewards):
-        """Gives RSWN and EXP to a user based on the provided JSON structure."""
-        user_id_str = str(user_id)
-        guild_id_str = str(guild_id)
+    async def give_rewards_with_bonus_check(self, user: discord.Member, reward_base: dict, channel: discord.TextChannel):
+        """Fungsi baru yang menghitung bonus dan memberikan hadiah."""
+        anomaly_multiplier = self.get_anomaly_multiplier()
         
-        # Load data terbaru sebelum modifikasi
-        self.bank_data = self.load_json('data/bank_data.json')
-        self.level_data = self.load_json('data/level_data.json')
+        final_reward = {
+            "rsw": int(reward_base['rsw'] * anomaly_multiplier),
+            "exp": int(reward_base['exp'] * anomaly_multiplier)
+        }
+        
+        # Logika give_rewards disatukan di sini agar lebih efisien
+        user_id_str, guild_id_str = str(user.id), str(user.guild.id)
+        bank_data = load_json_from_root('data/bank_data.json')
+        level_data = load_json_from_root('data/level_data.json')
 
-        if user_id_str not in self.bank_data:
-            self.bank_data[user_id_str] = {'balance': 0, 'debt': 0}
-        self.bank_data[user_id_str]['balance'] += rewards.get("rsw", 0)
-        self.save_json(self.bank_data, 'data/bank_data.json')
+        bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance'] += final_reward.get('rsw', 0)
         
-        if guild_id_str not in self.level_data:
-            self.level_data[guild_id_str] = {}
+        guild_data = level_data.setdefault(guild_id_str, {})
+        user_data = guild_data.setdefault(user_id_str, {'exp': 0, 'level': 1})
+        user_data.setdefault('exp', 0)
+        user_data['exp'] += final_reward.get('exp', 0)
+
+        save_json_to_root(bank_data, 'data/bank_data.json')
+        save_json_to_root(level_data, 'data/level_data.json')
         
-        guild_users = self.level_data[guild_id_str]
-        if user_id_str not in guild_users:
-            guild_users[user_id_str] = {'exp': 0, 'level': 1, 'badges': ['🐣']}
-        if 'exp' not in guild_users[user_id_str]: guild_users[user_id_str]['exp'] = 0
-        guild_users[user_id_str]['exp'] += rewards.get("exp", 0)
-        self.save_json(self.level_data, 'data/level_data.json')
+        if anomaly_multiplier > 1 and channel:
+            await channel.send(f"✨ **BONUS ANOMALI!** {user.mention} mendapatkan hadiah yang dilipatgandakan!", delete_after=15)
 
     # --- GAME 1: TEBAK KATA ACAK (WORD SCRAMBLE) ---
     @commands.command(name="resacak", help="Mulai permainan Tebak Kata Acak.")
@@ -94,7 +100,7 @@ class GameLanjutan(commands.Cog):
             "4. Permainan terdiri dari 10 ronde.\n\n"
             "Klik tombol di bawah untuk memulai petualangan katamu!"
         )
-        embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AB6.jpeg") # Puzzle icon
+        embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AB6.jpeg")
         embed.set_footer(text="Hanya pemanggil perintah yang bisa memulai permainan.")
         
         view = discord.ui.View(timeout=60)
@@ -115,11 +121,13 @@ class GameLanjutan(commands.Cog):
 
     async def play_scramble_game(self, ctx):
         if not self.scramble_questions or len(self.scramble_questions) < 10:
-            await ctx.send("Maaf, bank soal tidak cukup untuk memulai permainan.")
+            await ctx.send("Maaf, bank soal Tebak Kata Acak tidak ditemukan atau tidak cukup.")
             self.active_scramble_games.pop(ctx.channel.id, None)
             return
             
         questions = random.sample(self.scramble_questions, 10)
+        leaderboard = {}
+
         for i, question_data in enumerate(questions):
             word = question_data['word']
             clue = question_data['clue']
@@ -130,27 +138,22 @@ class GameLanjutan(commands.Cog):
             embed.add_field(name="Petunjuk", value=f"_{clue}_", inline=False)
             
             question_msg = await ctx.send(embed=embed)
-
             winner = await self.wait_for_answer_with_timer(ctx, word, question_msg, self.scramble_time_limit)
 
             if winner:
-                # --- PENAMBAHAN INTEGRASI ---
-                anomaly_multiplier = self.get_anomaly_multiplier()
-                final_reward = {
-                    "rsw": int(self.scramble_reward['rsw'] * anomaly_multiplier),
-                    "exp": int(self.scramble_reward['exp'] * anomaly_multiplier)
-                }
-                self.give_rewards(winner.id, ctx.guild.id, final_reward)
-
-                if anomaly_multiplier > 1:
-                    await ctx.send(f"🎉 Selamat {winner.mention}! Jawabanmu benar. Karena ada Anomali, hadiahmu dilipatgandakan!")
-                else:
-                    await ctx.send(f"🎉 Selamat {winner.mention}! Jawabanmu benar. Kamu mendapatkan hadiah!")
-                # --- AKHIR INTEGRASI ---
-            else: # Timeout
+                await self.give_rewards_with_bonus_check(winner, self.scramble_reward, ctx.channel)
+                await ctx.send(f"🎉 Selamat {winner.mention}! Jawabanmu benar!")
+                leaderboard[winner.display_name] = leaderboard.get(winner.display_name, 0) + 1
+            else: 
                 await ctx.send(f"Waktu habis! Jawaban yang benar adalah: **{word}**.")
 
         await ctx.send("🏁 Permainan Tebak Kata Acak selesai! Terima kasih sudah bermain.")
+        if leaderboard:
+            sorted_lb = sorted(leaderboard.items(), key=lambda x: x[1], reverse=True)
+            desc = "\n".join([f"**#{n}.** {user}: {score} poin" for n, (user, score) in enumerate(sorted_lb, 1)])
+            final_embed = discord.Embed(title="🏆 Papan Skor Akhir", description=desc, color=discord.Color.gold())
+            await ctx.send(embed=final_embed)
+
         self.active_scramble_games.pop(ctx.channel.id, None)
 
     # --- GAME 2: SAMBUNG KATA ---
@@ -183,7 +186,7 @@ class GameLanjutan(commands.Cog):
             f"4. Pemenang terakhir mendapat **{self.sambung_kata_winner_reward['rsw']} RSWN** & **{self.sambung_kata_winner_reward['exp']} EXP**.\n"
         )
         embed.add_field(name="👥 Pemain Bergabung", value=player_mentions)
-        embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AB5.jpeg") # Chain icon
+        embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AB5.jpeg")
         
         await ctx.send(embed=embed)
         await asyncio.sleep(5)
@@ -211,33 +214,25 @@ class GameLanjutan(commands.Cog):
             current_player = game["players"][current_player_id]
             prefix = game["current_word"][-2:].lower()
             
-            embed = discord.Embed(
-                title=f"Giliran {current_player.display_name}!",
-                description=f"Sebutkan kata yang diawali dengan **`{prefix.upper()}`**",
-                color=current_player.color
-            )
+            embed = discord.Embed(title=f"Giliran {current_player.display_name}!", description=f"Sebutkan kata yang diawali dengan **`{prefix.upper()}`**", color=current_player.color)
             prompt_msg = await game["channel"].send(embed=embed)
 
             try:
-                # --- Timer and Waiter Logic ---
                 async def timer_task():
                     for i in range(self.sambung_kata_time_limit, -1, -1):
                         new_embed = embed.copy()
                         new_embed.set_footer(text=f"Waktu tersisa: {i} detik ⏳")
-                        try:
-                            await prompt_msg.edit(embed=new_embed)
-                        except discord.NotFound:
-                            break
+                        try: await prompt_msg.edit(embed=new_embed)
+                        except discord.NotFound: break
                         await asyncio.sleep(1)
                 
-                def check(m):
-                    return m.author.id == current_player_id and m.channel == game["channel"]
+                def check(m): return m.author.id == current_player_id and m.channel == game["channel"]
                 
                 wait_for_msg = self.bot.loop.create_task(self.bot.wait_for('message', check=check))
                 timer = self.bot.loop.create_task(timer_task())
-
                 done, pending = await asyncio.wait([wait_for_msg, timer], return_when=asyncio.FIRST_COMPLETED)
                 timer.cancel()
+                for task in pending: task.cancel()
                 
                 if wait_for_msg in done:
                     msg = wait_for_msg.result()
@@ -252,8 +247,7 @@ class GameLanjutan(commands.Cog):
                         await msg.add_reaction("✅")
                         game["current_word"], game["used_words"] = new_word, game["used_words"] | {new_word}
                         game["turn_index"] = (game["turn_index"] + 1) % len(player_ids)
-                else: # Timeout
-                    raise asyncio.TimeoutError
+                else: raise asyncio.TimeoutError
 
             except asyncio.TimeoutError:
                 await game["channel"].send(f"⌛ Waktu habis! {current_player.mention} tereliminasi!")
@@ -265,57 +259,34 @@ class GameLanjutan(commands.Cog):
 
         if len(player_ids) == 1:
             winner = game["players"][player_ids[0]]
-            guild_id = game["guild_id"]
-            
-            # --- PENAMBAHAN INTEGRASI ---
-            anomaly_multiplier = self.get_anomaly_multiplier()
-            final_reward = {
-                "rsw": int(self.sambung_kata_winner_reward['rsw'] * anomaly_multiplier),
-                "exp": int(self.sambung_kata_winner_reward['exp'] * anomaly_multiplier)
-            }
-            self.give_rewards(winner.id, guild_id, final_reward)
-            
-            if anomaly_multiplier > 1:
-                 await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Karena ada Anomali, hadiahmu dilipatgandakan!")
+            is_bonus = await self.give_rewards_with_bonus_check(winner, self.sambung_kata_winner_reward, game["channel"])
+            if is_bonus:
+                await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Karena ada Anomali, hadiahmu dilipatgandakan!")
             else:
-                 await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Kamu mendapatkan hadiah!")
-            # --- AKHIR INTEGRASI ---
+                await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Kamu mendapatkan hadiah!")
         else:
             await game["channel"].send("Permainan berakhir tanpa pemenang.")
         self.active_sambung_games.pop(vc_id, None)
     
     # --- HELPER FUNCTION FOR TIMER ---
     async def wait_for_answer_with_timer(self, ctx, correct_answer, question_msg, time_limit):
-        """A helper that runs a countdown timer and waits for a correct message."""
-        
         async def timer_task():
-            """Updates the message embed with a countdown."""
             for i in range(time_limit, -1, -1):
                 new_embed = question_msg.embeds[0].copy()
                 new_embed.set_footer(text=f"Waktu tersisa: {i} detik ⏳")
-                try:
-                    await question_msg.edit(embed=new_embed)
-                except discord.NotFound: # Message was deleted
-                    break
+                try: await question_msg.edit(embed=new_embed)
+                except discord.NotFound: break
                 await asyncio.sleep(1)
 
-        def check(m):
-            return m.channel == ctx.channel and not m.author.bot and m.content.lower() == correct_answer.lower()
+        def check(m): return m.channel == ctx.channel and not m.author.bot and m.content.lower() == correct_answer.lower()
 
         wait_for_msg_task = self.bot.loop.create_task(self.bot.wait_for('message', check=check))
         timer = self.bot.loop.create_task(timer_task())
-
         done, pending = await asyncio.wait([wait_for_msg_task, timer], return_when=asyncio.FIRST_COMPLETED)
-
         timer.cancel()
-        for task in pending:
-            task.cancel()
-
-        if wait_for_msg_task in done:
-            return wait_for_msg_task.result().author # Return the winner
-        else:
-            return None # Return None on timeout
+        for task in pending: task.cancel()
+        if wait_for_msg_task in done: return wait_for_msg_task.result().author
+        else: return None
 
 async def setup(bot):
     await bot.add_cog(GameLanjutan(bot))
-
