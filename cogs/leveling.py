@@ -48,12 +48,12 @@ LEVEL_ROLES = {
 }
 
 LEVEL_BADGES = {
-    5: "🥉",
-    10: "🥈",
-    15: "🥇",
+    5: "ðŸ¥‰",
+    10: "ðŸ¥ˆ",
+    15: "ðŸ¥‡",
 }
 
-LEVEL_ANNOUNCE_CHANNEL_ID = 765140300145360896  # Ganti dengan ID channel pengumuman
+LEVEL_ANNOUNCE_CHANNEL_ID = 76514703040145360896  # Ganti dengan ID channel pengumuman
 
 LEVEL_DATA_PATH = "data/level_data.json"
 
@@ -189,43 +189,26 @@ class Leveling(commands.Cog):
         self.EXP_PER_MESSAGE = 10  # EXP per pesan
         self.RSWN_PER_MESSAGE = 1  # RSWN per pesan
         self.voice_task = self.create_voice_task()
-        self.last_reset = datetime.utcnow() 
-        self.daily_quest_task.start()
+        self.daily_quest_task = self.daily_quest_task.start()
         self.voice_task.start()
 
         logging.basicConfig(level=logging.INFO)
-        
-    # --- PENAMBAHAN: Helper untuk "berkomunikasi" dengan cog DuniaHidup ---
-    def get_anomaly_multiplier(self):
-        """Mengecek apakah ada anomali EXP boost aktif dari cog DuniaHidup."""
-        # Secara aman mengambil cog 'DuniaHidup'
-        dunia_cog = self.bot.get_cog('DuniaHidup')
-        # Mengecek apakah cog-nya ada, ada anomali aktif, dan tipenya adalah 'exp_boost'
-        if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
-            # Mengembalikan nilai multiplier, defaultnya 1 jika tidak ditemukan
-            return dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
-        # Jika tidak ada event, kembalikan 1 (tidak ada perubahan)
-        return 1        
 
     def create_voice_task(self):
         @tasks.loop(minutes=1)
         async def voice_task():
             try:
                 now = datetime.utcnow()
-                # --- PENAMBAHAN: Ambil multiplier anomali di awal setiap loop ---
-                anomaly_multiplier = self.get_anomaly_multiplier()
-                # ----------------------------------------------------------------
-                
                 for guild in self.bot.guilds:
                     guild_id = str(guild.id)
                     data = load_data(guild_id)
 
+                    # Inisialisasi bank_data di luar loop
                     bank_data = load_bank_data()
 
                     for vc in guild.voice_channels:
                         for member in vc.members:
-                            # Menambahkan pengecekan agar bot tidak memberi EXP ke user yang di-deafen atau di-mute
-                            if member.bot or member.voice.self_deaf or member.voice.self_mute:
+                            if member.bot:
                                 continue
 
                             user_id = str(member.id)
@@ -236,31 +219,25 @@ class Leveling(commands.Cog):
                                     "level": 0,
                                     "badges": []
                                 }
-                            
-                            # --- PENAMBAHAN: Gunakan anomaly_multiplier saat memberi hadiah ---
-                            exp_gain_vc = int(self.EXP_PER_MINUTE_VC * anomaly_multiplier)
-                            rswn_gain_vc = int(self.RSWN_PER_MINUTE_VC * anomaly_multiplier)
-                            # ------------------------------------------------------------------
 
-                            data[user_id]["exp"] += exp_gain_vc
-                            # Menambahkan .setdefault() untuk menghindari error jika key belum ada
-                            data[user_id].setdefault("weekly_exp", 0)
-                            data[user_id]["weekly_exp"] += exp_gain_vc
+                            # Tambah EXP
+                            data[user_id]["exp"] += self.EXP_PER_MINUTE_VC
+                            data[user_id]["weekly_exp"] += self.EXP_PER_MINUTE_VC
 
                             if user_id not in bank_data:
                                 bank_data[user_id] = {"balance": 0, "debt": 0}
 
-                            bank_data[user_id]["balance"] += rswn_gain_vc
+                            bank_data[user_id]["balance"] += self.RSWN_PER_MINUTE_VC
 
+
+                            # Cek level baru
                             new_level = calculate_level(data[user_id]["exp"])
-                            # Menambahkan .get() untuk menghindari error jika key 'level' belum ada
-                            if new_level > data[user_id].get("level", 0):
+                            if new_level > data[user_id]["level"]:
                                 data[user_id]["level"] = new_level
-                                # Channel bisa None jika user hanya di VC tanpa pernah chat
-                                await self.level_up(member, guild, None, new_level, data)
+                                await self.level_up(member, guild, vc, new_level, data)
 
                     save_data(guild_id, data)
-                    save_bank_data(bank_data)
+                    save_bank_data(bank_data)  # Simpan data bank setelah menambahkan RSWN
 
                     if now.weekday() == WEEKLY_RESET_DAY and now.date() != self.last_reset.date():
                         for user_data in data.values():
@@ -271,10 +248,9 @@ class Leveling(commands.Cog):
                 print(f"Error in voice task: {e}")
 
         return voice_task
-        
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot or not message.guild:
+        if message.author.bot:
             return
 
         if message.content.startswith(self.bot.command_prefix):
@@ -296,47 +272,54 @@ class Leveling(commands.Cog):
             }
 
         booster = data[user_id].get("booster", {})
-        personal_multiplier = 1
+        multiplier = 1
         expires = booster.get("expires_at")
 
-        # Kode booster asli Anda tidak diubah
+        # Memeriksa apakah booster aktif
+        expires = booster.get("expires_at")
+        print(f"User ID: {user_id}, Expires At: {expires}")  # Debugging expires_at
+
         if expires:
             try:
+                # Cek apakah booster belum expired
                 if datetime.utcnow() < datetime.fromisoformat(expires):
-                    personal_multiplier = booster.get("exp_multiplier", 1)
+                    multiplier = booster.get("exp_multiplier", 1)
+                    print(f"Booster aktif! Multiplier: {multiplier}")  # Debugging multiplier
                 else:
-                    data[user_id]["booster"] = {}
+                    print("Booster sudah expired!")  # Debugging expired
+                    data[user_id]["booster"] = {}  # Reset booster jika sudah expired
             except Exception as e:
                 print(f"[BOOSTER ERROR] Gagal parsing expires_at: {e}")
-                data[user_id]["booster"] = {}
-        
-        # --- PENAMBAHAN: Ambil dan gabungkan multiplier dari Anomali ---
-        anomaly_multiplier = self.get_anomaly_multiplier()
-        final_multiplier = personal_multiplier * anomaly_multiplier
-        # -------------------------------------------------------------
+                data[user_id]["booster"] = {}  # Reset jika ada kesalahan parsing
 
-        exp_gain = int(self.EXP_PER_MESSAGE * final_multiplier)
-        rswn_gain = int(self.RSWN_PER_MESSAGE * final_multiplier)
-        
-        # Kode penyimpanan data Anda tetap sama
+        exp_gain = int(self.EXP_PER_MESSAGE * multiplier)
+        data[user_id]["exp"] += exp_gain
+        print(f"User ID: {user_id}, EXP yang didapat: {exp_gain}, Total EXP: {data[user_id]['exp']}")  # Debugging EXP
+        # Hitung RSWN
+        rswn_gain = int(self.RSWN_PER_MESSAGE * multiplier)  # Hitung RSWN dengan multiplier
         bank_data = load_bank_data()
         if user_id not in bank_data:
             bank_data[user_id] = {"balance": 0, "debt": 0}
 
-        bank_data[user_id]["balance"] += rswn_gain
+        bank_data[user_id]["balance"] += rswn_gain  # Tambahkan RSWN ke saldo
+        print(f"User ID: {user_id}, RSWN yang didapat: {rswn_gain}, Total Saldo: {bank_data[user_id]['balance']}")  # Debugging RSWN
+
+
         data[user_id]["exp"] += exp_gain
-        # Menambahkan .setdefault() untuk keamanan
-        data[user_id].setdefault("weekly_exp", 0)
         data[user_id]["weekly_exp"] += exp_gain
         data[user_id]["last_active"] = datetime.utcnow().isoformat()
-           
-        # Log diubah untuk menampilkan multiplier total
-        print(f"[ACTIVITY] {message.author} dapat +{exp_gain} EXP & +{rswn_gain} RSWN (x{final_multiplier} booster total)")
+           # Simpan gold ke bank
+        bank_data = load_bank_data()
+        if user_id not in bank_data:
+            bank_data[user_id] = {"balance": 0, "debt": 0}
+        bank_data[user_id]["balance"] += rswn_gain
 
-        # Kode cek level up Anda tetap sama
+         # Logging console
+        print(f"[ACTIVITY] {message.author} dapat +{exp_gain} EXP & +{rswn_gain} RSWN (x{multiplier} booster)")
+
+        # Cek level baru
         new_level = calculate_level(data[user_id]["exp"])
-        # Menambahkan .get() untuk keamanan
-        if new_level > data[user_id].get("level", 0):
+        if new_level > data[user_id]["level"]:
             data[user_id]["level"] = new_level
             await self.level_up(message.author, message.guild, message.channel, new_level, data)
         save_data(guild_id, data)
@@ -347,8 +330,6 @@ class Leveling(commands.Cog):
         await self.bot.wait_until_ready()
         for guild in self.bot.guilds:
             quests_data = load_quests_data()
-            if not quests_data or "quests" not in quests_data: continue
-            
             quests = list(quests_data.get("quests", {}).values())
             if quests:
                 random_quest = random.choice(quests)
@@ -360,7 +341,7 @@ class Leveling(commands.Cog):
                 # Kirim pesan ke channel pengumuman
                 announce_channel = guild.get_channel(LEVEL_ANNOUNCE_CHANNEL_ID)
                 if announce_channel:
-                    await announce_channel.send(f"🎉 Quest Harian Baru! {random_quest['description']} (Reward: {random_quest['reward_exp']} EXP, {random_quest['reward_coins']} 🪙RSWN)")
+                    await announce_channel.send(f"ðŸŽ‰ Quest Harian Baru! {random_quest['description']} (Reward: {random_quest['reward_exp']} EXP, {random_quest['reward_coins']} ðŸª™RSWN)")
 
     async def level_up(self, member, guild, channel, new_level, data):
         try:
@@ -368,25 +349,17 @@ class Leveling(commands.Cog):
             if role_id:
                 role = guild.get_role(role_id)
                 if role:
-                    # Hapus role level sebelumnya untuk menghindari tumpukan role
-                    for lvl, r_id in LEVEL_ROLES.items():
-                        if lvl < new_level:
-                            prev_role = guild.get_role(r_id)
-                            if prev_role and prev_role in member.roles:
-                                await member.remove_roles(prev_role)
                     await member.add_roles(role)
 
             badge = LEVEL_BADGES.get(new_level)
-            # Memastikan 'badges' ada di data sebelum ditambahkan
-            user_badges = data.get(str(member.id), {}).setdefault("badges", [])
-            if badge and badge not in user_badges:
-                user_badges.append(badge)
-                save_data(str(guild.id), data) # Simpan setelah update badge
+            if badge and badge not in data[str(member.id)]["badges"]:
+                data[str(member.id)]["badges"].append(badge)
+                save_data(str(guild.id), data)
 
             announce_channel = guild.get_channel(LEVEL_ANNOUNCE_CHANNEL_ID)
-            if announce_channel and channel: # Hanya kirim jika ada channel konteksnya
+            if announce_channel:
                 embed = discord.Embed(
-                    title="🎉 Level Up!",
+                    title="ðŸŽ‰ Level Up!",
                     description=f"{member.mention} telah mencapai level **{new_level}**!",
                     color=discord.Color.green()
                 )
@@ -399,7 +372,7 @@ class Leveling(commands.Cog):
     async def add_quest(self, ctx, description: str, reward_exp: int, reward_coins: int):
         """Menambahkan quest baru (Admin only)"""
         if reward_exp < 0 or reward_coins < 0:
-            return await ctx.send("❌ Reward harus bernilai positif!")
+            return await ctx.send("âŒ Reward harus bernilai positif!")
 
         quests_data = load_quests_data()
         new_id = str(len(quests_data.get("quests", {})) + 1)
@@ -411,7 +384,7 @@ class Leveling(commands.Cog):
         }
 
         save_quests_data(quests_data)
-        await ctx.send(f"✅ Quest baru berhasil ditambahkan dengan ID `{new_id}`!")
+        await ctx.send(f"âœ… Quest baru berhasil ditambahkan dengan ID `{new_id}`!")
 
     @commands.command()
     async def daily_quest(self, ctx):
@@ -420,9 +393,9 @@ class Leveling(commands.Cog):
         try:
             with open(f"data/daily_quest_{guild_id}.json", "r", encoding="utf-8") as f:
                 daily_quest = json.load(f)
-            await ctx.send(f"🎯 Quest Harian: {daily_quest['description']}")
+            await ctx.send(f"ðŸŽ¯ Quest Harian: {daily_quest['description']}")
         except FileNotFoundError:
-            await ctx.send("❌ Belum ada quest harian yang ditentukan!")
+            await ctx.send("âŒ Belum ada quest harian yang ditentukan!")
 
 
     @commands.command()
@@ -434,7 +407,7 @@ class Leveling(commands.Cog):
         # Memastikan file quest harian ada
         daily_quest_file = f"data/daily_quest_{guild_id}.json"
         if not os.path.exists(daily_quest_file):
-            return await ctx.send("❌ Belum ada quest harian yang ditentukan!")
+            return await ctx.send("âŒ Belum ada quest harian yang ditentukan!")
 
         try:
             with open(daily_quest_file, "r") as f:
@@ -456,7 +429,7 @@ class Leveling(commands.Cog):
             if last_completed:
                 last_completed_date = datetime.fromisoformat(last_completed)
                 if last_completed_date.date() == datetime.utcnow().date():
-                    return await ctx.send("❌ Kamu sudah menyelesaikan quest harian hari ini!")
+                    return await ctx.send("âŒ Kamu sudah menyelesaikan quest harian hari ini!")
 
             # Tambahkan reward ke pengguna
             data[user_id]["exp"] += daily_quest["reward_exp"]
@@ -471,12 +444,12 @@ class Leveling(commands.Cog):
             bank_data[user_id]["balance"] += daily_quest["reward_coins"]
             save_bank_data(bank_data)
 
-            await ctx.send(f"✅ Kamu telah menyelesaikan quest harian! Reward: {daily_quest['reward_exp']} EXP dan {daily_quest['reward_coins']} 🪙RSWN.")
+            await ctx.send(f"âœ… Kamu telah menyelesaikan quest harian! Reward: {daily_quest['reward_exp']} EXP dan {daily_quest['reward_coins']} ðŸª™RSWN.")
     
         except json.JSONDecodeError:
-            await ctx.send("❌ Terjadi kesalahan saat membaca quest harian.")
+            await ctx.send("âŒ Terjadi kesalahan saat membaca quest harian.")
         except Exception as e:
-            await ctx.send(f"❌ Terjadi kesalahan: {str(e)}")
+            await ctx.send(f"âŒ Terjadi kesalahan: {str(e)}")
 
     @commands.command()
     @commands.has_permissions(administrator=True)
@@ -519,14 +492,14 @@ class Leveling(commands.Cog):
         # Kirim pesan ke user yang diberi EXP
         try:
             await member.send(
-                f"🎁 Kamu telah menerima **{amount} EXP gratis** dari {ctx.author.mention}!"
+                f"ðŸŽ Kamu telah menerima **{amount} EXP gratis** dari {ctx.author.mention}!"
             )
         except discord.Forbidden:
-            await ctx.send("❌ Gagal mengirim pesan ke user (DM tertutup).")
+            await ctx.send("âŒ Gagal mengirim pesan ke user (DM tertutup).")
 
         # Kirim DM ke admin yang memberi EXP
         await ctx.author.send(
-            f"✅ Kamu telah memberikan **{amount} EXP** ke {member.mention} secara rahasia."
+            f"âœ… Kamu telah memberikan **{amount} EXP** ke {member.mention} secara rahasia."
         )
 
     @commands.command()
@@ -548,14 +521,14 @@ class Leveling(commands.Cog):
         # Kirim DM ke penerima
         try:
             await member.send(
-                f"🎉 Kamu telah menerima **{amount} 🪙RSWN gratis** dari admin {ctx.author.mention}!"
+                f"ðŸŽ‰ Kamu telah menerima **{amount} ðŸª™RSWN gratis** dari admin {ctx.author.mention}!"
             )
         except discord.Forbidden:
-            await ctx.send("❌ Gagal mengirim pesan ke user (DM tertutup).")
+            await ctx.send("âŒ Gagal mengirim pesan ke user (DM tertutup).")
 
         # Kirim konfirmasi DM ke admin
         await ctx.author.send(
-            f"✅ Kamu telah memberikan **{amount} 🪙RSWN gratis** ke {member.mention}."
+            f"âœ… Kamu telah memberikan **{amount} ðŸª™RSWN gratis** ke {member.mention}."
         )
 
     @commands.command()
@@ -572,7 +545,7 @@ class Leveling(commands.Cog):
             bank_data[sender_id] = {"balance": 0, "debt": 0}
 
         if bank_data[sender_id]["balance"] < amount:
-            return await ctx.send("❌ Saldo tidak cukup!")
+            return await ctx.send("âŒ Saldo tidak cukup!")
 
         if receiver_id not in bank_data:
             bank_data[receiver_id] = {"balance": 0, "debt": 0}
@@ -585,14 +558,14 @@ class Leveling(commands.Cog):
         # Kirim DM ke penerima
         try:
             await member.send(
-                f"🎉 Kamu telah menerima **{amount} 🪙RSWN** dari {ctx.author.mention}!"
+                f"ðŸŽ‰ Kamu telah menerima **{amount} ðŸª™RSWN** dari {ctx.author.mention}!"
             )
         except discord.Forbidden:
-            await ctx.send("❌ Gagal mengirim pesan ke user (DM tertutup).")
+            await ctx.send("âŒ Gagal mengirim pesan ke user (DM tertutup).")
 
         # Kirim konfirmasi DM ke pengirim
         await ctx.author.send(
-            f"✅ Kamu telah memberikan **{amount} 🪙RSWN** ke {member.mention}."
+            f"âœ… Kamu telah memberikan **{amount} ðŸª™RSWN** ke {member.mention}."
         )
 
     @commands.command()
@@ -610,7 +583,7 @@ class Leveling(commands.Cog):
         cost = amount * 1  # Misalnya, 1 RSWN per EXP
 
         if bank_data[user_id]["balance"] < cost:
-            return await ctx.send("❌ Saldo tidak cukup untuk membeli EXP.")
+            return await ctx.send("âŒ Saldo tidak cukup untuk membeli EXP.")
 
         # Jika member tidak disebutkan, gunakan pengirim pesan
         if member is None:
@@ -638,15 +611,15 @@ class Leveling(commands.Cog):
         save_data(guild_id, data)
         save_bank_data(bank_data)
 
-        await ctx.send(f"✅ Kamu telah membeli {amount} EXP untuk {member.mention} dengan harga {cost} 💰 RSWN!")
+        await ctx.send(f"âœ… Kamu telah membeli {amount} EXP untuk {member.mention} dengan harga {cost} ðŸ’° RSWN!")
 
         # Kirim DM ke pengguna yang dituju
         try:
             await member.send(
-                f"📩 {ctx.author.mention} telah membeli {amount} EXP untukmu!"
+                f"ðŸ“© {ctx.author.mention} telah membeli {amount} EXP untukmu!"
             )
         except discord.Forbidden:
-            await ctx.send("❌ Gagal mengirim pesan ke user (DM tertutup).")
+            await ctx.send("âŒ Gagal mengirim pesan ke user (DM tertutup).")
 
     @commands.command()
     async def coins(self, ctx):
@@ -659,7 +632,7 @@ class Leveling(commands.Cog):
             bank_data[user_id] = {"balance": 0, "debt": 0}
 
         balance = bank_data[user_id]["balance"]
-        await ctx.send(f"💰 Saldo kamu: {balance} 🪙RSWN")
+        await ctx.send(f"ðŸ’° Saldo kamu: {balance} ðŸª™RSWN")
 
     @commands.command()
     @commands.has_permissions(administrator=True)
@@ -680,7 +653,7 @@ class Leveling(commands.Cog):
         data[user_id]["level"] = level
         save_data(guild_id, data)
 
-        await ctx.send(f"✅ Level {member.mention} telah diset menjadi {level}!")
+        await ctx.send(f"âœ… Level {member.mention} telah diset menjadi {level}!")
     async def give_role(self, member, role_name):
         """Memberikan role kepada pengguna."""
         role = discord.utils.get(member.guild.roles, name=role_name)
@@ -710,13 +683,13 @@ class Leveling(commands.Cog):
         data = load_data(guild_id)
         sorted_users = sorted(data.items(), key=lambda x: x[1]['exp'], reverse=True)
 
-        embed = discord.Embed(title="🏆 Leaderboard EXP", color=discord.Color.gold())
+        embed = discord.Embed(title="ðŸ† Leaderboard EXP", color=discord.Color.gold())
         embed.set_thumbnail(url=ctx.guild.icon.url)  # Set thumbnail dengan foto profil server
         for idx, (user_id, user_data) in enumerate(sorted_users[:10], start=1):
             user = ctx.guild.get_member(int(user_id))
             badges = " ".join(user_data["badges"]) if user_data.get("badges") else "Tidak ada"
             embed.add_field(name=f"{idx}. {user.mention} ({user.display_name})", 
-                            value=f"EXP: {user_data['exp']}\n💰 Saldo: {load_bank_data().get(user_id, {}).get('balance', 0)} 🪙RSWN\n🏅 Badges: {badges}", 
+                            value=f"EXP: {user_data['exp']}\nðŸ’° Saldo: {load_bank_data().get(user_id, {}).get('balance', 0)} ðŸª™RSWN\nðŸ… Badges: {badges}", 
                             inline=False)
 
         await ctx.send(embed=embed)
@@ -728,13 +701,13 @@ class Leveling(commands.Cog):
         data = load_data(guild_id)
         sorted_users = sorted(data.items(), key=lambda x: x[1]['weekly_exp'], reverse=True)
 
-        embed = discord.Embed(title="🏅 Weekly Leaderboard", color=discord.Color.blue())
+        embed = discord.Embed(title="ðŸ… Weekly Leaderboard", color=discord.Color.blue())
         embed.set_thumbnail(url=ctx.guild.icon.url)  # Set thumbnail dengan foto profil server
         for idx, (user_id, user_data) in enumerate(sorted_users[:10], start=1):
             user = ctx.guild.get_member(int(user_id))
             badges = " ".join(user_data["badges"]) if user_data.get("badges") else "Tidak ada"
             embed.add_field(name=f"{idx}. {user.mention} ({user.display_name})", 
-                            value=f"Weekly EXP: {user_data['weekly_exp']}\n💰 Saldo: {load_bank_data().get(user_id, {}).get('balance', 0)} 🪙RSWN\n🏅 Badges: {badges}", 
+                            value=f"Weekly EXP: {user_data['weekly_exp']}\nðŸ’° Saldo: {load_bank_data().get(user_id, {}).get('balance', 0)} ðŸª™RSWN\nðŸ… Badges: {badges}", 
                             inline=False)
 
         await ctx.send(embed=embed)
@@ -796,10 +769,10 @@ class Leveling(commands.Cog):
                     image_data = BytesIO(await resp.read())
 
         # Membuat embed untuk menampilkan informasi
-        embed = discord.Embed(title=f"📊 Rank {ctx.author.display_name}", color=discord.Color.purple())
+        embed = discord.Embed(title=f"ðŸ“Š Rank {ctx.author.display_name}", color=discord.Color.purple())
         embed.set_thumbnail(url="attachment://avatar.png")
         embed.add_field(name="Level", value=user_data["level"], inline=True)
-        embed.add_field(name="Saldo", value=f"{load_bank_data().get(user_id, {}).get('balance', 0)} 🪙RSWN", inline=True)
+        embed.add_field(name="Saldo", value=f"{load_bank_data().get(user_id, {}).get('balance', 0)} ðŸª™RSWN", inline=True)
         embed.add_field(name="EXP", value=user_data["exp"], inline=True)
 
         await ctx.send(file=discord.File(image_data, "avatar.png"), embed=embed)
@@ -820,15 +793,15 @@ class Leveling(commands.Cog):
 
         # Pastikan pengguna ada dalam data
         if user_id not in data:
-            return await ctx.send("❌ Pengguna tidak ditemukan dalam data!")
+            return await ctx.send("âŒ Pengguna tidak ditemukan dalam data!")
 
         # Periksa apakah pengguna memiliki cukup EXP
         if data[user_id]["exp"] < exp:
-            return await ctx.send("❌ Pengguna tidak memiliki cukup EXP untuk dikurangi!")
+            return await ctx.send("âŒ Pengguna tidak memiliki cukup EXP untuk dikurangi!")
 
         # Periksa apakah pengguna memiliki cukup RSWN
         if user_id not in bank_data or bank_data[user_id]["balance"] < rswn:
-            return await ctx.send("❌ Pengguna tidak memiliki cukup RSWN untuk dikurangi!")
+            return await ctx.send("âŒ Pengguna tidak memiliki cukup RSWN untuk dikurangi!")
 
         # Kurangi EXP dan RSWN
         data[user_id]["exp"] -= exp
@@ -839,7 +812,7 @@ class Leveling(commands.Cog):
         save_bank_data(bank_data)
 
         # Kirim pesan konfirmasi
-        await ctx.send(f"✅ {member.mention} telah dikurangi {exp} EXP dan {rswn} RSWN! Alasan: {reason}")
+        await ctx.send(f"âœ… {member.mention} telah dikurangi {exp} EXP dan {rswn} RSWN! Alasan: {reason}")
 
 
     @commands.command()
@@ -858,7 +831,7 @@ class Leveling(commands.Cog):
             data[user_id]["badges"] = 0
 
         save_data(guild_id, data)
-        await ctx.send("✅ Semua data EXP pengguna di server ini telah direset!")
+        await ctx.send("âœ… Semua data EXP pengguna di server ini telah direset!")
 
 async def setup(bot):
     await bot.add_cog(Leveling(bot))
