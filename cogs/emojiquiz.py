@@ -21,6 +21,15 @@ class EmojiQuiz(commands.Cog):
         self.reward_per_correct_answer = 30  # Hadiah per pertanyaan benar
         self.time_limit = 60  # Waktu batas untuk setiap pertanyaan
 
+    # --- PENAMBAHAN: Helper untuk "berkomunikasi" dengan cog DuniaHidup ---
+    def get_anomaly_multiplier(self):
+        """Mengecek apakah ada anomali EXP boost aktif dari cog DuniaHidup."""
+        dunia_cog = self.bot.get_cog('DuniaHidup')
+        if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
+            return dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
+        return 1
+    # ----------------------------------------------------------------------
+
     def load_bank_data(self):
         with open('data/bank_data.json', 'r', encoding='utf-8') as f:
             try:
@@ -88,7 +97,7 @@ class EmojiQuiz(commands.Cog):
                 "📌 Kamu akan dikasih 1 atau lebih emoji dari bot.\n"
                 "🫵 Tebak maksudnya, bisa 1–3 kata. Bebas.\n"
                 "⏳ Kalau gak ada yang jawab dalam 1 menit, soal langsung lanjut ke berikutnya.\n"
-                "🎁 Jawaban benar dapet **+30 RSWN**. Lumayan buat beli badge atau sekadar merasa berguna.\n\n"
+                f"🎁 Jawaban benar dapet **+{self.reward_per_correct_answer} RSWN**. Lumayan buat beli badge atau sekadar merasa berguna.\n\n"
                 "💸 Ngerasa buntu? Beli **bantuan** aja pake:\n"
                 "**!resplis** – Harga: 35 RSWN. Dibalas via DM.\n"
                 "*Bantuan gak dibatasin... karena kami ngerti, kadang kita butuh banyak petunjuk buat ngerti sesuatu.*\n\n"
@@ -113,8 +122,10 @@ class EmojiQuiz(commands.Cog):
                 "game_over": False,
                 "bantuan_used": 0,
                 "start_time": None,
-                "total_rsw": 0  # Menyimpan total RSWN yang diperoleh dari sesi ini
+                "total_rsw": 0
             }
+            # Menghapus pesan tombol setelah ditekan
+            await interaction.message.delete()
             await self.play_game(ctx)
 
         start_button.callback = start_game
@@ -124,15 +135,11 @@ class EmojiQuiz(commands.Cog):
 
     @commands.command(name="resplis", help="Membeli bantuan untuk jawaban pertanyaan saat ini.")
     async def resplis(self, ctx):
-        user_id = str(ctx.author.id)  # Pastikan ID pengguna adalah string
+        user_id = str(ctx.author.id)
 
         # Memastikan bahwa data pengguna ada di bank_data
         if user_id not in self.bank_data:
-            # Membuat akun baru untuk pengguna
-            self.bank_data[user_id] = {
-                "balance": 0,  # Set saldo awal ke 0 atau nilai lainnya sesuai kebutuhan
-                "debt": 0
-            }
+            self.bank_data[user_id] = {"balance": 0, "debt": 0}
             await ctx.send("Akun Anda telah dibuat. Saldo awal Anda adalah 0 RSWN.")
 
         user_data = self.bank_data[user_id]
@@ -141,23 +148,25 @@ class EmojiQuiz(commands.Cog):
             await ctx.send("😢 Saldo RSWN tidak cukup untuk membeli bantuan.")
             return
 
-        # Mengurangi saldo RSWN
+        if ctx.channel.id not in self.active_games or self.active_games[ctx.channel.id].get("current_question") is None:
+            await ctx.send("Tidak ada permainan aktif untuk membeli bantuan.")
+            return
+
         initial_balance = user_data['balance']
         user_data['balance'] -= self.bantuan_price
         final_balance = user_data['balance']
 
-        # Mengambil jawaban dari pertanyaan saat ini
         current_question_index = self.active_games[ctx.channel.id]["current_question"]
         current_question = self.active_games[ctx.channel.id]["questions"][current_question_index]
 
-        # Kirim jawaban ke DM pengguna
-        await ctx.author.send(f"🔐 Jawaban untuk pertanyaan saat ini adalah: **{current_question['answer']}**")
-        await ctx.author.send(f"✅ Pembelian bantuan berhasil! Saldo RSWN Anda berkurang dari **{initial_balance}** menjadi **{final_balance}**.")
+        try:
+            await ctx.author.send(f"🔐 Jawaban untuk pertanyaan saat ini adalah: **{current_question['answer']}**")
+            await ctx.author.send(f"✅ Pembelian bantuan berhasil! Saldo RSWN Anda berkurang dari **{initial_balance}** menjadi **{final_balance}**.")
+            await ctx.send(f"{ctx.author.mention}, bantuan telah dikirim ke DM Anda!")
+        except discord.Forbidden:
+            await ctx.send(f"Gagal mengirim DM ke {ctx.author.mention}. Mohon aktifkan DM dari server ini.")
+            user_data['balance'] += self.bantuan_price # Kembalikan uang
 
-        # Memberikan konfirmasi di channel
-        await ctx.send(f"{ctx.author.mention}, Anda telah berhasil membeli bantuan!")
-
-        # Simpan perubahan ke file
         with open('data/bank_data.json', 'w', encoding='utf-8') as f:
             json.dump(self.bank_data, f, indent=4)
 
@@ -165,25 +174,25 @@ class EmojiQuiz(commands.Cog):
         game_data = self.active_games[ctx.channel.id]
         game_data["start_time"] = asyncio.get_event_loop().time()
 
-        # Cek apakah ada pertanyaan yang tersedia
         if not self.questions:
             await ctx.send("Tidak ada pertanyaan yang tersedia. Pastikan emoji_questions.json diisi dengan benar.")
+            self.active_games.pop(ctx.channel.id, None)
             return
 
         if len(self.questions) < 10:
             await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Pastikan ada setidaknya 10 pertanyaan di emoji_questions.json.")
+            self.active_games.pop(ctx.channel.id, None)
             return
 
-        game_data["questions"] = random.sample(self.questions, 10)  # Ambil 10 soal acak
+        game_data["questions"] = random.sample(self.questions, 10)
 
         for index, question in enumerate(game_data["questions"]):
-            game_data["current_question"] = index  # Simpan indeks pertanyaan saat ini
+            if game_data.get("game_over"):
+                break
+            game_data["current_question"] = index
             await self.ask_question(ctx, question)
 
-            if game_data["game_over"]:
-                break
-
-        if not game_data["game_over"]:
+        if not game_data.get("game_over"):
             await self.end_game(ctx)
 
     async def ask_question(self, ctx, question):
@@ -191,51 +200,48 @@ class EmojiQuiz(commands.Cog):
 
         embed = discord.Embed(
             title=f"❓ Pertanyaan {game_data['current_question'] + 1}",
-            description=(
-                f"Emoji: **{question['emoji']}**\n"
-                f"Sebutkan frasa yang sesuai!"
-            ),
+            description=(f"Emoji: **{question['emoji']}**\nSebutkan frasa yang sesuai!"),
             color=0x00ff00
         )
-
         await ctx.send(embed=embed)
 
-        # Menunggu jawaban dalam waktu yang ditentukan
         try:
             def check(m):
-                return m.channel == ctx.channel and m.author != self.bot.user  # Memungkinkan semua pengguna di channel untuk menjawab, kecuali pesan dari bot
+                return m.channel == ctx.channel and not m.author.bot
 
             while True:
                 user_answer = await self.bot.wait_for('message', timeout=self.time_limit, check=check)
 
-                # Cek jawaban
                 if user_answer.content.strip().lower() == question['answer'].lower():
-                    if user_answer.author.id not in self.scores:
-                        self.scores[user_answer.author.id] = {
-                            "score": 0,
-                            "correct": 0,
-                            "wrong": 0,
-                            "user": user_answer.author
-                        }
+                    # --- PENAMBAHAN: Logika Integrasi DuniaHidup ---
+                    # 1. Panggil fungsi "mata-mata" untuk cek kondisi dunia
+                    anomaly_multiplier = self.get_anomaly_multiplier()
+                    
+                    # 2. Hitung hadiah final berdasarkan kondisi dunia
+                    final_reward = int(self.reward_per_correct_answer * anomaly_multiplier)
 
+                    if user_answer.author.id not in self.scores:
+                        self.scores[user_answer.author.id] = {"score": 0, "correct": 0, "wrong": 0, "user": user_answer.author}
+                    
+                    # 3. Berikan hadiah yang sudah disesuaikan
                     game_data["correct"] += 1
-                    game_data["total_rsw"] += self.reward_per_correct_answer  # Tambahkan RSWN ke total RSWN
-                    self.scores[user_answer.author.id]["score"] += self.reward_per_correct_answer
+                    game_data.setdefault("total_rsw", 0)
+                    game_data["total_rsw"] += final_reward
+                    self.scores[user_answer.author.id]["score"] += final_reward
                     self.scores[user_answer.author.id]["correct"] += 1
 
-                    await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}!")
-                    break  # Langsung lanjut ke soal berikutnya
+                    # 4. Beri tahu user kalau mereka dapat bonus
+                    if anomaly_multiplier > 1:
+                        await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}! Karena ada anomali, hadiahmu dilipatgandakan menjadi **{final_reward} RSWN**!")
+                    else:
+                        await ctx.send(f"✅ Jawaban Benar dari {user_answer.author.display_name}! Kamu dapat **{final_reward} RSWN**.")
+                    # --- INTEGRASI SELESAI ---
+                    break
                 else:
                     if user_answer.author.id not in self.scores:
-                        self.scores[user_answer.author.id] = {
-                            "score": 0,
-                            "correct": 0,
-                            "wrong": 0,
-                            "user": user_answer.author
-                        }
-
+                        self.scores[user_answer.author.id] = {"score": 0, "correct": 0, "wrong": 0, "user": user_answer.author}
                     self.scores[user_answer.author.id]["wrong"] += 1
-                    await ctx.send(f"❌ Jawaban Salah dari {user_answer.author.display_name}.")
+                    await user_answer.add_reaction("❌") # Memberi feedback dengan reaksi
 
         except asyncio.TimeoutError:
             await ctx.send("Waktu habis! Melanjutkan ke soal berikutnya.")
@@ -243,50 +249,51 @@ class EmojiQuiz(commands.Cog):
     async def end_game(self, ctx):
         game_data = self.active_games.pop(ctx.channel.id, None)
         if game_data:
-            # Menghitung skor akhir untuk pengguna
-            for user_id, score in self.scores.items():
-                score["total_rsw"] = score["score"]  # Menyimpan total RSWN yang didapat dari jawaban benar
-
-            # Simpan perubahan ke file
+            # --- PENAMBAHAN: Update bank data dengan total RSWN yang dimenangkan ---
+            bank_data = self.load_bank_data()
+            for user_id, score_data in self.scores.items():
+                user_id_str = str(user_id)
+                if user_id_str not in bank_data:
+                    bank_data[user_id_str] = {"balance": 0, "debt": 0}
+                bank_data[user_id_str]['balance'] += score_data['score']
+            
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
-                json.dump(self.bank_data, f, indent=4)
+                json.dump(bank_data, f, indent=4)
+            # --------------------------------------------------------------------
 
-            # Menampilkan leaderboard
             await self.display_leaderboard(ctx)
 
     async def display_leaderboard(self, ctx):
-        sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
-        embed = discord.Embed(title="🏆 Leaderboard EmojiQuiz", color=0x00ff00)
+        if not self.scores:
+            return # Tidak menampilkan leaderboard jika tidak ada yang bermain
 
-        # Menampilkan hingga 5 pengguna teratas
-        for i in range(min(5, len(sorted_scores))):
-            top_user = sorted_scores[i]  # Ambil pengguna peringkat ke-i
-            user = top_user['user']
+        sorted_scores = sorted(self.scores.values(), key=lambda x: x["score"], reverse=True)
+        embed = discord.Embed(title="🏆 Leaderboard Sesi EmojiQuiz", color=0x00ff00)
+
+        for i, top_user_data in enumerate(sorted_scores[:5]):
+            user = top_user_data['user']
             embed.add_field(
-                name=f"{i + 1}. {user.display_name}",
-                value=(
-                    f"Total RSWN: {top_user['total_rsw']}\n"  # Total RSWN dari sesi kuis
-                    f"Jawaban Benar: {top_user['correct']}\n"
-                    f"Jawaban Salah: {top_user['wrong']}"
-                ),
+                name=f"#{i + 1}. {user.display_name}",
+                value=(f"💰 **Total RSWN Didapat:** {top_user_data['score']}\n"
+                       f"✅ **Jawaban Benar:** {top_user_data['correct']}\n"
+                       f"❌ **Jawaban Salah:** {top_user_data['wrong']}"),
                 inline=False
             )
 
-        # Mengambil gambar pengguna hanya untuk peringkat pertama
+        # Mengirim gambar pemenang pertama
         if sorted_scores:
-            top_user = sorted_scores[0]  # Ambil pengguna peringkat pertama
-            user = top_user['user']
-            image_url = str(user.avatar.url) if user.avatar else str(user.default_avatar.url)
+            winner_user = sorted_scores[0]['user']
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(image_url) as resp:
+                    async with session.get(str(winner_user.display_avatar.url)) as resp:
                         if resp.status == 200:
                             image_data = BytesIO(await resp.read())
-                            await ctx.send(file=discord.File(image_data, filename='avatar.png'))  # Kirim gambar
+                            await ctx.send(file=discord.File(image_data, filename='winner_avatar.png'))
             except Exception as e:
-                print(f"Error fetching image for {user.display_name}: {e}")
+                print(f"Gagal mengambil avatar pemenang: {e}")
 
-        await ctx.send(embed=embed)  # Mengirim leaderboard
+        await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(EmojiQuiz(bot))
+
