@@ -127,7 +127,7 @@ class DuniaHidup(commands.Cog):
 
         # --- Konfigurasi (WAJIB DIUBAH) ---
         self.event_channel_id = 765140300145360896 # GANTI dengan ID channel pengumuman event
-        self.sick_role_id = 123456789012345678 # GANTI dengan ID role 'Sakit' yang sudah dibuat
+        self.sick_role_id = 1388744189063200860 # GANTI dengan ID role 'Sakit' yang sudah dibuat
         self.sickness_cooldown_minutes = 1.5 # Cooldown 1.5 menit (90 detik)
         
         # --- Data Loading ---
