@@ -4,7 +4,7 @@ import json
 import random
 import asyncio
 import os
-from datetime import time
+from datetime import datetime, time
 
 # Helper Functions to handle JSON data from the bot's root directory
 def load_json_from_root(file_path):
@@ -20,6 +20,7 @@ def load_json_from_root(file_path):
 def save_json_to_root(data, file_path):
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     full_path = os.path.join(base_dir, file_path)
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
     with open(full_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
@@ -57,7 +58,7 @@ class TicTacToeView(discord.ui.View):
         if self.winner:
             embed.description = f"🎉 **{self.winner.mention} Menang!** 🎉"
             embed.color = discord.Color.gold()
-            await self.game_cog.give_rewards(self.winner, interaction.guild.id)
+            await self.game_cog.give_rewards_with_bonus_check(self.winner, interaction.guild.id, interaction.channel)
             for item in self.children:
                 item.disabled = True
         elif is_draw:
@@ -85,12 +86,12 @@ class TicTacToeButton(discord.ui.Button):
         if interaction.user != view.current_player:
             return await interaction.response.send_message("Bukan giliranmu!", ephemeral=True)
         
-        # Mark the spot
+        await interaction.response.defer()
+        
         self.style = discord.ButtonStyle.danger if view.current_player == view.player1 else discord.ButtonStyle.success
         self.label = "X" if view.current_player == view.player1 else "O"
         self.disabled = True
         
-        # Update board state (find which button was pressed)
         button_index = self.view.children.index(self)
         self.view.board[button_index] = self.label
         
@@ -120,20 +121,41 @@ class UltimateGameArena(commands.Cog):
     def cog_unload(self):
         self.post_daily_puzzle.cancel()
 
-    def give_rewards(self, user: discord.Member, guild_id: int):
+    # --- PENAMBAHAN INTEGRASI: Fungsi "Mata-mata" dan Pemberian Hadiah ---
+    def get_anomaly_multiplier(self):
+        """Mengecek apakah ada anomali EXP boost aktif dari cog DuniaHidup."""
+        dunia_cog = self.bot.get_cog('DuniaHidup')
+        if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
+            return dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
+        return 1
+
+    def apply_rewards(self, user: discord.Member, guild_id: int, reward_dict: dict):
+        """Fungsi baru untuk memberikan hadiah dengan jumlah spesifik."""
         user_id_str, guild_id_str = str(user.id), str(guild_id)
         
         bank_data = load_json_from_root('data/bank_data.json')
         if user_id_str not in bank_data: bank_data[user_id_str] = {'balance': 0, 'debt': 0}
-        bank_data[user_id_str]['balance'] += self.reward['rsw']
+        bank_data[user_id_str]['balance'] += reward_dict.get('rsw', 0)
         save_json_to_root(bank_data, 'data/bank_data.json')
         
         level_data = load_json_from_root('data/level_data.json')
-        if guild_id_str not in level_data: level_data[guild_id_str] = {}
-        if user_id_str not in level_data[guild_id_str]: level_data[guild_id_str][user_id_str] = {'exp': 0, 'level': 1}
-        if 'exp' not in level_data[guild_id_str][user_id_str]: level_data[guild_id_str][user_id_str]['exp'] = 0
-        level_data[guild_id_str][user_id_str]['exp'] += self.reward['exp']
+        guild_data = level_data.setdefault(guild_id_str, {})
+        user_data = guild_data.setdefault(user_id_str, {'exp': 0, 'level': 0})
+        user_data['exp'] += reward_dict.get('exp', 0)
         save_json_to_root(level_data, 'data/level_data.json')
+
+    async def give_rewards_with_bonus_check(self, user: discord.Member, guild_id: int, channel: discord.TextChannel):
+        """Fungsi yang menghitung bonus dan memberikan hadiah."""
+        anomaly_multiplier = self.get_anomaly_multiplier()
+        final_reward = {
+            "rsw": int(self.reward['rsw'] * anomaly_multiplier),
+            "exp": int(self.reward['exp'] * anomaly_multiplier)
+        }
+        self.apply_rewards(user, guild_id, final_reward)
+        
+        if anomaly_multiplier > 1 and channel:
+            await channel.send(f"✨ **BONUS ANOMALI!** {user.mention} mendapatkan hadiah yang dilipatgandakan!", delete_after=15)
+    # ----------------------------------------------------------------------
         
     async def start_game_check(self, ctx):
         if ctx.channel.id in self.active_games:
@@ -183,8 +205,8 @@ class UltimateGameArena(commands.Cog):
             winner = winner_msg.author
             
             await ctx.send(f"🎉 **Tepat Sekali!** {winner.mention} berhasil menebak **{word}**!")
-            self.give_rewards(winner, ctx.guild.id)
-            self.give_rewards(deskriptor, ctx.guild.id)
+            await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
+            await self.give_rewards_with_bonus_check(deskriptor, ctx.guild.id, ctx.channel)
             await ctx.send(f"Selamat untuk {winner.mention} dan {deskriptor.mention}, kalian berdua mendapat hadiah!")
 
         except asyncio.TimeoutError:
@@ -196,9 +218,8 @@ class UltimateGameArena(commands.Cog):
     @commands.command(name="perangotak", help="Mulai game Family Feud.")
     async def perangotak(self, ctx):
         if not await self.start_game_check(ctx): return
-        # Logic for team setup, questions, turns... (this is a simplified version)
         await ctx.send("Fitur **Perang Otak** sedang dalam pengembangan! Nantikan update selanjutnya. 🙏")
-        self.end_game_cleanup(ctx.channel.id) # Placeholder
+        self.end_game_cleanup(ctx.channel.id)
 
     # --- GAME 3: CERITA BERSAMBUNG ---
     @commands.command(name="cerita", help="Mulai game membuat cerita bersama.")
@@ -237,7 +258,7 @@ class UltimateGameArena(commands.Cog):
         await ctx.send(embed=final_embed)
         await ctx.send("Kisah yang unik! Semua yang berpartisipasi mendapat hadiah!")
         for p in players:
-            self.give_rewards(p, ctx.guild.id)
+            await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
         
         self.end_game_cleanup(ctx.channel.id)
         
@@ -257,6 +278,7 @@ class UltimateGameArena(commands.Cog):
     # --- GAME 5: TEKA-TEKI HARIAN ---
     @tasks.loop(time=time(hour=5, minute=0, tzinfo=None)) # Kirim setiap jam 12 siang WIB
     async def post_daily_puzzle(self):
+        if not self.tekateki_harian_data: return
         self.daily_puzzle = random.choice(self.tekateki_harian_data)
         self.daily_puzzle_solvers.clear()
         
@@ -279,9 +301,9 @@ class UltimateGameArena(commands.Cog):
             
         if answer.lower() == self.daily_puzzle['answer'].lower():
             self.daily_puzzle_solvers.add(ctx.author.id)
-            self.give_rewards(ctx.author, ctx.guild.id)
+            await self.give_rewards_with_bonus_check(ctx.author, ctx.guild.id, ctx.channel)
             await ctx.message.add_reaction("✅")
-            await ctx.send(f"🎉 Selamat {ctx.author.mention}! Jawabanmu benar dan kamu mendapatkan hadiah!")
+            await ctx.send(f"🎉 Selamat {ctx.author.mention}! Jawabanmu benar!")
         else:
             await ctx.message.add_reaction("❌")
 
@@ -290,9 +312,7 @@ class UltimateGameArena(commands.Cog):
     async def balapankuda(self, ctx):
         if not await self.start_game_check(ctx): return
         
-        horses = {
-            "merah": "🐴", "biru": "🦄", "emas": "🦓", "hijau": "🐎"
-        }
+        horses = {"merah": "🐴", "biru": "🦄", "emas": "🦓", "hijau": "🐎"}
         
         embed = discord.Embed(title="🏇 Taruhan Balap Kuda Dimulai!", color=0xf1c40f)
         embed.description = "Pasang taruhanmu pada kuda jagoanmu! Waktu taruhan: **60 detik**."
@@ -310,7 +330,6 @@ class UltimateGameArena(commands.Cog):
                 msg = await self.bot.wait_for('message', timeout=60.0, check=check)
                 parts = msg.content.split()
                 if len(parts) == 3 and parts[1].isdigit() and parts[2].lower() in horses:
-                    # Logic for handling bets (simplified)
                     bets[msg.author.id] = {'amount': int(parts[1]), 'horse': parts[2].lower()}
                     await msg.add_reaction("👍")
         except asyncio.TimeoutError:
@@ -325,7 +344,6 @@ class UltimateGameArena(commands.Cog):
         
         race_embed = discord.Embed(title="🏇 LINTASAN BALAP", color=0x2ecc71)
         progress = {name: 0 for name in horses}
-        
         for name, emoji in horses.items():
             race_embed.add_field(name=f"{emoji} Kuda {name.capitalize()}", value="🏁" + "─" * 20, inline=False)
         race_msg = await ctx.send(embed=race_embed)
@@ -338,7 +356,6 @@ class UltimateGameArena(commands.Cog):
                 if progress[name] >= 20 and not winner:
                     winner = name
 
-            # Update embed
             new_embed = discord.Embed(title=f"🏇 LINTASAN BALAP - Putaran {lap+1}/10", color=0x2ecc71)
             for name, emoji in horses.items():
                 p = min(progress[name], 20)
@@ -347,24 +364,27 @@ class UltimateGameArena(commands.Cog):
             await race_msg.edit(embed=new_embed)
             if winner: break
         
-        if not winner: # If no one reached the end, winner is the one furthest ahead
-            winner = max(progress, key=progress.get)
+        if not winner: winner = max(progress, key=progress.get)
 
         await ctx.send(f"--- BALAPAN SELESAI! --- \n\n🏆 **Kuda {winner.capitalize()}** adalah pemenangnya!")
         
         winners_list = []
+        anomaly_multiplier = self.get_anomaly_multiplier()
+
         for user_id, bet in bets.items():
             if bet['horse'] == winner:
                 user = ctx.guild.get_member(user_id)
                 if user:
-                    payout = bet['amount'] * 2
-                    # Give rewards (custom logic for betting)
+                    payout = int(bet['amount'] * 2 * anomaly_multiplier) # Hadiah taruhan juga dikalikan
                     bank_data = load_json_from_root('data/bank_data.json')
+                    bank_data.setdefault(str(user_id), {'balance': 0, 'debt': 0})
                     bank_data[str(user_id)]['balance'] += payout
                     save_json_to_root(bank_data, 'data/bank_data.json')
                     winners_list.append(f"{user.mention} menang **{payout} RSWN**!")
         
         if winners_list:
+            if anomaly_multiplier > 1:
+                await ctx.send("✨ **BONUS ANOMALI!** Semua hadiah pemenang dilipatgandakan!")
             await ctx.send("\n".join(winners_list))
         else:
             await ctx.send("Sayang sekali, tidak ada yang bertaruh pada kuda pemenang.")
