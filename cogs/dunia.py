@@ -17,7 +17,7 @@ def load_json_from_root(file_path):
     except (FileNotFoundError, json.JSONDecodeError):
         print(f"Peringatan Kritis: Gagal memuat atau file rusak -> {file_path}")
         if 'users' in file_path or 'inventory' in file_path: return {}
-        elif any(k in file_path for k in ['monsters', 'anomalies', 'medicines']): return {os.path.basename(file_path).replace('.json', ''): []}
+        elif any(k in file_path for k in ['monsters', 'anomalies', "medicines"]): return {os.path.basename(file_path).replace('.json', ''): []}
         return {}
 
 def save_json_to_root(data, file_path):
@@ -123,6 +123,7 @@ class DuniaHidup(commands.Cog):
     async def world_event_loop(self):
         await self.bot.wait_until_ready()
         if self.current_monster or self.active_anomaly: return
+
         event_type = random.choice(['monster', 'anomaly', 'monster_quiz'])
         if event_type == 'monster' and self.monsters_data.get('monsters'): await self.spawn_monster()
         elif event_type == 'anomaly' and self.anomalies_data: await self.trigger_anomaly()
@@ -163,39 +164,36 @@ class DuniaHidup(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def monster_attack_processor(self):
-        now = datetime.utcnow()
         if not self.monster_attack_queue or not self.current_monster: return
+        now = datetime.utcnow()
         if now < datetime.fromisoformat(self.monster_attack_queue[0]['attack_time']): return
         
         attack = self.monster_attack_queue.pop(0)
         user_id_to_attack = attack['user_id']
-        if user_id_to_attack in self.protected_users: return
+        if str(user_id_to_attack) in self.protected_users: return
 
         guild = self.bot.guilds[0]
         member = guild.get_member(int(user_id_to_attack))
         if not member: return
 
         exp_loss, rswn_loss = random.randint(250, 500), random.randint(250, 500)
-        level_data = load_json_from_root('data/level_data.json')
-        bank_data = load_json_from_root('data/bank_data.json')
+        level_data, bank_data = load_json_from_root('data/level_data.json'), load_json_from_root('data/bank_data.json')
         if str(guild.id) in level_data and user_id_to_attack in level_data[str(guild.id)]:
             level_data[str(guild.id)][user_id_to_attack]['exp'] = max(0, level_data[str(guild.id)][user_id_to_attack].get('exp', 0) - exp_loss)
         if user_id_to_attack in bank_data:
             bank_data[user_id_to_attack]['balance'] = max(0, bank_data[user_id_to_attack].get('balance', 0) - rswn_loss)
-        save_json_to_root(level_data, 'data/level_data.json')
-        save_json_to_root(bank_data, 'data/bank_data.json')
+        save_json_to_root(level_data, 'data/level_data.json'); save_json_to_root(bank_data, 'data/bank_data.json')
         
         channel = self.bot.get_channel(self.event_channel_id)
         if channel:
-            attack_embed = discord.Embed(title="⚔️ SERANGAN MONSTER! ⚔️", description=f"{self.current_monster['name']} menyerang {member.mention} dari kegelapan!", color=discord.Color.dark_red())
-            attack_embed.set_thumbnail(url="https://i.imgur.com/8Qk8S1k.png") # Attack icon
-            attack_embed.add_field(name="Kerugian", value=f"Kamu kehilangan **{exp_loss} EXP** dan **{rswn_loss} RSWN**!")
-            await channel.send(embed=attack_embed)
+            embed = discord.Embed(title="⚔️ SERANGAN MONSTER! ⚔️", description=f"{self.current_monster['name']} menyerang {member.mention} dari kegelapan!", color=discord.Color.dark_red())
+            embed.set_thumbnail(url="https://i.imgur.com/8Qk8S1k.png")
+            embed.add_field(name="Kerugian", value=f"Kamu kehilangan **{exp_loss} EXP** dan **{rswn_loss} RSWN**!")
+            await channel.send(embed=embed)
 
     @commands.command(name="serangmonster")
     async def serangmonster(self, ctx):
         if not self.current_monster: return await ctx.send("Tidak ada monster untuk diserang saat ini.", delete_after=10)
-        
         view = discord.ui.View(timeout=60.0)
         party = {ctx.author}
         embed = discord.Embed(title="⚔️ Membentuk Party Penyerang!", description=f"**{ctx.author.display_name}** memulai penyerangan terhadap **{self.current_monster['name']}**!\n\nPemain lain, klik 'Gabung' untuk ikut serta! Waktu 60 detik.", color=discord.Color.blurple())
@@ -206,7 +204,6 @@ class DuniaHidup(commands.Cog):
                 await interaction.response.send_message(f"{interaction.user.mention} telah bergabung!", ephemeral=True)
             else:
                 await interaction.response.send_message("Kamu sudah bergabung.", ephemeral=True)
-        
         join_button = discord.ui.Button(label="Gabung Pertarungan", style=discord.ButtonStyle.success, emoji="🤝")
         join_button.callback = join_callback
         view.add_item(join_button)
@@ -225,25 +222,20 @@ class DuniaHidup(commands.Cog):
         reward_rswn, reward_exp = 5000, 5000
         await channel.send(f"🎉 **SELAMAT!** Kalian telah mengalahkan **{self.current_monster['name']}**! Semua **{len(self.monster_attackers)} pejuang** yang berpartisipasi mendapatkan hadiah **{reward_rswn:,} RSWN** dan **{reward_exp:,} EXP**!")
         
-        bank_data = load_json_from_root('data/bank_data.json')
-        level_data = load_json_from_root('data/level_data.json')
+        bank_data, level_data = load_json_from_root('data/bank_data.json'), load_json_from_root('data/level_data.json')
         for user_id in self.monster_attackers:
             member = channel.guild.get_member(int(user_id))
             if member:
                 bank_data.setdefault(str(user_id), {'balance': 0})['balance'] += reward_rswn
                 level_data.setdefault(str(channel.guild.id), {}).setdefault(str(user_id), {'exp': 0})['exp'] += reward_exp
-        save_json_to_root(bank_data, 'data/bank_data.json')
-        save_json_to_root(level_data, 'data/level_data.json')
-        
+        save_json_to_root(bank_data, 'data/bank_data.json'); save_json_to_root(level_data, 'data/level_data.json')
         self.current_monster, self.monster_attack_queue, self.monster_attackers = None, [], set()
 
     async def trigger_anomaly(self):
         anomaly = random.choice(self.anomalies_data)
-        self.active_anomaly = anomaly
-        self.anomaly_end_time = datetime.utcnow() + timedelta(seconds=anomaly['duration_seconds'])
+        self.active_anomaly, self.anomaly_end_time = anomaly, datetime.utcnow() + timedelta(seconds=anomaly['duration_seconds'])
         channel = self.bot.get_channel(self.event_channel_id)
         if not channel: return
-        
         embed = discord.Embed(title=f"{anomaly['emoji']} ANOMALI: {anomaly['name']} {anomaly['emoji']}", description=anomaly['description'], color=discord.Color.from_str(anomaly['color']))
         embed.set_thumbnail(url=anomaly['thumbnail_url'])
         await channel.send(embed=embed)
@@ -282,6 +274,7 @@ class DuniaHidup(commands.Cog):
         else:
             await ctx.send("Kode tidak valid atau sudah hangus.", delete_after=10)
 
+    # --- FUNGSI YANG HILANG DITAMBAHKAN ---
     async def trigger_monster_quiz(self):
         channel = self.bot.get_channel(self.event_channel_id)
         if not channel or not self.monsters_data.get('monster_quiz'): return
@@ -300,12 +293,32 @@ class DuniaHidup(commands.Cog):
         try:
             winner_msg = await self.bot.wait_for('message', timeout=300.0, check=check)
             await channel.send(f"🧠 **Jenius!** {winner_msg.author.mention} berhasil menjawab dengan benar dan menyelamatkan server dari kutukan! Kamu mendapat hadiah besar!")
-            # Beri hadiah besar
+            # Beri hadiah besar untuk pemenang
         except asyncio.TimeoutError:
             await channel.send(f"Waktu habis! Tidak ada yang bisa menjawab. Jawaban yang benar adalah: **{quiz_monster['answer']}**. Kutukan telah menimpa server!")
             # Terapkan efek negatif
         
         self.active_anomaly = None
+
+    async def start_sickness_plague(self, guild):
+        level_data = load_json_from_root('data/level_data.json').get(str(guild.id), {})
+        active_users = [uid for uid, data in level_data.items() if 'last_active' in data and datetime.utcnow() - datetime.fromisoformat(data['last_active']) < timedelta(days=3)]
+        num_to_infect = min(len(active_users), random.randint(3, 7))
+        infected_users_ids = random.sample(active_users, num_to_infect)
+        
+        role = guild.get_role(self.sick_role_id)
+        if not role: return
+
+        infected_mentions = []
+        for user_id in infected_users_ids:
+            member = guild.get_member(int(user_id))
+            if member:
+                await member.add_roles(role)
+                infected_mentions.append(member.mention)
+        
+        channel = self.bot.get_channel(self.event_channel_id)
+        if channel and infected_mentions:
+            await channel.send(f"😷 **WABAH MENYEBAR!** {', '.join(infected_mentions)} telah jatuh sakit. Interaksi mereka akan terbatas. Cepat cari obat di `!toko`!")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -365,7 +378,7 @@ class DuniaHidup(commands.Cog):
             await asyncio.sleep(2)
             heal_embed = discord.Embed(title="✨ Obat Bekerja! ✨", color=discord.Color.green())
             await ctx.author.remove_roles(sick_role)
-            if ctx.author.id in self.sick_users_cooldown: del self.sick_users_cooldown[ctx.author.id]
+            if str(ctx.author.id) in self.sick_users_cooldown: del self.sick_users_cooldown[str(ctx.author.id)]
             
             if chosen_medicine['heal_chance'] == 100:
                 expiry = datetime.utcnow() + timedelta(hours=24)
