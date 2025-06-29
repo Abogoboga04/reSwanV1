@@ -46,7 +46,7 @@ class PurchaseDropdown(discord.ui.Select):
         for item in items:
             label = f"{item.get('name')} — 💰{item['price']}"
             if item.get('stock', 'unlimited') != 'unlimited':
-                label += f" | Stock: {item['stock']}"
+                label += f" | Stok: {item['stock']}"
             options.append(discord.SelectOption(
                 label=label[:100],
                 value=item['name'],
@@ -62,7 +62,7 @@ class PurchaseDropdown(discord.ui.Select):
             return
 
         if item.get("stock", "unlimited") != "unlimited" and item["stock"] <= 0:
-            await interaction.response.send_message("Stock item ini sudah habis!", ephemeral=True)
+            await interaction.response.send_message("Stok item ini sudah habis!", ephemeral=True)
             return
 
         level_data = load_json(LEVEL_FILE)
@@ -106,11 +106,7 @@ class PurchaseDropdown(discord.ui.Select):
                             if resp.status == 200:
                                 avatar_bytes = await resp.read()
                                 file = discord.File(fp=io.BytesIO(avatar_bytes), filename="avatar.png")
-
-                                await interaction.user.send(
-                                    content="Selamat pembelian avatar kamu berhasil, jika kamu mau pasang sebagai profil Discord nih aku kasih file nya ya",
-                                    file=file
-                                )
+                                await interaction.user.send(content="Selamat pembelian avatar kamu berhasil, jika kamu mau pasang sebagai profil Discord nih aku kasih file nya ya", file=file)
                 except Exception as e:
                     print(f"Gagal kirim DM avatar: {e}")
 
@@ -129,23 +125,37 @@ class PurchaseDropdown(discord.ui.Select):
                 "expires_at": (datetime.utcnow() + timedelta(minutes=30)).isoformat()
             }
             user_data["last_exp_purchase"] = datetime.utcnow().isoformat()
+            
+        # --- PENAMBAHAN: Logika untuk membeli item spesial dari DuniaHidup ---
+        elif self.category == "special_items":
+            item_type = item.get('type')
+            # Item hanya ditambahkan ke inventory, penggunaannya diatur oleh cog DuniaHidup
+            if item_type == 'protection_shield':
+                inventory_user.append({"name": item['name'], "type": item_type})
+                await interaction.response.send_message(f"Kamu berhasil membeli **{item['name']}**! Item ini ada di inventory-mu dan akan aktif otomatis saat kamu diserang monster.", ephemeral=True)
+            elif item_type == 'gacha_medicine_box':
+                inventory_user.append({"name": item['name'], "type": item_type})
+                await interaction.response.send_message(f"Kamu berhasil membeli **{item['name']}**! Gunakan `!minumobat` untuk berjudi dengan nasibmu.", ephemeral=True)
+            else:
+                 # Jika ada tipe item spesial lain di masa depan
+                inventory_user.append({"name": item['name'], "type": item_type})
+                await interaction.response.send_message(f"✅ Kamu telah membeli `{item['name']}` seharga {item['price']} RSWN!", ephemeral=True)
+            return # Keluar lebih awal untuk menghindari save dobel
+        # ----------------------------------------------------------------------
 
+        # Logika save yang sudah ada
         inventory_user.append(item)
-
         if item.get("stock", "unlimited") != "unlimited":
             item["stock"] -= 1
-
         save_json(LEVEL_FILE, level_data)
         save_json(BANK_FILE, bank_data)
         save_json(INVENTORY_FILE, inventory_data)
-
         shop_data = load_json(SHOP_FILE)
         for cat in shop_data:
             for i in shop_data[cat]:
                 if i['name'] == item['name']:
                     i.update(item)
         save_json(SHOP_FILE, shop_data)
-
         await interaction.response.send_message(f"✅ Kamu telah membeli `{item['name']}` seharga {item['price']} RSWN!", ephemeral=True)
 
 
@@ -168,6 +178,9 @@ class ShopCategorySelect(discord.ui.Select):
             discord.SelectOption(label="🎖️ Badges", value="badges", description="Lencana keren buat profilmu!"),
             discord.SelectOption(label="⚡ EXP", value="exp", description="Tambah EXP buat naik level!"),
             discord.SelectOption(label="🧷 Roles", value="roles", description="Dapatkan role spesial di server!"),
+            # --- PENAMBAHAN: Kategori baru untuk item DuniaHidup ---
+            discord.SelectOption(label="🛡️ Bertahan Hidup", value="special_items", description="Item untuk menghadapi ancaman dunia!")
+            # --------------------------------------------------------
         ]
         super().__init__(placeholder="Pilih kategori item", options=options, row=0)
 
@@ -187,7 +200,7 @@ class ShopCategorySelect(discord.ui.Select):
                 name = item['name']
                 price = item['price']
                 desc = item.get('description', '*Tidak ada deskripsi*')
-                field_name = f"{name} — 💰{price} | Stok: {stock_str}"
+                field_name = f"{item.get('emoji', '🔹')} {name} — 💰{price} | Stok: {stock_str}"
                 embed.add_field(name=field_name, value=desc, inline=False)
 
         if category == "badges":
@@ -263,11 +276,17 @@ class Shop(commands.Cog):
     async def add_item(self, ctx, category: str, name: str, price: int, description: str, *args):
         shop_data = load_json(SHOP_FILE)
 
-        if category not in shop_data:
-            await ctx.send("⚠️ Kategori tidak valid. Gunakan 'badges', 'exp', atau 'roles'.")
+        # --- PENAMBAHAN: Tambahkan 'special_items' ke kategori valid ---
+        valid_categories = ["badges", "exp", "roles", "special_items"]
+        if category not in valid_categories:
+            await ctx.send(f"⚠️ Kategori tidak valid. Gunakan: `{', '.join(valid_categories)}`.")
             return
+        # -------------------------------------------------------------
 
-        emoji_or_url = args[0] if len(args) > 0 else ""
+        if category not in shop_data:
+            shop_data[category] = []
+            
+        emoji_or_type = args[0] if len(args) > 0 else ""
         stock = args[1] if len(args) > 1 else "unlimited"
         optional = args[2] if len(args) > 2 else None
 
@@ -275,17 +294,20 @@ class Shop(commands.Cog):
             "name": name,
             "price": price,
             "description": description,
-            "emoji": emoji_or_url,
             "stock": int(stock) if stock != "unlimited" else "unlimited"
         }
 
+        # Menyesuaikan field berdasarkan kategori
         if category == "roles":
-            if optional is None:
-                return await ctx.send("⚠️ Harap masukkan role_id untuk kategori roles.")
+            if optional is None: return await ctx.send("⚠️ Harap masukkan role_id untuk kategori roles.")
             item["role_id"] = int(optional)
-
-        if category == "badges" and optional:
-            item["image_url"] = optional
+            item["emoji"] = emoji_or_type or "🧷"
+        elif category == "badges":
+            item["emoji"] = emoji_or_type or "🎖️"
+            if optional: item["image_url"] = optional
+        elif category == "special_items":
+            item["type"] = emoji_or_type # Di sini, arg pertama adalah 'tipe' item
+            item["emoji"] = "🛡️" if emoji_or_type == "protection_shield" else "💊"
 
         shop_data[category].append(item)
         save_json(SHOP_FILE, shop_data)
@@ -300,3 +322,4 @@ class Shop(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Shop(bot))
+
