@@ -7,7 +7,7 @@
             "duration_seconds": 3600,
             "color": "#2ecc71",
             "emoji": "✨",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL8.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL8.jpeg"
         },
         {
             "name": "Wabah Kemalasan",
@@ -16,7 +16,7 @@
             "duration_seconds": 10800,
             "color": "#718093",
             "emoji": "😴",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL7.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL7.jpeg"
         },
         {
             "name": "Wabah Penyakit Misterius",
@@ -25,7 +25,7 @@
             "duration_seconds": 86400,
             "color": "#e74c3c",
             "emoji": "😷",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL6.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL6.jpeg"
         },
         {
             "name": "Hujan Meteor Kode",
@@ -34,7 +34,7 @@
             "duration_seconds": 3600,
             "color": "#f1c40f",
             "emoji": "☄️",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL5.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL5.jpeg"
         },
         {
             "name": "Distorsi Ekonomi",
@@ -43,7 +43,7 @@
             "duration_seconds": 7200,
             "color": "#9b59b6",
             "emoji": "💸",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL4.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL4.jpeg"
         },
         {
             "name": "Gerhana Kebisuan",
@@ -52,7 +52,7 @@
             "duration_seconds": 900,
             "color": "#34495e",
             "emoji": "🤫",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL3.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL3.jpeg"
         },
         {
             "name": "Berkah Sang Tetua",
@@ -61,7 +61,7 @@
             "duration_seconds": 7200,
             "color": "#1abc9c",
             "emoji": "🛡️",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL2.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL2.jpeg"
         },
         {
             "name": "Invasi Mimic",
@@ -70,7 +70,7 @@
             "duration_seconds": 3600,
             "color": "#e67e22",
             "emoji": "😈",
-            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL1.jpg"
+            "thumbnail_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/AL1.jpeg"
         }
     ]
 }
