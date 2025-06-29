@@ -69,5 +69,23 @@
             "stock": 8,
             "image_url": null
         }
-    ]
+    ],
+    "special_items": [
+    {
+        "name": "Perisai Pelindung Astral",
+        "price": 7500,
+        "description": "Item sekali pakai. Saat diaktifkan, melindungimu dari 1 serangan monster yang akan datang.",
+        "type": "protection_shield",
+        "stock": 10,
+        "emoji": "🛡️"
+    },
+    {
+        "name": "Kotak Obat Misterius",
+        "price": 2500,
+        "description": "Berisi obat acak untuk menyembuhkan penyakit. Bisa manjur, bisa juga tidak. Berani coba?",
+        "type": "gacha_medicine_box",
+        "stock": "unlimited",
+        "emoji": "💊"
+    }
+  ]
 }
