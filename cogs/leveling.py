@@ -189,26 +189,43 @@ class Leveling(commands.Cog):
         self.EXP_PER_MESSAGE = 10  # EXP per pesan
         self.RSWN_PER_MESSAGE = 1  # RSWN per pesan
         self.voice_task = self.create_voice_task()
-        self.daily_quest_task = self.daily_quest_task.start()
+        self.last_reset = datetime.utcnow() 
+        self.daily_quest_task.start()
         self.voice_task.start()
 
         logging.basicConfig(level=logging.INFO)
+        
+    # --- PENAMBAHAN: Helper untuk "berkomunikasi" dengan cog DuniaHidup ---
+    def get_anomaly_multiplier(self):
+        """Mengecek apakah ada anomali EXP boost aktif dari cog DuniaHidup."""
+        # Secara aman mengambil cog 'DuniaHidup'
+        dunia_cog = self.bot.get_cog('DuniaHidup')
+        # Mengecek apakah cog-nya ada, ada anomali aktif, dan tipenya adalah 'exp_boost'
+        if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
+            # Mengembalikan nilai multiplier, defaultnya 1 jika tidak ditemukan
+            return dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
+        # Jika tidak ada event, kembalikan 1 (tidak ada perubahan)
+        return 1        
 
     def create_voice_task(self):
         @tasks.loop(minutes=1)
         async def voice_task():
             try:
                 now = datetime.utcnow()
+                # --- PENAMBAHAN: Ambil multiplier anomali di awal setiap loop ---
+                anomaly_multiplier = self.get_anomaly_multiplier()
+                # ----------------------------------------------------------------
+                
                 for guild in self.bot.guilds:
                     guild_id = str(guild.id)
                     data = load_data(guild_id)
 
-                    # Inisialisasi bank_data di luar loop
                     bank_data = load_bank_data()
 
                     for vc in guild.voice_channels:
                         for member in vc.members:
-                            if member.bot:
+                            # Menambahkan pengecekan agar bot tidak memberi EXP ke user yang di-deafen atau di-mute
+                            if member.bot or member.voice.self_deaf or member.voice.self_mute:
                                 continue
 
                             user_id = str(member.id)
@@ -219,25 +236,31 @@ class Leveling(commands.Cog):
                                     "level": 0,
                                     "badges": []
                                 }
+                            
+                            # --- PENAMBAHAN: Gunakan anomaly_multiplier saat memberi hadiah ---
+                            exp_gain_vc = int(self.EXP_PER_MINUTE_VC * anomaly_multiplier)
+                            rswn_gain_vc = int(self.RSWN_PER_MINUTE_VC * anomaly_multiplier)
+                            # ------------------------------------------------------------------
 
-                            # Tambah EXP
-                            data[user_id]["exp"] += self.EXP_PER_MINUTE_VC
-                            data[user_id]["weekly_exp"] += self.EXP_PER_MINUTE_VC
+                            data[user_id]["exp"] += exp_gain_vc
+                            # Menambahkan .setdefault() untuk menghindari error jika key belum ada
+                            data[user_id].setdefault("weekly_exp", 0)
+                            data[user_id]["weekly_exp"] += exp_gain_vc
 
                             if user_id not in bank_data:
                                 bank_data[user_id] = {"balance": 0, "debt": 0}
 
-                            bank_data[user_id]["balance"] += self.RSWN_PER_MINUTE_VC
+                            bank_data[user_id]["balance"] += rswn_gain_vc
 
-
-                            # Cek level baru
                             new_level = calculate_level(data[user_id]["exp"])
-                            if new_level > data[user_id]["level"]:
+                            # Menambahkan .get() untuk menghindari error jika key 'level' belum ada
+                            if new_level > data[user_id].get("level", 0):
                                 data[user_id]["level"] = new_level
-                                await self.level_up(member, guild, vc, new_level, data)
+                                # Channel bisa None jika user hanya di VC tanpa pernah chat
+                                await self.level_up(member, guild, None, new_level, data)
 
                     save_data(guild_id, data)
-                    save_bank_data(bank_data)  # Simpan data bank setelah menambahkan RSWN
+                    save_bank_data(bank_data)
 
                     if now.weekday() == WEEKLY_RESET_DAY and now.date() != self.last_reset.date():
                         for user_data in data.values():
@@ -248,9 +271,10 @@ class Leveling(commands.Cog):
                 print(f"Error in voice task: {e}")
 
         return voice_task
+        
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot:
+        if message.author.bot or not message.guild:
             return
 
         if message.content.startswith(self.bot.command_prefix):
@@ -272,54 +296,47 @@ class Leveling(commands.Cog):
             }
 
         booster = data[user_id].get("booster", {})
-        multiplier = 1
+        personal_multiplier = 1
         expires = booster.get("expires_at")
 
-        # Memeriksa apakah booster aktif
-        expires = booster.get("expires_at")
-        print(f"User ID: {user_id}, Expires At: {expires}")  # Debugging expires_at
-
+        # Kode booster asli Anda tidak diubah
         if expires:
             try:
-                # Cek apakah booster belum expired
                 if datetime.utcnow() < datetime.fromisoformat(expires):
-                    multiplier = booster.get("exp_multiplier", 1)
-                    print(f"Booster aktif! Multiplier: {multiplier}")  # Debugging multiplier
+                    personal_multiplier = booster.get("exp_multiplier", 1)
                 else:
-                    print("Booster sudah expired!")  # Debugging expired
-                    data[user_id]["booster"] = {}  # Reset booster jika sudah expired
+                    data[user_id]["booster"] = {}
             except Exception as e:
                 print(f"[BOOSTER ERROR] Gagal parsing expires_at: {e}")
-                data[user_id]["booster"] = {}  # Reset jika ada kesalahan parsing
+                data[user_id]["booster"] = {}
+        
+        # --- PENAMBAHAN: Ambil dan gabungkan multiplier dari Anomali ---
+        anomaly_multiplier = self.get_anomaly_multiplier()
+        final_multiplier = personal_multiplier * anomaly_multiplier
+        # -------------------------------------------------------------
 
-        exp_gain = int(self.EXP_PER_MESSAGE * multiplier)
-        data[user_id]["exp"] += exp_gain
-        print(f"User ID: {user_id}, EXP yang didapat: {exp_gain}, Total EXP: {data[user_id]['exp']}")  # Debugging EXP
-        # Hitung RSWN
-        rswn_gain = int(self.RSWN_PER_MESSAGE * multiplier)  # Hitung RSWN dengan multiplier
+        exp_gain = int(self.EXP_PER_MESSAGE * final_multiplier)
+        rswn_gain = int(self.RSWN_PER_MESSAGE * final_multiplier)
+        
+        # Kode penyimpanan data Anda tetap sama
         bank_data = load_bank_data()
         if user_id not in bank_data:
             bank_data[user_id] = {"balance": 0, "debt": 0}
 
-        bank_data[user_id]["balance"] += rswn_gain  # Tambahkan RSWN ke saldo
-        print(f"User ID: {user_id}, RSWN yang didapat: {rswn_gain}, Total Saldo: {bank_data[user_id]['balance']}")  # Debugging RSWN
-
-
+        bank_data[user_id]["balance"] += rswn_gain
         data[user_id]["exp"] += exp_gain
+        # Menambahkan .setdefault() untuk keamanan
+        data[user_id].setdefault("weekly_exp", 0)
         data[user_id]["weekly_exp"] += exp_gain
         data[user_id]["last_active"] = datetime.utcnow().isoformat()
-           # Simpan gold ke bank
-        bank_data = load_bank_data()
-        if user_id not in bank_data:
-            bank_data[user_id] = {"balance": 0, "debt": 0}
-        bank_data[user_id]["balance"] += rswn_gain
+           
+        # Log diubah untuk menampilkan multiplier total
+        print(f"[ACTIVITY] {message.author} dapat +{exp_gain} EXP & +{rswn_gain} RSWN (x{final_multiplier} booster total)")
 
-         # Logging console
-        print(f"[ACTIVITY] {message.author} dapat +{exp_gain} EXP & +{rswn_gain} RSWN (x{multiplier} booster)")
-
-        # Cek level baru
+        # Kode cek level up Anda tetap sama
         new_level = calculate_level(data[user_id]["exp"])
-        if new_level > data[user_id]["level"]:
+        # Menambahkan .get() untuk keamanan
+        if new_level > data[user_id].get("level", 0):
             data[user_id]["level"] = new_level
             await self.level_up(message.author, message.guild, message.channel, new_level, data)
         save_data(guild_id, data)
@@ -330,6 +347,8 @@ class Leveling(commands.Cog):
         await self.bot.wait_until_ready()
         for guild in self.bot.guilds:
             quests_data = load_quests_data()
+            if not quests_data or "quests" not in quests_data: continue
+            
             quests = list(quests_data.get("quests", {}).values())
             if quests:
                 random_quest = random.choice(quests)
@@ -349,15 +368,220 @@ class Leveling(commands.Cog):
             if role_id:
                 role = guild.get_role(role_id)
                 if role:
+                    # Hapus role level sebelumnya untuk menghindari tumpukan role
+                    for lvl, r_id in LEVEL_ROLES.items():
+                        if lvl < new_level:
+                            prev_role = guild.get_role(r_id)
+                            if prev_role and prev_role in member.roles:
+                                await member.remove_roles(prev_role)
                     await member.add_roles(role)
 
             badge = LEVEL_BADGES.get(new_level)
-            if badge and badge not in data[str(member.id)]["badges"]:
-                data[str(member.id)]["badges"].append(badge)
-                save_data(str(guild.id), data)
+            # Memastikan 'badges' ada di data sebelum ditambahkan
+            user_badges = data.get(str(member.id), {}).setdefault("badges", [])
+            if badge and badge not in user_badges:
+                user_badges.append(badge)
+                save_data(str(guild.id), data) # Simpan setelah update badge
 
             announce_channel = guild.get_channel(LEVEL_ANNOUNCE_CHANNEL_ID)
-            if announce_channel:
+            if announce_channel and channel: # Hanya kirim jika ada channel konteksnya
+                embed = discord.Embed(
+                    title="🎉 Level Up!",
+                    description=f"{member.mention} telah mencapai level **{new_level}**!",
+                    color=discord.Color.green()
+                )
+                await announce_channel.send(embed=embed)
+        except Exception as e:
+            print(f"Error in level_up: {e}")    # --- PENAMBAHAN: Helper untuk "berkomunikasi" dengan cog DuniaHidup ---
+    def get_anomaly_multiplier(self):
+        """Mengecek apakah ada anomali EXP boost aktif dari cog DuniaHidup."""
+        # Secara aman mengambil cog 'DuniaHidup'
+        dunia_cog = self.bot.get_cog('DuniaHidup')
+        # Mengecek apakah cog-nya ada, ada anomali aktif, dan tipenya adalah 'exp_boost'
+        if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
+            # Mengembalikan nilai multiplier, defaultnya 1 jika tidak ditemukan
+            return dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
+        # Jika tidak ada event, kembalikan 1 (tidak ada perubahan)
+        return 1        
+
+    def create_voice_task(self):
+        @tasks.loop(minutes=1)
+        async def voice_task():
+            try:
+                now = datetime.utcnow()
+                # --- PENAMBAHAN: Ambil multiplier anomali di awal setiap loop ---
+                anomaly_multiplier = self.get_anomaly_multiplier()
+                # ----------------------------------------------------------------
+                
+                for guild in self.bot.guilds:
+                    guild_id = str(guild.id)
+                    data = load_data(guild_id)
+
+                    bank_data = load_bank_data()
+
+                    for vc in guild.voice_channels:
+                        for member in vc.members:
+                            # Menambahkan pengecekan agar bot tidak memberi EXP ke user yang di-deafen atau di-mute
+                            if member.bot or member.voice.self_deaf or member.voice.self_mute:
+                                continue
+
+                            user_id = str(member.id)
+                            if user_id not in data:
+                                data[user_id] = {
+                                    "exp": 0,
+                                    "weekly_exp": 0,
+                                    "level": 0,
+                                    "badges": []
+                                }
+                            
+                            # --- PENAMBAHAN: Gunakan anomaly_multiplier saat memberi hadiah ---
+                            exp_gain_vc = int(self.EXP_PER_MINUTE_VC * anomaly_multiplier)
+                            rswn_gain_vc = int(self.RSWN_PER_MINUTE_VC * anomaly_multiplier)
+                            # ------------------------------------------------------------------
+
+                            data[user_id]["exp"] += exp_gain_vc
+                            # Menambahkan .setdefault() untuk menghindari error jika key belum ada
+                            data[user_id].setdefault("weekly_exp", 0)
+                            data[user_id]["weekly_exp"] += exp_gain_vc
+
+                            if user_id not in bank_data:
+                                bank_data[user_id] = {"balance": 0, "debt": 0}
+
+                            bank_data[user_id]["balance"] += rswn_gain_vc
+
+                            new_level = calculate_level(data[user_id]["exp"])
+                            # Menambahkan .get() untuk menghindari error jika key 'level' belum ada
+                            if new_level > data[user_id].get("level", 0):
+                                data[user_id]["level"] = new_level
+                                # Channel bisa None jika user hanya di VC tanpa pernah chat
+                                await self.level_up(member, guild, None, new_level, data)
+
+                    save_data(guild_id, data)
+                    save_bank_data(bank_data)
+
+                    if now.weekday() == WEEKLY_RESET_DAY and now.date() != self.last_reset.date():
+                        for user_data in data.values():
+                            user_data["weekly_exp"] = 0
+                        self.last_reset = now
+                        save_data(guild_id, data)
+            except Exception as e:
+                print(f"Error in voice task: {e}")
+
+        return voice_task
+        
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot or not message.guild:
+            return
+
+        if message.content.startswith(self.bot.command_prefix):
+            logging.info(f"Pesan adalah perintah: {message.content}")
+            return
+
+        user_id = str(message.author.id)
+        guild_id = str(message.guild.id)
+        data = load_data(guild_id)
+
+        if user_id not in data:
+            data[user_id] = {
+                "exp": 0,
+                "weekly_exp": 0,
+                "level": 0,
+                "badges": [],
+                "last_active": None,
+                "booster": {}
+            }
+
+        booster = data[user_id].get("booster", {})
+        personal_multiplier = 1
+        expires = booster.get("expires_at")
+
+        # Kode booster asli Anda tidak diubah
+        if expires:
+            try:
+                if datetime.utcnow() < datetime.fromisoformat(expires):
+                    personal_multiplier = booster.get("exp_multiplier", 1)
+                else:
+                    data[user_id]["booster"] = {}
+            except Exception as e:
+                print(f"[BOOSTER ERROR] Gagal parsing expires_at: {e}")
+                data[user_id]["booster"] = {}
+        
+        # --- PENAMBAHAN: Ambil dan gabungkan multiplier dari Anomali ---
+        anomaly_multiplier = self.get_anomaly_multiplier()
+        final_multiplier = personal_multiplier * anomaly_multiplier
+        # -------------------------------------------------------------
+
+        exp_gain = int(self.EXP_PER_MESSAGE * final_multiplier)
+        rswn_gain = int(self.RSWN_PER_MESSAGE * final_multiplier)
+        
+        # Kode penyimpanan data Anda tetap sama
+        bank_data = load_bank_data()
+        if user_id not in bank_data:
+            bank_data[user_id] = {"balance": 0, "debt": 0}
+
+        bank_data[user_id]["balance"] += rswn_gain
+        data[user_id]["exp"] += exp_gain
+        # Menambahkan .setdefault() untuk keamanan
+        data[user_id].setdefault("weekly_exp", 0)
+        data[user_id]["weekly_exp"] += exp_gain
+        data[user_id]["last_active"] = datetime.utcnow().isoformat()
+           
+        # Log diubah untuk menampilkan multiplier total
+        print(f"[ACTIVITY] {message.author} dapat +{exp_gain} EXP & +{rswn_gain} RSWN (x{final_multiplier} booster total)")
+
+        # Kode cek level up Anda tetap sama
+        new_level = calculate_level(data[user_id]["exp"])
+        # Menambahkan .get() untuk keamanan
+        if new_level > data[user_id].get("level", 0):
+            data[user_id]["level"] = new_level
+            await self.level_up(message.author, message.guild, message.channel, new_level, data)
+        save_data(guild_id, data)
+        save_bank_data(bank_data)
+
+    @tasks.loop(hours=24)
+    async def daily_quest_task(self):
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            quests_data = load_quests_data()
+            if not quests_data or "quests" not in quests_data: continue
+            
+            quests = list(quests_data.get("quests", {}).values())
+            if quests:
+                random_quest = random.choice(quests)
+
+                # Simpan quest yang dipilih untuk hari ini
+                with open(f"data/daily_quest_{guild.id}.json", "w") as f:
+                    json.dump(random_quest, f)
+
+                # Kirim pesan ke channel pengumuman
+                announce_channel = guild.get_channel(LEVEL_ANNOUNCE_CHANNEL_ID)
+                if announce_channel:
+                    await announce_channel.send(f"🎉 Quest Harian Baru! {random_quest['description']} (Reward: {random_quest['reward_exp']} EXP, {random_quest['reward_coins']} 🪙RSWN)")
+
+    async def level_up(self, member, guild, channel, new_level, data):
+        try:
+            role_id = LEVEL_ROLES.get(new_level)
+            if role_id:
+                role = guild.get_role(role_id)
+                if role:
+                    # Hapus role level sebelumnya untuk menghindari tumpukan role
+                    for lvl, r_id in LEVEL_ROLES.items():
+                        if lvl < new_level:
+                            prev_role = guild.get_role(r_id)
+                            if prev_role and prev_role in member.roles:
+                                await member.remove_roles(prev_role)
+                    await member.add_roles(role)
+
+            badge = LEVEL_BADGES.get(new_level)
+            # Memastikan 'badges' ada di data sebelum ditambahkan
+            user_badges = data.get(str(member.id), {}).setdefault("badges", [])
+            if badge and badge not in user_badges:
+                user_badges.append(badge)
+                save_data(str(guild.id), data) # Simpan setelah update badge
+
+            announce_channel = guild.get_channel(LEVEL_ANNOUNCE_CHANNEL_ID)
+            if announce_channel and channel: # Hanya kirim jika ada channel konteksnya
                 embed = discord.Embed(
                     title="🎉 Level Up!",
                     description=f"{member.mention} telah mencapai level **{new_level}**!",
