@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import json
 import random
 import asyncio
@@ -25,6 +25,15 @@ class GameLanjutan(commands.Cog):
         self.scramble_time_limit = 30 # Detik per soal acak kata
         self.sambung_kata_time_limit = 20 # Detik per giliran sambung kata
 
+    # --- PENAMBAHAN: Helper untuk "berkomunikasi" dengan cog DuniaHidup ---
+    def get_anomaly_multiplier(self):
+        """Mengecek apakah ada anomali EXP boost aktif dari cog DuniaHidup."""
+        dunia_cog = self.bot.get_cog('DuniaHidup')
+        if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
+            return dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
+        return 1
+    # ----------------------------------------------------------------------
+
     def load_json(self, file_path):
         """Helper function to load a JSON file."""
         try:
@@ -48,6 +57,10 @@ class GameLanjutan(commands.Cog):
         user_id_str = str(user_id)
         guild_id_str = str(guild_id)
         
+        # Load data terbaru sebelum modifikasi
+        self.bank_data = self.load_json('data/bank_data.json')
+        self.level_data = self.load_json('data/level_data.json')
+
         if user_id_str not in self.bank_data:
             self.bank_data[user_id_str] = {'balance': 0, 'debt': 0}
         self.bank_data[user_id_str]['balance'] += rewards.get("rsw", 0)
@@ -118,12 +131,22 @@ class GameLanjutan(commands.Cog):
             
             question_msg = await ctx.send(embed=embed)
 
-            # --- Timer and Waiter Logic ---
             winner = await self.wait_for_answer_with_timer(ctx, word, question_msg, self.scramble_time_limit)
 
             if winner:
-                self.give_rewards(winner.id, ctx.guild.id, self.scramble_reward)
-                await ctx.send(f"🎉 Selamat {winner.mention}! Jawabanmu benar. Kamu mendapatkan hadiah!")
+                # --- PENAMBAHAN INTEGRASI ---
+                anomaly_multiplier = self.get_anomaly_multiplier()
+                final_reward = {
+                    "rsw": int(self.scramble_reward['rsw'] * anomaly_multiplier),
+                    "exp": int(self.scramble_reward['exp'] * anomaly_multiplier)
+                }
+                self.give_rewards(winner.id, ctx.guild.id, final_reward)
+
+                if anomaly_multiplier > 1:
+                    await ctx.send(f"🎉 Selamat {winner.mention}! Jawabanmu benar. Karena ada Anomali, hadiahmu dilipatgandakan!")
+                else:
+                    await ctx.send(f"🎉 Selamat {winner.mention}! Jawabanmu benar. Kamu mendapatkan hadiah!")
+                # --- AKHIR INTEGRASI ---
             else: # Timeout
                 await ctx.send(f"Waktu habis! Jawaban yang benar adalah: **{word}**.")
 
@@ -173,6 +196,11 @@ class GameLanjutan(commands.Cog):
         player_ids = list(game["players"].keys())
         random.shuffle(player_ids)
         
+        if not self.sambung_kata_words:
+            await game["channel"].send("Bank kata untuk memulai tidak ditemukan.")
+            self.active_sambung_games.pop(vc_id, None)
+            return
+
         game["current_word"] = random.choice(self.sambung_kata_words).lower()
         game["used_words"].add(game["current_word"])
         
@@ -196,7 +224,10 @@ class GameLanjutan(commands.Cog):
                     for i in range(self.sambung_kata_time_limit, -1, -1):
                         new_embed = embed.copy()
                         new_embed.set_footer(text=f"Waktu tersisa: {i} detik ⏳")
-                        await prompt_msg.edit(embed=new_embed)
+                        try:
+                            await prompt_msg.edit(embed=new_embed)
+                        except discord.NotFound:
+                            break
                         await asyncio.sleep(1)
                 
                 def check(m):
@@ -228,14 +259,27 @@ class GameLanjutan(commands.Cog):
                 await game["channel"].send(f"⌛ Waktu habis! {current_player.mention} tereliminasi!")
                 player_ids.pop(game["turn_index"])
             
-            if game["turn_index"] >= len(player_ids) and len(player_ids) > 0: game["turn_index"] = 0
+            if len(player_ids) > 0 and game["turn_index"] >= len(player_ids):
+                game["turn_index"] = 0
             await asyncio.sleep(2)
 
         if len(player_ids) == 1:
             winner = game["players"][player_ids[0]]
             guild_id = game["guild_id"]
-            self.give_rewards(winner.id, guild_id, self.sambung_kata_winner_reward)
-            await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Kamu mendapatkan hadiah!")
+            
+            # --- PENAMBAHAN INTEGRASI ---
+            anomaly_multiplier = self.get_anomaly_multiplier()
+            final_reward = {
+                "rsw": int(self.sambung_kata_winner_reward['rsw'] * anomaly_multiplier),
+                "exp": int(self.sambung_kata_winner_reward['exp'] * anomaly_multiplier)
+            }
+            self.give_rewards(winner.id, guild_id, final_reward)
+            
+            if anomaly_multiplier > 1:
+                 await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Karena ada Anomali, hadiahmu dilipatgandakan!")
+            else:
+                 await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Kamu mendapatkan hadiah!")
+            # --- AKHIR INTEGRASI ---
         else:
             await game["channel"].send("Permainan berakhir tanpa pemenang.")
         self.active_sambung_games.pop(vc_id, None)
@@ -258,13 +302,11 @@ class GameLanjutan(commands.Cog):
         def check(m):
             return m.channel == ctx.channel and not m.author.bot and m.content.lower() == correct_answer.lower()
 
-        # Create and run tasks concurrently
         wait_for_msg_task = self.bot.loop.create_task(self.bot.wait_for('message', check=check))
         timer = self.bot.loop.create_task(timer_task())
 
         done, pending = await asyncio.wait([wait_for_msg_task, timer], return_when=asyncio.FIRST_COMPLETED)
 
-        # Cleanup: cancel the task that didn't finish
         timer.cancel()
         for task in pending:
             task.cancel()
@@ -276,3 +318,4 @@ class GameLanjutan(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(GameLanjutan(bot))
+
