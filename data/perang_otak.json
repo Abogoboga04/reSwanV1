@@ -1,4 +1,5 @@
-[
+{
+  "questions": [
     {"question": "Sebutkan sesuatu yang orang sering lupa bawa saat bepergian?", "answers": [{"answer": "Charger HP", "points": 35}, {"answer": "Sikat Gigi", "points": 30}, {"answer": "Dompet", "points": 20}, {"answer": "Kunci", "points": 15}]},
     {"question": "Sebutkan alasan orang terlambat masuk kerja?", "answers": [{"answer": "Macet", "points": 40}, {"answer": "Kesiangan", "points": 35}, {"answer": "Hujan", "points": 15}, {"answer": "Ban Kempes", "points": 10}]},
     {"question": "Sebutkan nama buah yang diawali huruf 'A'?", "answers": [{"answer": "Apel", "points": 45}, {"answer": "Anggur", "points": 35}, {"answer": "Alpukat", "points": 20}]},
@@ -49,8 +50,6 @@
     {"question": "Sebutkan sesuatu yang ada di bioskop?", "answers": [{"answer": "Layar Besar", "points": 35}, {"answer": "Popcorn", "points": 30}, {"answer": "Kursi", "points": 20}, {"answer": "Tiket", "points": 15}]},
     {"question": "Sebutkan sesuatu yang bentuknya bulat?", "answers": [{"answer": "Bola", "points": 40}, {"answer": "Roda", "points": 25}, {"answer": "Kelereng", "points": 20}, {"answer": "Matahari / Bulan", "points": 15}]},
     {"question": "Sebutkan nama sayuran berwarna hijau?", "answers": [{"answer": "Bayam", "points": 30}, {"answer": "Kangkung", "points": 25}, {"answer": "Sawi", "points": 25}, {"answer": "Brokoli", "points": 20}]},
-    // 50 Soal
-    // ... (Lanjutkan pola ini untuk 200 soal berikutnya)
     {"question": "Sebutkan sesuatu yang bisa membuat mobil berhenti?", "answers": [{"answer": "Rem", "points": 50}, {"answer": "Lampu Merah", "points": 25}, {"answer": "Bensin Habis", "points": 15}, {"answer": "Macet", "points": 10}]},
     {"question": "Sebutkan sesuatu yang orang lakukan di pagi hari?", "answers": [{"answer": "Bangun Tidur", "points": 35}, {"answer": "Mandi", "points": 30}, {"answer": "Sarapan", "points": 20}, {"answer": "Minum Kopi", "points": 15}]},
     {"question": "Sebutkan judul film horor Indonesia yang terkenal?", "answers": [{"answer": "Pengabdi Setan", "points": 40}, {"answer": "KKN di Desa Penari", "points": 30}, {"answer": "Danur", "points": 20}, {"answer": "Jelangkung", "points": 10}]},
@@ -75,6 +74,34 @@
     {"question": "Sebutkan cara memasak?", "answers": [{"answer": "Menggoreng", "points": 40}, {"answer": "Merebus", "points": 30}, {"answer": "Membakar", "points": 15}, {"answer": "Menumis", "points": 15}]},
     {"question": "Sebutkan nama pulau besar di Indonesia?", "answers": [{"answer": "Jawa", "points": 35}, {"answer": "Sumatra", "points": 25}, {"answer": "Kalimantan", "points": 25}, {"answer": "Papua", "points": 15}]},
     {"question": "Sebutkan sesuatu yang kamu lakukan setelah makan?", "answers": [{"answer": "Minum", "points": 45}, {"answer": "Cuci Piring", "points": 25}, {"answer": "Santai / Istirahat", "points": 15}, {"answer": "Mengobrol", "points": 15}]},
-    {"question": "Sebutkan sesuatu yang ada di apotek?", "answers": [{"answer": "Obat", "points": 50}, {"answer": "Apoteker", "points": 25}, {"answer": "Vitamin", "points": 15}, {"answer": "Masker", "points": 10}]}
-]
+    {"question": "Sebutkan sesuatu yang ada di apotek?", "answers": [{"answer": "Obat", "points": 50}, {"answer": "Apoteker", "points": 25}, {"answer": "Vitamin", "points": 15}, {"answer": "Masker", "points": 10}]},
+    {"question": "Sebutkan merek air mineral?", "answers": [{"answer": "Aqua", "points": 50}, {"answer": "Le Minerale", "points": 30}, {"answer": "Cleo", "points": 10}, {"answer": "Vit", "points": 10}]},
+    {"question": "Sebutkan jenis SIM?", "answers": [{"answer": "SIM C", "points": 40}, {"answer": "SIM A", "points": 35}, {"answer": "SIM B", "points": 15}, {"answer": "SIM D", "points": 10}]},
+    {"question": "Sebutkan profesi di bidang kesehatan?", "answers": [{"answer": "Dokter", "points": 40}, {"answer": "Perawat", "points": 30}, {"answer": "Bidan", "points": 15}, {"answer": "Apoteker", "points": 15}]},
+    {"question": "Sebutkan sesuatu yang ada di dalam kelas?", "answers": [{"answer": "Papan Tulis", "points": 35}, {"answer": "Meja / Kursi", "points": 30}, {"answer": "Siswa / Murid", "points": 20}, {"answer": "Guru", "points": 15}]},
+    {"question": "Sebutkan acara TV anak-anak yang populer di Indonesia?", "answers": [{"answer": "Upin & Ipin", "points": 40}, {"answer": "Doraemon", "points": 30}, {"answer": "Spongebob", "points": 20}, {"answer": "Adit & Sopo Jarwo", "points": 10}]},
+    {"question": "Sebutkan nama provider telekomunikasi?", "answers": [{"answer": "Telkomsel", "points": 45}, {"answer": "Indosat", "points": 25}, {"answer": "XL", "points": 20}, {"answer": "Tri", "points": 10}]},
+    {"question": "Sebutkan sesuatu yang orang lakukan saat ngabuburit?", "answers": [{"answer": "Jalan-jalan", "points": 40}, {"answer": "Cari Takjil", "points": 35}, {"answer": "Main Game", "points": 15}, {"answer": "Tidur", "points": 10}]},
+    {"question": "Sebutkan jenis sambal?", "answers": [{"answer": "Sambal Terasi", "points": 35}, {"answer": "Sambal Bawang", "points": 30}, {"answer": "Sambal Matah", "points": 20}, {"answer": "Sambal Dabu-dabu", "points": 15}]},
+    {"question": "Sebutkan sesuatu yang kamu temukan di taman bermain?", "answers": [{"answer": "Ayunan", "points": 35}, {"answer": "Perosotan", "points": 30}, {"answer": "Jungkat-jungkit", "points": 25}, {"answer": "Anak-anak", "points": 10}]},
+    {"question": "Sebutkan merek sepeda motor?", "answers": [{"answer": "Honda", "points": 50}, {"answer": "Yamaha", "points": 30}, {"answer": "Suzuki", "points": 10}, {"answer": "Kawasaki", "points": 10}]},
+    {"question": "Sebutkan sesuatu yang ada di bandara?", "answers": [{"answer": "Pesawat", "points": 40}, {"answer": "Koper", "points": 25}, {"answer": "Pilot / Pramugari", "points": 20}, {"answer": "Ruang Tunggu", "points": 15}]},
+    {"question": "Sebutkan alasan orang berbohong?", "answers": [{"answer": "Takut Dimarahi", "points": 40}, {"answer": "Menutupi Kesalahan", "points": 30}, {"answer": "Untuk Kebaikan (White Lie)", "points": 15}, {"answer": "Pamer / Gengsi", "points": 15}]},
+    {"question": "Sebutkan sesuatu yang kamu lakukan saat liburan sekolah?", "answers": [{"answer": "Main Game", "points": 30}, {"answer": "Liburan / Jalan-jalan", "points": 25}, {"answer": "Nonton TV", "points": 25}, {"answer": "Tidur Seharian", "points": 20}]},
+    {"question": "Sebutkan sesuatu yang berhubungan dengan komputer?", "answers": [{"answer": "Mouse", "points": 35}, {"answer": "Keyboard", "points": 30}, {"answer": "Monitor", "points": 20}, {"answer": "Internet", "points": 15}]},
+    {"question": "Sebutkan jajanan pasar yang populer?", "answers": [{"answer": "Kue Lapis", "points": 30}, {"answer": "Lemper", "points": 25}, {"answer": "Risoles", "points": 25}, {"answer": "Klepon", "points": 20}]},
+    {"question": "Sebutkan sesuatu yang kamu lakukan saat pertama kali bertemu seseorang?", "answers": [{"answer": "Berjabat Tangan", "points": 35}, {"answer": "Menyebutkan Nama", "points": 30}, {"answer": "Tersenyum", "points": 20}, {"answer": "Bertanya Nama", "points": 15}]},
+    {"question": "Sebutkan hewan yang bertelur?", "answers": [{"answer": "Ayam", "points": 40}, {"answer": "Bebek", "points": 25}, {"answer": "Ular", "points": 20}, {"answer": "Cicak", "points": 15}]},
+    {"question": "Sebutkan sesuatu yang sering hilang di rumah?", "answers": [{"answer": "Kunci", "points": 35}, {"answer": "Remote TV", "points": 30}, {"answer": "Korek Api", "points": 20}, {"answer": "Kaos Kaki", "points": 15}]},
+    {"question": "Sebutkan sesuatu yang kamu pakai di tangan?", "answers": [{"answer": "Jam Tangan", "points": 40}, {"answer": "Cincin", "points": 30}, {"answer": "Gelang", "points": 25}, {"answer": "Sarung Tangan", "points": 5}]},
+    {"question": "Sebutkan sesuatu yang ada di dalam pensil?", "answers": [{"answer": "Grafit / Karbon", "points": 40}, {"answer": "Kayu", "points": 30}, {"answer": "Cat", "points": 15}, {"answer": "Tulisan Merek", "points": 15}]},
+    {"question": "Sebutkan sesuatu yang kamu lakukan saat di restoran?", "answers": [{"answer": "Makan", "points": 45}, {"answer": "Pesan Makanan", "points": 30}, {"answer": "Bayar", "points": 15}, {"answer": "Minum", "points": 10}]},
+    {"question": "Sebutkan sesuatu yang berhubungan dengan sihir?", "answers": [{"answer": "Tongkat Sihir", "points": 35}, {"answer": "Penyihir", "points": 30}, {"answer": "Mantra", "points": 25}, {"answer": "Ramuan", "points": 10}]},
+    {"question": "Sebutkan sesuatu yang ada di film action?", "answers": [{"answer": "Ledakan", "points": 35}, {"answer": "Tembak-tembakan", "points": 30}, {"answer": "Perkelahian", "points": 20}, {"answer": "Kejar-kejaran Mobil", "points": 15}]},
+    {"question": "Sebutkan nama platform e-commerce?", "answers": [{"answer": "Shopee", "points": 40}, {"answer": "Tokopedia", "points": 35}, {"answer": "Lazada", "points": 15}, {"answer": "Bukalapak", "points": 10}]},
+    {"question": "Sebutkan sesuatu yang kamu butuhkan untuk membuat kopi?", "answers": [{"answer": "Bubuk Kopi", "points": 40}, {"answer": "Air Panas", "points": 30}, {"answer": "Gula", "points": 20}, {"answer": "Cangkir / Gelas", "points": 10}]},
+    {"question": "Sebutkan sesuatu yang ada di dalam hutan?", "answers": [{"answer": "Pohon", "points": 50}, {"answer": "Hewan Liar", "points": 25}, {"answer": "Sungai", "points": 15}, {"answer": "Semak-semak", "points": 10}]},
+    {"question": "Sebutkan sesuatu yang bisa didaur ulang?", "answers": [{"answer": "Plastik / Botol Plastik", "points": 40}, {"answer": "Kertas / Kardus", "points": 35}, {"answer": "Kaca / Botol Kaca", "points": 15}, {"answer": "Kaleng", "points": 10}]}
+  ]
+}
 
