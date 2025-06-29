@@ -10,128 +10,147 @@ import json
 from io import BytesIO
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from datetime import datetime # Ditambahkan untuk timestamp di MongoDB
+from datetime import datetime
 
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
 def save_cookies_from_env():
+    """Membaca cookies dari environment variable dan menyimpannya ke file."""
     encoded = os.getenv("COOKIES_BASE64")
     if not encoded:
-        raise ValueError("Environment variable COOKIES_BASE64 not found.")
+        # Lebih baik raise error langsung jika ini adalah konfigurasi penting
+        raise ValueError("Environment variable COOKIES_BASE64 not found. Please set it up.")
     
     try:
         decoded = base64.b64decode(encoded)
         with open("cookies.txt", "wb") as f:
             f.write(decoded)
-        print("âœ… File cookies.txt berhasil dibuat dari environment variable.")
+        print("✅ File cookies.txt successfully created from environment variable.")
     except Exception as e:
-        print(f"âŒ Gagal decode cookies: {e}")
+        print(f"❌ Failed to decode cookies: {e}")
 
 # Koneksi ke MongoDB
-mongo_uri = os.getenv("MONGODB_URI")  # Pastikan variabel ini sudah diatur
+mongo_uri = os.getenv("MONGODB_URI")
+if not mongo_uri:
+    raise ValueError("Environment variable MONGODB_URI not found. Please set it up.")
 client = MongoClient(mongo_uri)
-db = client["reSwan"]  # Nama database
-collection = db["Data collection"]  # Nama koleksi
+db = client["reSwan"]  # Nama database Anda
+collection = db["Data collection"]  # Nama koleksi Anda
 
 # Import fungsi keep_alive jika Anda menggunakan Replit
-from keep_alive import keep_alive
+# Pastikan file keep_alive.py ada di root folder Anda
+try:
+    from keep_alive import keep_alive
+except ImportError:
+    print("Peringatan: `keep_alive.py` tidak ditemukan. Jika Anda tidak menggunakan Replit, ini normal.")
+    def keep_alive():
+        pass # Fungsi dummy jika tidak ditemukan
 
+# Konfigurasi Intents Discord
 intents = discord.Intents.default()
 intents.messages = True
-intents.message_content = True
+intents.message_content = True # Diperlukan untuk membaca konten pesan
 intents.guilds = True
 intents.members = True
-intents.voice_states = True
+intents.voice_states = True # Diperlukan untuk fitur voice channel di cog leveling
 
+# Inisialisasi Bot
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Saat bot menyala
+# Event saat bot siap
 @bot.event
 async def on_ready():
+    """Dipanggil ketika bot berhasil terhubung ke Discord."""
     print(f"ðŸ¤– Bot {bot.user} is now online!")
-    print(f"Command yang terdaftar: {[command.name for command in bot.commands]}")
+    print(f"Registered commands: {[command.name for command in bot.commands]}")
 
-# =======================================================================================
-# ---> BAGIAN INI TELAH DIREVISI SESUAI PERMINTAAN ANDA <---
-# =======================================================================================
+# --- Perbaikan Utama: Event on_message Global ---
+@bot.event
+async def on_message(message):
+    """
+    Menangani semua pesan yang diterima oleh bot.
+    Ini adalah satu-satunya tempat di mana bot.process_commands(message)
+    seharusnya dipanggil untuk memastikan perintah diproses sekali saja.
+    """
+    # Abaikan pesan dari bot itu sendiri agar tidak masuk ke loop tak terbatas
+    if message.author.bot:
+        return
+
+    # Meneruskan pesan ke pemroses perintah Discord.py.
+    # Semua `commands.Cog.listener()` `on_message` akan dipanggil terlebih dahulu.
+    await bot.process_commands(message)
 
 # Command untuk backup data dari folder root, data/, dan config/
 @bot.command()
-@commands.is_owner() # Ditambahkan untuk keamanan, hanya pemilik bot yang bisa menjalankan
+@commands.is_owner() # Hanya pemilik bot yang bisa menjalankan perintah ini
 async def backupnow(ctx):
-    await ctx.send("Memulai proses backup...")
+    """Membuat backup semua file .json di folder tertentu ke MongoDB."""
+    await ctx.send("Starting backup process...")
     backup_data = {}
 
-    # Daftar direktori yang akan di-backup. '.' merepresentasikan root.
+    # Direktori yang akan di-backup
     directories_to_scan = ['.', 'data/', 'config/']
 
     for directory in directories_to_scan:
-        # Cek apakah direktori ada untuk menghindari error
         if not os.path.isdir(directory):
-            print(f"Peringatan: Direktori '{directory}' tidak ditemukan, dilewati.")
+            print(f"Warning: Directory '{directory}' not found, skipping.")
             continue
         
         for filename in os.listdir(directory):
             file_path = os.path.join(directory, filename)
-            # Pastikan itu adalah file dan berakhiran .json
             if filename.endswith('.json') and os.path.isfile(file_path):
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         json_data = json.load(f)
-                        # Menggunakan path sebagai kunci untuk menghindari duplikasi nama file
                         backup_data[file_path] = json_data 
-                        print(f"✅ File '{file_path}' berhasil dibaca.")
+                        print(f"✅ File '{file_path}' successfully read.")
                 except json.JSONDecodeError:
-                    await ctx.send(f"❌ Gagal membaca file JSON: `{file_path}`")
-                    print(f"❌ Gagal membaca file JSON: {file_path}")
+                    await ctx.send(f"❌ Failed to read JSON file: `{file_path}`")
+                    print(f"❌ Failed to read JSON file: {file_path}")
                 except Exception as e:
-                    await ctx.send(f"❌ Terjadi error saat membaca `{file_path}`: {e}")
+                    await ctx.send(f"❌ An error occurred while reading `{file_path}`: {e}")
 
-    # Simpan data backup ke dalam koleksi MongoDB
+    # Simpan data backup ke MongoDB
     if backup_data:
         try:
-            # ---> DITERAPKAN: Menggunakan update_one dengan upsert=True untuk efisiensi
-            # Ini akan selalu menimpa satu dokumen backup saja, tidak membuat yang baru.
             collection.update_one(
-                {"_id": "latest_backup"},  # Selalu menargetkan dokumen dengan ID ini
+                {"_id": "latest_backup"},  # Menggunakan ID tetap untuk menimpa backup terbaru
                 {"$set": {
                     "backup": backup_data,
-                    "timestamp": datetime.utcnow() # Menambahkan waktu backup
+                    "timestamp": datetime.utcnow() # Menambahkan timestamp backup
                 }},
                 upsert=True  # Membuat dokumen jika belum ada
             )
             
-            print("✅ Data backup berhasil disimpan ke MongoDB.")
-            await ctx.send("✅ Data backup berhasil disimpan ke MongoDB!")
+            print("✅ Backup data successfully saved to MongoDB.")
+            await ctx.send("✅ Backup data successfully saved to MongoDB!")
 
         except Exception as e:
-            await ctx.send(f"❌ Gagal menyimpan data ke MongoDB: {e}")
-            print(f"❌ Gagal menyimpan data ke MongoDB: {e}")
+            await ctx.send(f"❌ Failed to save data to MongoDB: {e}")
+            print(f"❌ Failed to save data to MongoDB: {e}")
     else:
-        await ctx.send("🤷 Tidak ada file .json yang ditemukan untuk dibackup.")
+        await ctx.send("🤷 No .json files found to backup.")
 
 # Command untuk mengirim data backup ke DM
 @bot.command()
-@commands.is_owner() # Ditambahkan untuk keamanan
+@commands.is_owner() # Hanya pemilik bot yang bisa menjalankan perintah ini
 async def sendbackup(ctx):
-    user_id = 1000737066822410311  # Ganti dengan ID kamu
+    """Mengirim file backup dari MongoDB ke DM pemilik bot."""
+    user_id = 1000737066822410311  # Ganti dengan ID Discord Anda
     user = await bot.fetch_user(user_id)
 
     try:
-        # ---> DITERAPKAN: Mencari dokumen backup berdasarkan ID yang pasti
         stored_data = collection.find_one({"_id": "latest_backup"})
         if not stored_data or 'backup' not in stored_data:
-            await ctx.send("❌ Tidak ada data backup yang tersedia.")
+            await ctx.send("❌ No backup data available.")
             return
 
         backup_data = stored_data["backup"]
-        await ctx.send("📬 Mengirim file backup satu per satu ke DM...")
+        await ctx.send("📬 Sending backup files one by one to DM...")
 
-        # ---> DIREVISI: Menggunakan file_path dari dictionary
         for file_path, content in backup_data.items():
-            # Mengambil nama file asli dari path lengkapnya
             filename = os.path.basename(file_path)
             
             string_buffer = io.StringIO()
@@ -144,54 +163,58 @@ async def sendbackup(ctx):
             file = discord.File(fp=byte_buffer, filename=filename)
 
             try:
-                # Menambahkan info path asal file untuk kejelasan
-                await user.send(content=f"📄 Berikut file backup dari `/{file_path}`:", file=file)
+                await user.send(content=f"📄 Here's a backup file from `/{file_path}`:", file=file)
             except discord.HTTPException as e:
-                await ctx.send(f"❌ Gagal kirim file `{filename}`: {e}")
+                await ctx.send(f"❌ Failed to send file `{filename}`: {e}")
 
-        await ctx.send("✅ Semua file backup berhasil dikirim ke DM!")
+        await ctx.send("✅ All backup files successfully sent to DM!")
 
     except discord.Forbidden:
-        await ctx.send("❌ Gagal mengirim DM. Pastikan saya dapat mengirim DM ke pengguna ini.")
+        await ctx.send("❌ Failed to send DM. Make sure I can send DMs to this user.")
     except Exception as e:
-        await ctx.send(f"❌ Terjadi kesalahan saat mengambil data backup: {e}")
-        print(f"❌ Error saat sendbackup: {e}")
+        await ctx.send(f"❌ An error occurred while retrieving backup data: {e}")
+        print(f"❌ Error during sendbackup: {e}")
 
-# =======================================================================================
-# Kode Anda yang lain di bawah ini tidak diubah sama sekali
-# =======================================================================================
-
-# Muat semua cog yang ada
+# Fungsi untuk memuat semua cog
 async def load_cogs():
-    try:
-        await bot.load_extension("cogs.leveling")
-        await bot.load_extension("cogs.shop")
-        await bot.load_extension("cogs.quizz")
-        await bot.load_extension("cogs.music")
-        await bot.load_extension("cogs.itemmanage")
-        await bot.load_extension("cogs.moderation")
-        await bot.load_extension("cogs.emojiquiz")
-        await bot.load_extension("cogs.hangman") 
-        await bot.load_extension("cogs.quotes")
-        await bot.load_extension("cogs.newgame")
-        await bot.load_extension("cogs.multigame")
-        await bot.load_extension("cogs.dunia") 
-        print("âœ… Semua cogs berhasil dimuat.")
-    except Exception as e:
-        print(f"âŒ Gagal memuat cogs: {e}")
+    """Memuat semua cogs dari folder 'cogs'."""
+    initial_extensions = [
+        "cogs.leveling",
+        "cogs.shop",
+        "cogs.quizz",
+        "cogs.music",
+        "cogs.itemmanage",
+        "cogs.moderation",
+        "cogs.emojiquiz",
+        "cogs.hangman", 
+        "cogs.quotes",
+        "cogs.newgame",
+        "cogs.multigame",
+        "cogs.dunia" # Pastikan nama file adalah `dunia.py` di dalam folder `cogs`
+    ]
+    for extension in initial_extensions:
+        try:
+            await bot.load_extension(extension)
+            print(f"✅ Loaded {extension}")
+        except Exception as e:
+            print(f"❌ Failed to load {extension}: {e}")
 
+# setup_hook dipanggil setelah bot.run() tetapi sebelum bot.on_ready()
 @bot.event
 async def setup_hook():
+    """Dipanggil sekali saat bot pertama kali startup."""
+    print("ðŸ” Starting setup_hook and loading cogs...")
     await load_cogs()
-    print("Command yang terdaftar: {[command.name for command in bot.commands]}")
-    print("ðŸ” Memulai setup_hook dan load cogs...")
-    print("âœ… Selesai setup_hook dan semua cogs dicoba load.")
+    print("✅ Finished setup_hook and all cogs attempted to load.")
+    # Ini akan dicetak setelah semua cog dimuat, tetapi sebelum on_ready sepenuhnya selesai
+    print(f"All commands registered: {[command.name for command in bot.commands]}")
 
+
+# Menjalankan fungsi untuk menyimpan cookies dari env variable
 save_cookies_from_env()
 
-# Jalankan di Replit
+# Menjalankan server web keep_alive jika ada
 keep_alive()
 
-# Token bot Discord Anda dari secrets
+# Menjalankan bot dengan token dari environment variable
 bot.run(os.getenv("DISCORD_TOKEN"))
-
