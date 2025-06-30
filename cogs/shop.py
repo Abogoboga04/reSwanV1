@@ -11,17 +11,28 @@ LEVEL_FILE = 'data/level_data.json'
 BANK_FILE = 'data/bank_data.json'
 SHOP_STATUS_FILE = 'data/shop_status.json'
 COLLAGE_FILE = 'data/shop_collage.json'
-INVENTORY_FILE = 'data/inventory.json'
+INVENTORY_FILE = 'data/inventory.json' # Pastikan file ini ada atau akan dibuat
 
 
 def load_json(path):
     if not os.path.exists(path):
+        # Jika file tidak ada, kembalikan dictionary kosong.
+        # Jika itu INVENTORY_FILE, kembalikan dict kosong yang akan diisi dengan list.
+        # Untuk kasus inventory, setidaknya user_id_str akan ditambahkan sebagai key dengan value list kosong
+        if path == INVENTORY_FILE:
+            return {} 
         return {}
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        print(f"Critical Warning: Failed to load or corrupted file -> {path}. Returning empty data.")
+        return {} # Mengembalikan dict kosong jika file rusak
 
 
 def save_json(path, data):
+    # Pastikan direktori 'data/' ada sebelum menyimpan
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
@@ -67,11 +78,12 @@ class PurchaseDropdown(discord.ui.Select):
 
         level_data = load_json(LEVEL_FILE)
         bank_data = load_json(BANK_FILE)
-        inventory_data = load_json(INVENTORY_FILE)
-
+        inventory_data = load_json(INVENTORY_FILE) # Load inventory data
+        
         user_data = level_data.setdefault(self.guild_id, {}).setdefault(self.user_id, {})
         bank_user = bank_data.setdefault(self.user_id, {"balance": 0, "debt": 0})
-        inventory_user = inventory_data.setdefault(self.user_id, [])
+        # Pastikan inventaris pengguna adalah list
+        inventory_user = inventory_data.setdefault(self.user_id, []) 
 
         if self.category == "badges" and item['emoji'] in user_data.get("badges", []):
             await interaction.response.send_message("Kamu sudah memiliki badge ini.", ephemeral=True)
@@ -94,7 +106,11 @@ class PurchaseDropdown(discord.ui.Select):
             await interaction.response.send_message("Saldo RSWN kamu tidak cukup!", ephemeral=True)
             return
 
+        # Kurangi saldo bank setelah semua validasi
         bank_user['balance'] -= item['price']
+
+        purchase_successful = False
+        message_to_send = ""
 
         if self.category == "badges":
             user_data.setdefault("badges", []).append(item['emoji'])
@@ -109,6 +125,8 @@ class PurchaseDropdown(discord.ui.Select):
                                 await interaction.user.send(content="Selamat pembelian avatar kamu berhasil, jika kamu mau pasang sebagai profil Discord nih aku kasih file nya ya", file=file)
                 except Exception as e:
                     print(f"Gagal kirim DM avatar: {e}")
+            message_to_send = f"✅ Kamu berhasil membeli badge `{item['name']}` seharga {item['price']} RSWN!"
+            purchase_successful = True
 
         elif self.category == "roles":
             user_data.setdefault("purchased_roles", []).append(item['name'])
@@ -117,6 +135,8 @@ class PurchaseDropdown(discord.ui.Select):
                 role = interaction.guild.get_role(int(role_id))
                 if role:
                     await interaction.user.add_roles(role, reason="Pembelian dari shop")
+            message_to_send = f"✅ Kamu berhasil membeli role `{item['name']}` seharga {item['price']} RSWN!"
+            purchase_successful = True
 
         elif self.category == "exp":
             user_data["booster"] = {
@@ -125,38 +145,49 @@ class PurchaseDropdown(discord.ui.Select):
                 "expires_at": (datetime.utcnow() + timedelta(minutes=30)).isoformat()
             }
             user_data["last_exp_purchase"] = datetime.utcnow().isoformat()
+            message_to_send = f"✅ Kamu berhasil membeli booster EXP `{item['name']}` seharga {item['price']} RSWN!"
+            purchase_successful = True
             
-        # --- PENAMBAHAN: Logika untuk membeli item spesial dari DuniaHidup ---
         elif self.category == "special_items":
             item_type = item.get('type')
-            # Item hanya ditambahkan ke inventory, penggunaannya diatur oleh cog DuniaHidup
-            if item_type == 'protection_shield':
-                inventory_user.append({"name": item['name'], "type": item_type})
-                await interaction.response.send_message(f"Kamu berhasil membeli **{item['name']}**! Item ini ada di inventory-mu dan akan aktif otomatis saat kamu diserang monster.", ephemeral=True)
-            elif item_type == 'gacha_medicine_box':
-                inventory_user.append({"name": item['name'], "type": item_type})
-                await interaction.response.send_message(f"Kamu berhasil membeli **{item['name']}**! Gunakan `!minumobat` untuk berjudi dengan nasibmu.", ephemeral=True)
-            else:
-                 # Jika ada tipe item spesial lain di masa depan
-                inventory_user.append({"name": item['name'], "type": item_type})
-                await interaction.response.send_message(f"✅ Kamu telah membeli `{item['name']}` seharga {item['price']} RSWN!", ephemeral=True)
-            return # Keluar lebih awal untuk menghindari save dobel
-        # ----------------------------------------------------------------------
+            # Cek duplikasi item jika tidak dimaksudkan untuk ditumpuk (misal: satu perisai saja)
+            # Untuk gacha_medicine_box, diasumsikan bisa punya banyak
+            
+            # Kita perlu memastikan item yang ditambahkan ke inventaris memiliki struktur yang sama dengan yang dicari oleh DuniaHidup
+            # Item dari shop_items.json mungkin memiliki banyak kunci (price, description, stock dll)
+            # Sedangkan DuniaHidup hanya mencari {'name': '...', 'type': '...'}
+            # Jadi, kita hanya menyimpan properti yang relevan untuk inventaris
+            inventory_item_to_add = {"name": item['name'], "type": item_type}
+            
+            inventory_user.append(inventory_item_to_add) # Tambahkan item ke inventaris
+            purchase_successful = True # Set status berhasil
 
-        # Logika save yang sudah ada
-        inventory_user.append(item)
-        if item.get("stock", "unlimited") != "unlimited":
-            item["stock"] -= 1
-        save_json(LEVEL_FILE, level_data)
-        save_json(BANK_FILE, bank_data)
-        save_json(INVENTORY_FILE, inventory_data)
-        shop_data = load_json(SHOP_FILE)
-        for cat in shop_data:
-            for i in shop_data[cat]:
-                if i['name'] == item['name']:
-                    i.update(item)
-        save_json(SHOP_FILE, shop_data)
-        await interaction.response.send_message(f"✅ Kamu telah membeli `{item['name']}` seharga {item['price']} RSWN!", ephemeral=True)
+            if item_type == 'protection_shield':
+                message_to_send = f"Kamu berhasil membeli **{item['name']}**! Item ini ada di inventory-mu dan akan aktif otomatis saat kamu diserang monster."
+            elif item_type == 'gacha_medicine_box':
+                message_to_send = f"Kamu berhasil membeli **{item['name']}**! Gunakan `!minumobat` untuk berjudi dengan nasibmu."
+            else: # Jika ada tipe item spesial lain di masa depan
+                message_to_send = f"✅ Kamu telah membeli `{item['name']}` seharga {item['price']} RSWN!"
+
+        # Hanya simpan ke file jika pembelian berhasil
+        if purchase_successful:
+            if item.get("stock", "unlimited") != "unlimited":
+                item["stock"] -= 1 # Kurangi stok item di shop_items.json
+                # Update shop_data global
+                shop_data = load_json(SHOP_FILE)
+                for cat in shop_data:
+                    for i in shop_data[cat]:
+                        if i['name'] == item['name']:
+                            i.update(item) # Update stok item di shop_data
+                save_json(SHOP_FILE, shop_data) # Simpan shop_data
+                
+            save_json(LEVEL_FILE, level_data)
+            save_json(BANK_FILE, bank_data)
+            save_json(INVENTORY_FILE, inventory_data) # Simpan inventory_data
+            
+            await interaction.response.send_message(message_to_send, ephemeral=True)
+        else:
+            await interaction.response.send_message("Terjadi kesalahan saat pembelian. Silakan coba lagi.", ephemeral=True)
 
 
 class ShopCategoryView(discord.ui.View):
@@ -203,13 +234,7 @@ class ShopCategorySelect(discord.ui.Select):
                 field_name = f"{item.get('emoji', '🔹')} {name} — 💰{price} | Stok: {stock_str}"
                 embed.add_field(name=field_name, value=desc, inline=False)
 
-        if category == "badges":
-            if os.path.exists(COLLAGE_FILE):
-                collage_data = load_json(COLLAGE_FILE)
-                collage_url = collage_data.get("collage_url")
-                if collage_url:
-                    embed.set_image(url=collage_url)
-
+        # Pastikan view dibuat baru setiap kali callback dipanggil
         view = discord.ui.View(timeout=60)
         view.add_item(PurchaseDropdown(category, items, self.user_id, self.guild_id))
         view.add_item(BackToCategoryButton(self.shop_data, self.user_id, self.guild_id))
@@ -307,11 +332,25 @@ class Shop(commands.Cog):
             if optional: item["image_url"] = optional
         elif category == "special_items":
             item["type"] = emoji_or_type # Di sini, arg pertama adalah 'tipe' item
-            item["emoji"] = "🛡️" if emoji_or_type == "protection_shield" else "💊"
+            item["emoji"] = "🛡️" if emoji_or_type == "protection_shield" else "💊" # Default emoji
+            # Tambahan untuk gacha_medicine_box, pastikan type di shop_items.json juga sesuai
+            if item["type"] == "gacha_medicine_box":
+                item["emoji"] = "💊" # Emoji khusus untuk obat
+                
+        # Cek apakah item sudah ada di kategori ini berdasarkan nama, jika ada update
+        item_exists = False
+        for i, existing_item in enumerate(shop_data[category]):
+            if existing_item['name'] == item['name']:
+                shop_data[category][i] = item # Update item yang sudah ada
+                item_exists = True
+                break
+        
+        if not item_exists:
+            shop_data[category].append(item) # Tambahkan item jika belum ada
 
-        shop_data[category].append(item)
         save_json(SHOP_FILE, shop_data)
-        await ctx.send(f"✅ Item baru ditambahkan ke kategori **{category}**: **{name}** seharga **{price}** RSWN! 🎉")
+        await ctx.send(f"✅ Item baru/diperbarui di kategori **{category}**: **{name}** seharga **{price}** RSWN! 🎉")
+
 
     @commands.command(name="addcollage")
     @commands.has_permissions(administrator=True)
@@ -322,4 +361,3 @@ class Shop(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Shop(bot))
-
