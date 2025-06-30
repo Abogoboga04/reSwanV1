@@ -158,9 +158,18 @@ class DuniaHidup(commands.Cog):
     async def sick_status_cleaner(self):
         """Membersihkan status 'sakit' dari pengguna yang sudah melewati durasinya."""
         now = datetime.utcnow()
-        guild = self.bot.guilds[0] # Asumsi bot hanya di satu guild
+        
+        # --- PERBAIKAN DI SINI: Tunggu sampai bot siap dan ada guild ---
+        await self.bot.wait_until_ready()
+        if not self.bot.guilds: # Cek apakah ada guild yang terhubung
+            print("sick_status_cleaner: Bot belum terhubung ke guild mana pun, melewatkan pembersihan status sakit.")
+            return
+
+        guild = self.bot.guilds[0] # Asumsi bot hanya di satu guild (ini akan aman setelah pengecekan di atas)
         sick_role = guild.get_role(self.sick_role_id)
-        if not sick_role: return
+        if not sick_role: 
+            print(f"sick_status_cleaner: Role 'Sakit' dengan ID {self.sick_role_id} tidak ditemukan di guild {guild.name}.")
+            return
 
         # Membuat salinan keys untuk menghindari RuntimeError: dictionary changed size during iteration
         users_to_check = list(self.sick_users_cooldown.keys()) 
@@ -168,6 +177,11 @@ class DuniaHidup(commands.Cog):
         for user_id_str in users_to_check:
             user_data = self.sick_users_cooldown.get(user_id_str)
             if not user_data: continue
+
+            # Tambahkan pengecekan tipe data untuk 'sickness_end_time'
+            if not isinstance(user_data.get('sickness_end_time'), str):
+                print(f"Warning: 'sickness_end_time' for user {user_id_str} is not a string. Skipping cleanup for this user.")
+                continue # Lewati pengguna ini jika datanya rusak
 
             sickness_end_time = datetime.fromisoformat(user_data['sickness_end_time'])
             
@@ -780,7 +794,7 @@ class DuniaHidup(commands.Cog):
             embed.set_footer(text="Waspadalah! Penyakit ini tidak mengenal belas kasihan.")
             await channel.send(embed=embed)
         elif channel and not infected_mentions_for_log_and_embed and is_quiz_punishment:
-             await channel.send("Wabah telah menyebar, namun entah kenapa tidak ada yang terinfeksi kali ini... Mungkin nasib sedang berpihak, untuk sementara.")
+             await channel.send("Wabah telah menyebar, namun entah somehow tidak ada yang terinfeksi kali ini... Mungkin nasib sedang berpihak, untuk sementara.")
 
 
     @commands.Cog.listener()
@@ -948,8 +962,9 @@ class DuniaHidup(commands.Cog):
 
         for user_id_str, user_data in list(self.sick_users_cooldown.items()):
             # Pastikan data ada dan memiliki 'sickness_end_time'
-            if 'sickness_end_time' not in user_data:
-                continue
+            # FIX: Tambahkan pengecekan isinstance untuk 'sickness_end_time' di sini juga
+            if 'sickness_end_time' not in user_data or not isinstance(user_data.get('sickness_end_time'), str):
+                continue # Lewati jika data rusak
 
             sickness_end_time = datetime.fromisoformat(user_data['sickness_end_time'])
             
