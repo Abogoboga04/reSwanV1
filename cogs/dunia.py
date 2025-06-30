@@ -138,7 +138,10 @@ class DuniaHidup(commands.Cog):
         self.monsters_data = load_json_from_root('data/monsters.json')
         self.anomalies_data = load_json_from_root('data/world_anomalies.json').get('anomalies', [])
         self.medicines_data = load_json_from_root('data/medicines.json').get('medicines', [])
-        
+
+        # --- PENTING: SET ID GUILD UTAMA ANDA DI SINI ---
+        self.main_guild_id = 765138959625486357 # ID Server Utama Anda
+
         # Memulai tasks loop
         self.world_event_loop.start()
         self.monster_attack_processor.start()
@@ -159,13 +162,14 @@ class DuniaHidup(commands.Cog):
         """Membersihkan status 'sakit' dari pengguna yang sudah melewati durasinya."""
         now = datetime.utcnow()
         
-        # --- PERBAIKAN DI SINI: Tunggu sampai bot siap dan ada guild ---
-        await self.bot.wait_until_ready()
-        if not self.bot.guilds: # Cek apakah ada guild yang terhubung
-            print("sick_status_cleaner: Bot belum terhubung ke guild mana pun, melewatkan pembersihan status sakit.")
+        await self.bot.wait_until_ready() # Pastikan bot sudah online
+
+        # --- Menggunakan self.main_guild_id untuk mendapatkan guild ---
+        guild = self.bot.get_guild(self.main_guild_id) 
+        if not guild: # Jika guild tidak ditemukan (misal bot tidak ada di guild itu, atau ID salah)
+            print(f"sick_status_cleaner: Guild dengan ID {self.main_guild_id} tidak ditemukan. Melewatkan pembersihan status sakit.")
             return
 
-        guild = self.bot.guilds[0] # Asumsi bot hanya di satu guild (ini akan aman setelah pengecekan di atas)
         sick_role = guild.get_role(self.sick_role_id)
         if not sick_role: 
             print(f"sick_status_cleaner: Role 'Sakit' dengan ID {self.sick_role_id} tidak ditemukan di guild {guild.name}.")
@@ -209,6 +213,13 @@ class DuniaHidup(commands.Cog):
     async def world_event_loop(self):
         """Memulai event dunia secara berkala."""
         await self.bot.wait_until_ready() # Pastikan bot sudah online
+        
+        # --- Menggunakan self.main_guild_id untuk mendapatkan guild ---
+        guild = self.bot.get_guild(self.main_guild_id)
+        if not guild:
+            print(f"world_event_loop: Guild dengan ID {self.main_guild_id} tidak ditemukan. Melewatkan event dunia.")
+            return
+
         if self.current_monster or self.active_anomaly: return # Jangan mulai event baru jika ada yang sedang berjalan
 
         event_type = random.choice(['monster', 'anomaly', 'monster_quiz'])
@@ -334,8 +345,12 @@ class DuniaHidup(commands.Cog):
             print(f"Melewatkan serangan monster pada {user_id_to_attack} (dilindungi).")
             return
 
-        # Dapatkan objek guild dan member
-        guild = self.bot.guilds[0] # Asumsi bot hanya di satu guild. Jika tidak, Anda mungkin perlu logika untuk memilih guild yang benar.
+        # --- Menggunakan self.main_guild_id untuk mendapatkan guild ---
+        guild = self.bot.get_guild(self.main_guild_id) 
+        if not guild: # Jika guild tidak ditemukan
+            print(f"monster_attack_processor: Guild dengan ID {self.main_guild_id} tidak ditemukan. Melewatkan serangan monster.")
+            return
+
         member = guild.get_member(int(user_id_to_attack))
         if not member: 
             print(f"Melewatkan serangan monster: Anggota {user_id_to_attack} tidak ditemukan di guild.")
@@ -572,7 +587,12 @@ class DuniaHidup(commands.Cog):
         if anomaly['type'] == 'code_drop': 
             self.bot.loop.create_task(self.code_dropper(anomaly['duration_seconds']))
         elif anomaly['type'] == 'sickness_plague': 
-            await self.start_sickness_plague(channel.guild)
+            # --- Menggunakan self.main_guild_id untuk mendapatkan guild ---
+            guild = self.bot.get_guild(self.main_guild_id)
+            if not guild:
+                print(f"trigger_anomaly: Guild dengan ID {self.main_guild_id} tidak ditemukan. Melewatkan wabah penyakit.")
+                return
+            await self.start_sickness_plague(guild)
 
         # Tunggu sampai anomali berakhir
         await asyncio.sleep(anomaly['duration_seconds'])
@@ -631,7 +651,7 @@ class DuniaHidup(commands.Cog):
     async def trigger_monster_quiz(self):
         """Memicu event kuis monster."""
         channel = self.bot.get_channel(self.event_channel_id)
-        if not channel or not self.monsters_data.get('monster_quiz'): return
+        if not channel: return
         
         quiz_monster = random.choice(self.monsters_data['monster_quiz'])
         self.active_anomaly = quiz_monster # Menggunakan anomaly untuk menandai kuis aktif
@@ -826,11 +846,13 @@ class DuniaHidup(commands.Cog):
                     time_left_cooldown = cooldown - (now - last_message_time)
                     
                     # Hitung sisa durasi sakit
-                    sickness_end_time = datetime.fromisoformat(user_sickness_data['sickness_end_time'])
+                    # FIX: Pengecekan isinstance ditambahkan di sini juga
+                    sickness_end_time = datetime.fromisoformat(user_sickness_data['sickness_end_time']) if isinstance(user_sickness_data.get('sickness_end_time'), str) else now # Fallback to now if corrupted
+                    
                     time_left_sickness = sickness_end_time - now
                     
-                    # Format sisa waktu sakit agar mudah dibaca
-                    total_seconds_sickness = int(time_left_sickness.total_seconds())
+                    # Format sisa waktu sakit agar mudah dibaca (pastikan tidak negatif)
+                    total_seconds_sickness = max(0, int(time_left_sickness.total_seconds()))
                     hours_sickness = total_seconds_sickness // 3600
                     minutes_sickness = (total_seconds_sickness % 3600) // 60
                     seconds_sickness = total_seconds_sickness % 60
@@ -838,8 +860,12 @@ class DuniaHidup(commands.Cog):
                     sickness_time_str = []
                     if hours_sickness > 0: sickness_time_str.append(f"{hours_sickness} jam")
                     if minutes_sickness > 0: sickness_time_str.append(f"{minutes_sickness} menit")
-                    if seconds_sickness > 0 or not sickness_time_str: sickness_time_str.append(f"{seconds_sickness} detik")
+                    # Hanya tampilkan detik jika kurang dari 1 menit atau jika tidak ada jam/menit
+                    if seconds_sickness > 0 or (not hours_sickness and not minutes_sickness): sickness_time_str.append(f"{seconds_sickness} detik")
                     
+                    # Jika time_str masih kosong (misal total_seconds_sickness 0), set default
+                    if not sickness_time_str: sickness_time_str.append("segera pulih")
+
                     try:
                         # Hapus pesan pengguna dan kirim DM peringatan
                         await message.delete()
