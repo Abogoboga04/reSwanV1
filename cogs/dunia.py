@@ -120,6 +120,10 @@ class DuniaHidup(commands.Cog):
         self.attacked_users_log = [] # New: Untuk melacak user yang diserang monster
         self.last_event_type = None # New: Untuk melacak jenis event terakhir
 
+        # Tambahkan flag untuk hukuman quiz
+        self.quiz_punishment_active = False
+        self.quiz_punishment_details = {} # Untuk menyimpan detail hukuman (misal: multiplier, duration, type_of_punishment)
+
         # Ganti dengan ID channel pengumuman di server Discord Anda
         self.event_channel_id = 765140300145360896 
         # Ganti dengan ID role 'Sakit' di server Discord Anda
@@ -160,10 +164,22 @@ class DuniaHidup(commands.Cog):
     async def protection_cleaner(self):
         """Membersihkan perlindungan pengguna yang sudah kadaluarsa."""
         now = datetime.utcnow()
+        # Membersihkan perlindungan normal
         expired_users = [uid for uid, expiry in list(self.protected_users.items()) if now >= datetime.fromisoformat(expiry)]
         for uid in expired_users:
             del self.protected_users[uid]
         if expired_users: save_json_to_root(self.protected_users, 'data/protected_users.json')
+
+        # Membersihkan hukuman kuis jika sudah kadaluarsa
+        if self.quiz_punishment_active and self.quiz_punishment_details.get('end_time'):
+            if now >= datetime.fromisoformat(self.quiz_punishment_details['end_time']):
+                self.quiz_punishment_active = False
+                self.quiz_punishment_details = {}
+                channel = self.bot.get_channel(self.event_channel_id)
+                if channel:
+                    await channel.send("✅ **Dampak kegagalan kuis telah berakhir.** Server kembali ke keadaan normal. Untuk sementara...")
+                print("Hukuman kuis telah berakhir.")
+
 
     async def spawn_monster(self):
         """Memunculkan monster baru di channel event."""
@@ -216,16 +232,21 @@ class DuniaHidup(commands.Cog):
         # Urutkan berdasarkan total score tertinggi
         user_scores.sort(key=lambda x: x[0], reverse=True)
         
-        # Ambil hingga 15 pengguna teratas yang memiliki EXP/RSWN
-        top_users_ids = [uid for score, uid in user_scores[:15]]
-
+        # Tentukan jumlah target berdasarkan status hukuman kuis
+        num_targets_base = 3
+        if self.quiz_punishment_active and self.quiz_punishment_details.get('type') == 'increased_attack':
+            num_targets = min(len(user_scores), num_targets_base + self.quiz_punishment_details.get('extra_targets', 5)) # Misal 3 + 5 = 8 target
+        else:
+            num_targets = min(len(user_scores), num_targets_base)
+        
+        top_users_ids = [uid for score, uid in user_scores[:num_targets]]
+        
         if not top_users_ids:
-            print("Tidak ada target layak untuk serangan monster (top 15 EXP/RSWN). Dunia ini terlalu aman...")
+            print("Tidak ada target layak untuk serangan monster (top EXP/RSWN). Dunia ini terlalu aman...")
             return
         
-        # Pilih 3 target acak dari top_users_ids (atau kurang jika kurang dari 3 pengguna di daftar)
-        num_targets = min(len(top_users_ids), 3)
-        targets = random.sample(top_users_ids, num_targets)
+        # Pilih target acak dari top_users_ids
+        targets = random.sample(top_users_ids, min(len(top_users_ids), num_targets)) # Pastikan tidak memilih lebih dari yang ada
         
         now = datetime.utcnow()
         # Jadwalkan serangan dengan waktu yang berbeda untuk setiap target
@@ -261,8 +282,14 @@ class DuniaHidup(commands.Cog):
             print(f"Melewatkan serangan monster: Anggota {user_id_to_attack} tidak ditemukan di guild.")
             return # Lewati jika member tidak ditemukan di guild
 
-        # Tentukan jumlah EXP dan RSWN yang hilang secara acak
-        exp_loss, rswn_loss = random.randint(250, 500), random.randint(250, 500)
+        # Tentukan multiplier kerugian berdasarkan status hukuman kuis
+        loss_multiplier = 1
+        if self.quiz_punishment_active and self.quiz_punishment_details.get('type') == 'increased_attack':
+            loss_multiplier = self.quiz_punishment_details.get('loss_multiplier', 2) # Default 2x
+
+        # Tentukan jumlah EXP dan RSWN yang hilang secara acak, lalu terapkan multiplier
+        exp_loss = random.randint(250, 500) * loss_multiplier
+        rswn_loss = random.randint(250, 500) * loss_multiplier
         
         # Muat data EXP dan Bank
         level_data = load_json_from_root('data/level_data.json')
@@ -578,14 +605,48 @@ class DuniaHidup(commands.Cog):
             save_json_to_root(bank_data, 'data/bank_data.json')
             save_json_to_root(level_data, 'data/level_data.json')
 
-        except asyncio.TimeoutError:
-            await channel.send(f"Waktu habis! Tidak ada yang bisa menjawab. Jawaban yang benar adalah: **{quiz_monster['answer']}**. Kutukan telah menimpa server ini! Rasakan kehampaan!")
-            # Anda bisa menambahkan efek negatif di sini jika tidak ada yang menjawab
-            # Contoh: Mengurangi sejumlah kecil EXP dari beberapa pengguna acak di server
-        
-        self.active_anomaly = None # Reset anomali setelah kuis selesai
+            # Jika kuis berhasil dijawab, pastikan hukuman dinonaktifkan
+            self.quiz_punishment_active = False
+            self.quiz_punishment_details = {}
 
-    async def start_sickness_plague(self, guild):
+        except asyncio.TimeoutError:
+            guild = channel.guild # Mendapatkan objek guild
+            
+            # --- AKTIFKAN HUKUMAN: SERANGAN MENINGKAT & WABAH SAKIT ---
+            self.quiz_punishment_active = True
+            self.quiz_punishment_details = {
+                'type': 'combined_punishment', # Jenis hukuman baru
+                'extra_targets': 5, # Menargetkan 5 orang tambahan dari top user
+                'loss_multiplier': 2, # Mengurangi EXP/RSWN 2x lipat
+                'infect_users': True, # Flag untuk mengaktifkan wabah
+                'end_time': (datetime.utcnow() + timedelta(hours=3)).isoformat() # Berlangsung 3 jam
+            }
+
+            # Pesan Teror yang Lebih Mengerikan
+            await channel.send(f"Waktu habis! Tidak ada yang bisa menjawab. Jawaban yang benar adalah: **{quiz_monster['answer']}**.")
+            
+            teror_embed = discord.Embed(
+                title="☠️ KUTUKAN TAK TERHINDARKAN! KEGAGALANMU TELAH MEMBAWA BENCANA! ☠️",
+                description=(
+                    f"**Seluruh server akan merasakan akibat dari kebodohanmu!** "
+                    f"Bayangan monster akan menyerang **lebih banyak penduduk** dengan **kerugian harta dan jiwa 2x lipat**!\n\n"
+                    f"Dan sebagai sentuhan akhir dari keputusasaan, **wabah penyakit akan menyebar!** "
+                    f"Bersiaplah untuk penderitaan yang tak terelakkan selama **3 jam** ke depan! Tidak ada yang aman!"
+                ),
+                color=discord.Color.dark_red()
+            )
+            teror_embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/An5.jpg") # Gambar yang lebih menyeramkan
+            teror_embed.set_footer(text="Penyesalan kini menghantuimu. Rasakan teror yang telah kau ciptakan!")
+            await channel.send(embed=teror_embed)
+            
+            print("Hukuman kuis: Peningkatan serangan monster, kerugian 2x lipat, dan wabah penyakit diaktifkan.")
+
+            # SEBARKAN WABAH SAKIT
+            await self.start_sickness_plague(guild, is_quiz_punishment=True) # Tambahkan argumen baru
+
+            self.active_anomaly = None # Reset anomali setelah kuis selesai
+
+    async def start_sickness_plague(self, guild, is_quiz_punishment=False): # Tambahkan argumen baru
         """Menyebarkan wabah penyakit ke pengguna aktif."""
         level_data = load_json_from_root('data/level_data.json').get(str(guild.id), {})
         # Filter pengguna yang aktif dalam 3 hari terakhir dan masih ada di guild
@@ -595,7 +656,12 @@ class DuniaHidup(commands.Cog):
             and guild.get_member(int(uid)) # Pastikan member masih ada di guild
         ]
         
-        num_to_infect = min(len(active_users), random.randint(3, 7)) # Infeksi antara 3 hingga 7 pengguna
+        # Jika dipicu oleh hukuman kuis, infeksi lebih banyak orang
+        if is_quiz_punishment:
+            num_to_infect = min(len(active_users), random.randint(7, 12)) # Infeksi antara 7 hingga 12 pengguna
+        else:
+            num_to_infect = min(len(active_users), random.randint(3, 7)) # Infeksi antara 3 hingga 7 pengguna
+        
         if num_to_infect == 0: return # Tidak ada yang bisa diinfeksi
 
         infected_users_ids = random.sample(active_users, num_to_infect)
@@ -608,13 +674,16 @@ class DuniaHidup(commands.Cog):
         infected_mentions = []
         for user_id in infected_users_ids:
             member = guild.get_member(int(user_id))
-            if member:
+            if member and sick_role not in member.roles: # Hanya infeksi yang belum sakit
                 await member.add_roles(role)
                 infected_mentions.append(member.mention)
         
         channel = self.bot.get_channel(self.event_channel_id)
-        if channel and infected_mentions:
+        if channel and infected_mentions and not is_quiz_punishment: # Hanya kirim pesan jika bukan hukuman kuis karena pesan sudah ada di embed teror
             await channel.send(f"😷 **WABAH KEJI MENYEBAR!** {', '.join(infected_mentions)} telah jatuh sakit. Interaksi mereka akan terbatas. Cepat cari obat di `!shop` sebelum terlambat!")
+        elif channel and infected_mentions and is_quiz_punishment:
+            # Tidak perlu pesan tambahan di sini karena sudah ada di embed teror
+            pass
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -710,6 +779,35 @@ class DuniaHidup(commands.Cog):
         else:
             await asyncio.sleep(2)
             await ctx.send("Sayang sekali... obatnya tidak bekerja. Kamu masih merasa pusing, mual, dan tak berdaya. Coba lagi lain kali, jika kau masih hidup.")
+
+    @commands.command(name="sembuhkan")
+    @commands.has_permissions(administrator=True) # Hanya admin yang bisa menggunakan command ini
+    async def sembuhkan(self, ctx, member: discord.Member):
+        """
+        [ADMIN ONLY] Menyembuhkan pengguna secara instan dari status 'Sakit'
+        dan menghilangkan cooldown pesan mereka.
+        """
+        sick_role = ctx.guild.get_role(self.sick_role_id)
+
+        if not sick_role:
+            return await ctx.send("⚠️ Error: Role 'Sakit' tidak ditemukan di server ini. Pastikan ID role sudah benar.", ephemeral=True)
+
+        if sick_role not in member.roles:
+            return await ctx.send(f"{member.display_name} ({member.mention}) tidak sedang sakit.", ephemeral=True)
+
+        try:
+            await member.remove_roles(sick_role)
+            if member.id in self.sick_users_cooldown:
+                del self.sick_users_cooldown[member.id]
+            
+            await ctx.send(f"✨ **Kekuatan admin telah menyembuhkan!** {member.display_name} ({member.mention}) telah pulih dari sakitnya!")
+            print(f"Admin {ctx.author.display_name} menyembuhkan {member.display_name}.")
+
+        except discord.Forbidden:
+            await ctx.send("❌ Aku tidak punya izin untuk menghapus role dari pengguna ini. Pastikan role bot di atas role 'Sakit'.", ephemeral=True)
+        except Exception as e:
+            await ctx.send(f"❌ Terjadi kesalahan saat mencoba menyembuhkan {member.display_name}: {e}", ephemeral=True)
+
 
 async def setup(bot):
     """Fungsi setup untuk menambahkan cog ke bot."""
