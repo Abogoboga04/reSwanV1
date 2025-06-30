@@ -9,20 +9,16 @@ from datetime import datetime, time, timedelta
 # Helper Functions to handle JSON data from the bot's root directory
 def load_json_from_root(file_path):
     try:
-        # Menyesuaikan agar path root selalu mengarah ke direktori bot utama
-        # Misal jika file ini ada di cogs/game.py, maka rootnya adalah direktori di atas cogs
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         full_path = os.path.join(base_dir, file_path)
-        # Pastikan direktori ada sebelum mencoba membaca
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         print(f"Peringatan: Tidak dapat memuat {file_path}. Pastikan file ada dan formatnya benar.")
-        return [] # Mengembalikan list kosong untuk kasus file tidak ditemukan atau error JSON
+        return []
 
 def save_json_to_root(data, file_path):
-    # Menyesuaikan agar path root selalu mengarah ke direktori bot utama
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     full_path = os.path.join(base_dir, file_path)
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -86,12 +82,8 @@ class UltimateGameArena(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_games = set()
-        
-        # Inisialisasi dictionary untuk menyimpan status game mata-mata
-        # Ini akan membantu melacak game mana yang aktif dan apakah fase diskusi sudah berakhir
-        self.spyfall_game_states = {} # {channel_id: {'spy': member, 'location': str, 'players': [members], 'discussion_over': bool}}
+        self.spyfall_game_states = {} # {channel_id: {'spy': member, 'location': str, 'players': [members], 'discussion_start_time': datetime, 'vote_in_progress': bool}}
 
-        # Load data untuk game
         self.siapakah_aku_data = load_json_from_root('data/siapakah_aku.json')
         self.pernah_gak_pernah_data = load_json_from_root('data/pernah_gak_pernah.json')
         self.hitung_cepat_data = load_json_from_root('data/hitung_cepat.json')
@@ -104,13 +96,12 @@ class UltimateGameArena(commands.Cog):
         self.reward = {"rsw": 50, "exp": 100}
         self.daily_puzzle = None
         self.daily_puzzle_solvers = set()
-        self.daily_puzzle_channel_id = 765140300145360896  # Ganti dengan ID channel Anda
+        self.daily_puzzle_channel_id = 765140300145360896 # Ganti dengan ID channel Anda
         self.post_daily_puzzle.start()
 
     def cog_unload(self):
         self.post_daily_puzzle.cancel()
 
-    # --- Fungsi untuk mendapatkan multiplier ---
     def get_anomaly_multiplier(self):
         dunia_cog = self.bot.get_cog('DuniaHidup')
         if dunia_cog and dunia_cog.active_anomaly and dunia_cog.active_anomaly.get('type') == 'exp_boost':
@@ -125,7 +116,7 @@ class UltimateGameArena(commands.Cog):
             "exp": int(original_reward['exp'] * anomaly_multiplier)
         }
         self.give_rewards(user, guild_id)
-        self.reward = original_reward # Kembalikan reward ke nilai semula setelah digunakan
+        self.reward = original_reward
         if anomaly_multiplier > 1 and channel:
             await channel.send(f"✨ **BONUS ANOMALI!** {user.mention} mendapatkan hadiah yang dilipatgandakan!", delete_after=15)
 
@@ -150,33 +141,23 @@ class UltimateGameArena(commands.Cog):
 
     def end_game_cleanup(self, channel_id):
         self.active_games.discard(channel_id)
-        # Pastikan juga menghapus dari state spyfall jika game yang diakhiri adalah spyfall
         if channel_id in self.spyfall_game_states:
             del self.spyfall_game_states[channel_id]
 
-    # --- GAME 1: SIAPAKAH AKU? ---
+    # --- GAME 1: SIAPAKAH AKU? (Tidak ada perubahan) ---
     @commands.command(name="siapakahaku", help="Mulai sesi 10 soal tebak-tebakan kompetitif.")
     @commands.cooldown(1, 60, commands.BucketType.channel)
     async def siapakahaku(self, ctx):
-        if not await self.start_game_check(ctx):
-            return
-        
+        if not await self.start_game_check(ctx): return
         if len(self.siapakah_aku_data) < 10:
             await ctx.send("Tidak cukup soal di database untuk memulai sesi (butuh minimal 10).")
             self.end_game_cleanup(ctx.channel.id)
             return
-            
         questions = random.sample(self.siapakah_aku_data, 10)
         leaderboard = {}
-        
-        game_start_embed = discord.Embed(
-            title="🕵️‍♂️ Sesi Kuis 'Siapakah Aku?' Dimulai!",
-            description="Akan ada **10 soal** berturut-turut. Petunjuk akan muncul setiap **10 detik**.",
-            color=0x1abc9c
-        )
+        game_start_embed = discord.Embed(title="🕵️‍♂️ Sesi Kuis 'Siapakah Aku?' Dimulai!", description="Akan ada **10 soal** berturut-turut. Petunjuk akan muncul setiap **10 detik**.", color=0x1abc9c)
         await ctx.send(embed=game_start_embed)
         await asyncio.sleep(5)
-
         for i, item in enumerate(questions):
             word = item['name'].lower()
             clues = item['clues']
@@ -184,21 +165,13 @@ class UltimateGameArena(commands.Cog):
             timed_out_users = set()
             winner = None
             round_over = False
-
-            embed = discord.Embed(
-                title=f"SOAL #{i+1} dari 10",
-                description=f"Kategori: **{item['category']}**",
-                color=0x1abc9c
-            )
+            embed = discord.Embed(title=f"SOAL #{i+1} dari 10", description=f"Kategori: **{item['category']}**", color=0x1abc9c)
             embed.set_footer(text="Anda punya 5x kesempatan menjawab salah per soal!")
             msg = await ctx.send(embed=embed)
-
             for clue_index, clue in enumerate(clues):
                 if round_over: break
-
                 embed.add_field(name=f"Petunjuk #{clue_index + 1}", value=f"_{clue}_", inline=False)
                 await msg.edit(embed=embed)
-
                 try:
                     async def listen_for_answer():
                         nonlocal winner, round_over
@@ -213,42 +186,32 @@ class UltimateGameArena(commands.Cog):
                                 await message.add_reaction("❌")
                                 user_attempts = attempts.get(message.author.id, 0) + 1
                                 attempts[message.author.id] = user_attempts
-                                
                                 if user_attempts >= 5:
                                     timed_out_users.add(message.author.id)
                                     try:
-                                        # Pastikan bot punya izin untuk timeout
                                         await message.author.timeout(timedelta(seconds=60), reason="Melebihi batas percobaan di game")
                                         await ctx.send(f"🚨 {message.author.mention}, Anda kehabisan kesempatan & di-timeout sementara.", delete_after=10)
                                     except discord.Forbidden:
                                         await ctx.send(f"🚨 {message.author.mention}, Anda kehabisan kesempatan di ronde ini.", delete_after=10)
-                    
                     await asyncio.wait_for(listen_for_answer(), timeout=10.0)
-
                 except asyncio.TimeoutError:
                     if clue_index == len(clues) - 1:
                         await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{item['name']}**.")
                     else:
                         continue
-
             if winner:
                 await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
                 await ctx.send(f"🎉 **Benar!** {winner.mention} berhasil menebak **{item['name']}**!")
                 leaderboard[winner.name] = leaderboard.get(winner.name, 0) + 1
-
-            # Mengembalikan timeout setelah ronde berakhir untuk semua pemain yang di-timeout
             for user_id in timed_out_users:
                 member = ctx.guild.get_member(user_id)
                 if member:
                     try:
                         await member.timeout(None, reason="Ronde game telah berakhir.")
-                    except discord.Forbidden: # Bot mungkin tidak memiliki izin untuk menghilangkan timeout
-                        pass
-
+                    except discord.Forbidden: pass
             if i < len(questions) - 1:
                 await ctx.send(f"Soal berikutnya dalam **5 detik**...", delete_after=4.5)
                 await asyncio.sleep(5)
-        
         if leaderboard:
             sorted_leaderboard = sorted(leaderboard.items(), key=lambda item: item[1], reverse=True)
             leaderboard_text = "\n".join([f"{rank}. {name}: **{score}** poin" for rank, (name, score) in enumerate(sorted_leaderboard, 1)])
@@ -256,32 +219,28 @@ class UltimateGameArena(commands.Cog):
             await ctx.send(embed=final_embed)
         else:
             await ctx.send("Sesi game berakhir tanpa ada pemenang.")
-            
         self.end_game_cleanup(ctx.channel.id)
 
-    # --- GAME 2: PERNAH GAK PERNAH ---
+    # --- GAME 2: PERNAH GAK PERNAH (Tidak ada perubahan) ---
     @commands.command(name="pernahgak", help="Mulai game 'Pernah Gak Pernah' di voice channelmu.")
     @commands.cooldown(1, 30, commands.BucketType.channel)
     async def pernahgak(self, ctx):
-        if not ctx.author.voice or not ctx.author.voice.channel:
-            return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", delete_after=10)
+        if not ctx.author.voice or not ctx.author.voice.channel: return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", delete_after=10)
         vc = ctx.author.voice.channel
         members = [m for m in vc.members if not m.bot]
-        if len(members) < 2:
-            return await ctx.send("Game ini butuh minimal 2 orang di voice channel.", delete_after=10)
+        if len(members) < 2: return await ctx.send("Game ini butuh minimal 2 orang di voice channel.", delete_after=10)
         if not await self.start_game_check(ctx): return
         statement = random.choice(self.pernah_gak_pernah_data)
         embed = discord.Embed(title="🤔 Pernah Gak Pernah...", description=f"## _{statement}_", color=0xf1c40f)
         embed.set_footer(text="Jawab dengan jujur menggunakan reaksi di bawah! Semua peserta dapat hadiah.")
         msg = await ctx.send(embed=embed)
         await msg.add_reaction("✅"); await msg.add_reaction("❌")
-        await asyncio.sleep(20) # Waktu untuk bereaksi
+        await asyncio.sleep(20)
         try:
             cached_msg = await ctx.channel.fetch_message(msg.id)
             pernah_count, gak_pernah_count, rewarded_users = 0, 0, set()
             for reaction in cached_msg.reactions:
                 if str(reaction.emoji) in ["✅", "❌"]:
-                    # Kurangi 1 dari count reaksi karena bot juga menambahkan reaksi
                     if str(reaction.emoji) == "✅": pernah_count = reaction.count - 1
                     if str(reaction.emoji) == "❌": gak_pernah_count = reaction.count - 1
                     async for user in reaction.users():
@@ -295,7 +254,7 @@ class UltimateGameArena(commands.Cog):
         except discord.NotFound: await ctx.send("Pesan game tidak ditemukan.")
         self.end_game_cleanup(ctx.channel.id)
 
-    # --- GAME 3: HITUNG CEPAT ---
+    # --- GAME 3: HITUNG CEPAT (Tidak ada perubahan) ---
     @commands.command(name="hitungcepat", help="Selesaikan soal matematika secepat mungkin!")
     @commands.cooldown(1, 15, commands.BucketType.channel)
     async def hitungcepat(self, ctx):
@@ -310,10 +269,8 @@ class UltimateGameArena(commands.Cog):
                     message = await self.bot.wait_for("message", check=lambda m: m.channel == ctx.channel and not m.author.bot)
                     if message.content.strip() == answer: return message
                     else:
-                        # Hanya bereaksi dengan silang jika inputnya mirip angka (bukan chat biasa)
-                        if message.content.strip().replace('-', '').isdigit(): 
-                            await message.add_reaction("❌")
-            winner_msg = await asyncio.wait_for(listen_for_math_answer(), timeout=30.0) # Waktu untuk menjawab
+                        if message.content.strip().replace('-', '').isdigit(): await message.add_reaction("❌")
+            winner_msg = await asyncio.wait_for(listen_for_math_answer(), timeout=30.0)
             winner = winner_msg.author
             await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
             await ctx.send(f"⚡ **Luar Biasa Cepat!** {winner.mention} menjawab **{answer}** dengan benar!")
@@ -321,9 +278,9 @@ class UltimateGameArena(commands.Cog):
             await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{answer}**.")
         self.end_game_cleanup(ctx.channel.id)
 
-    # --- GAME 4: MATA-MATA ---
+    # --- GAME 4: MATA-MATA (Perubahan besar di sini) ---
     @commands.command(name="matamata", help="Mulai game Mata-Mata. Temukan siapa mata-matanya!")
-    @commands.cooldown(1, 300, commands.BucketType.channel) # Cooldown lebih panjang karena game lebih lama
+    @commands.cooldown(1, 300, commands.BucketType.channel)
     async def matamata(self, ctx):
         if not await self.start_game_check(ctx): return
         if not ctx.author.voice or not ctx.author.voice.channel: return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", delete_after=10)
@@ -331,7 +288,6 @@ class UltimateGameArena(commands.Cog):
         members = [m for m in vc.members if not m.bot]
         if len(members) < 3: return await ctx.send("Game ini butuh minimal 3 orang di voice channel.", delete_after=10)
         
-        # Inisialisasi game state untuk channel ini
         if ctx.channel.id in self.spyfall_game_states:
             return await ctx.send("Game Mata-Mata sudah berjalan di channel ini.", delete_after=10)
 
@@ -342,10 +298,10 @@ class UltimateGameArena(commands.Cog):
             'spy': spy,
             'location': location,
             'players': members,
-            'discussion_over': False # Flag untuk menandakan apakah diskusi sudah selesai
+            'discussion_start_time': datetime.now(), # Waktu mulai diskusi
+            'vote_in_progress': False 
         }
 
-        # Kirim DM ke setiap pemain
         failed_dms = []
         for member in members:
             try:
@@ -358,112 +314,176 @@ class UltimateGameArena(commands.Cog):
         
         if failed_dms:
             await ctx.send(f"Gagal memulai game karena tidak bisa mengirim DM ke: {', '.join(failed_dms)}. Pastikan DM-nya terbuka."); 
-            self.end_game_cleanup(ctx.channel.id) # Cleanup game di channel ini
+            self.end_game_cleanup(ctx.channel.id)
             return
 
         embed = discord.Embed(title="🎭 Game Mata-Mata Dimulai!", color=0x7289da)
         embed.description = "Peran dan lokasi telah dikirim melalui DM. Salah satu dari kalian adalah mata-mata!\n\n" \
                             "**Tujuan Pemain Biasa:** Temukan mata-mata.\n" \
                             "**Tujuan Mata-Mata:** Bertahan tanpa ketahuan & menebak lokasi.\n\n" \
-                            "Waktu diskusi: **5 menit**. Gunakan `!tuduh @user` untuk menuduh di akhir.\n\n" \
+                            "Waktu diskusi: **5 menit**. Kalian bisa `!tuduh @user` kapan saja (akan memicu voting).\n\n" \
                             "**Diskusi bisa dimulai sekarang!**"
-        embed.set_footer(text="Setelah 5 menit, fase penuduhan akan dimulai.")
-        await ctx.send(embed=embed)
+        embed.set_footer(text="Jika 5 menit habis, fase penuduhan akhir dimulai, atau mata-mata bisa coba menebak lokasi.")
+        game_start_message = await ctx.send(embed=embed)
         
-        # Tunggu 5 menit untuk diskusi (300 detik)
-        await asyncio.sleep(300) 
-        
-        # Setelah diskusi 5 menit, perbarui status game
-        if ctx.channel.id in self.spyfall_game_states:
-            self.spyfall_game_states[ctx.channel.id]['discussion_over'] = True
-            
-            # Beri tahu pemain bahwa waktu diskusi sudah habis
-            await ctx.send(f"⏰ **Waktu diskusi habis!** Sekarang adalah fase penuduhan. "
-                           f"Pemain biasa bisa menggunakan `!tuduh @nama_pemain` untuk menuduh mata-mata.\n"
-                           f"Mata-mata ({spy.mention}) bisa menggunakan `!ungkap_lokasi <lokasi>` untuk mencoba menebak lokasi. "
-                           f"Jika mata-mata menebak lokasi dengan benar dan belum dituduh, mata-mata menang! "
-                           f"Jika tidak ada yang menuduh atau mata-mata tidak menebak lokasi dalam waktu tertentu, mata-mata menang."
-                           f"\n\n**Permainan akan berakhir otomatis dalam 2 menit jika tidak ada aktivitas tuduhan atau pengungkapan lokasi.**")
-            
-            # Tambahkan timer untuk fase penuduhan/pengungkapan lokasi
-            # Jika dalam 2 menit tidak ada aksi, mata-mata menang secara default
-            try:
-                await asyncio.sleep(120) # 2 menit untuk fase penuduhan
-                if ctx.channel.id in self.spyfall_game_states and self.spyfall_game_states[ctx.channel.id]['discussion_over']:
-                    # Jika masih aktif dan belum ada yang menang/kalah, mata-mata menang
-                    await ctx.send(f"Waktu penuduhan habis! Mata-mata ({spy.mention}) menang karena tidak ada yang berhasil menuduh atau mata-mata tidak mengungkapkan lokasi! Lokasi sebenarnya adalah **{location}**.")
-                    await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
-            except asyncio.CancelledError:
-                # Ini akan terjadi jika game diakhiri oleh !tuduh atau !ungkap_lokasi
-                pass
-        
-        self.end_game_cleanup(ctx.channel.id) # Pastikan game dibersihkan setelah ini
+        # Simpan pesan ini untuk referensi nanti, jika diperlukan
+        self.spyfall_game_states[ctx.channel.id]['game_start_message_id'] = game_start_message.id
+
+        try:
+            # Main game loop untuk diskusi dan voting
+            while True:
+                elapsed_time = (datetime.now() - self.spyfall_game_states[ctx.channel.id]['discussion_start_time']).total_seconds()
+                
+                # Cek apakah waktu diskusi 5 menit sudah habis
+                if elapsed_time >= 300: # 5 menit = 300 detik
+                    await ctx.send(f"⏰ **Waktu diskusi 5 menit habis!** Sekarang adalah fase penuduhan akhir. "
+                                   f"Pemain biasa bisa menggunakan `!tuduh @nama_pemain` untuk voting.\n"
+                                   f"Mata-mata ({spy.mention}) bisa menggunakan `!ungkap_lokasi <lokasi>` untuk mencoba menebak lokasi. "
+                                   f"Jika mata-mata menebak lokasi dengan benar dan belum dituduh, mata-mata menang! "
+                                   f"\n\n**Permainan akan berakhir otomatis dalam 2 menit jika tidak ada aktivitas tuduhan atau pengungkapan lokasi.**")
+                    
+                    # Berikan 2 menit tambahan untuk fase akhir
+                    await asyncio.sleep(120)
+                    # Jika game masih aktif setelah 2 menit, mata-mata menang default
+                    if ctx.channel.id in self.spyfall_game_states:
+                        await ctx.send(f"Waktu penuduhan habis! Mata-mata ({spy.mention}) menang karena tidak ada yang berhasil menuduh atau mata-mata tidak mengungkapkan lokasi! Lokasi sebenarnya adalah **{location}**.")
+                        await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
+                    break # Keluar dari loop game
+                
+                # Jika waktu belum habis, tunggu sebentar sebelum cek lagi atau biarkan perintah lain yang memicu voting
+                await asyncio.sleep(5) # Tunggu sebentar sebelum cek kondisi lagi
+                
+                # Jika game diakhiri oleh !tuduh atau !ungkap_lokasi, loop akan terputus karena channel_id dihapus dari state
+                if ctx.channel.id not in self.spyfall_game_states:
+                    break
+
+        except asyncio.CancelledError:
+            # Ini akan terjadi jika game dibersihkan oleh end_game_cleanup dari perintah lain
+            pass
+        finally:
+            self.end_game_cleanup(ctx.channel.id)
+
 
     @commands.command(name="tuduh", help="Tuduh seseorang sebagai mata-mata.")
     async def tuduh(self, ctx, member: discord.Member):
-        # Pastikan game aktif dan fase diskusi sudah berakhir
-        if ctx.channel.id not in self.spyfall_game_states or not self.spyfall_game_states[ctx.channel.id]['discussion_over']:
-            return await ctx.send("Game Mata-Mata belum dimulai atau waktu diskusi belum habis. Tunggu hingga fase penuduhan!", ephemeral=True)
+        if ctx.channel.id not in self.spyfall_game_states:
+            return await ctx.send("Game Mata-Mata belum dimulai di channel ini.", ephemeral=True)
         
         game = self.spyfall_game_states[ctx.channel.id]
         spy, location, players = game['spy'], game['location'], game['players']
 
-        # Pastikan penuduh dan yang dituduh adalah pemain yang sah
         if ctx.author not in players or member not in players: 
             return await ctx.send("Hanya pemain yang berpartisipasi yang bisa menuduh atau dituduh.", ephemeral=True)
         
-        await ctx.send(f"🚨 **VOTING AKHIR!** {ctx.author.mention} menuduh {member.mention} sebagai mata-mata.")
+        # Cek apakah sedang ada voting lain
+        if game['vote_in_progress']:
+            return await ctx.send("Saat ini sedang ada voting lain. Tunggu sampai selesai.", ephemeral=True)
+
+        game['vote_in_progress'] = True # Set flag voting sedang berjalan
         
-        # Logika kemenangan
-        if member.id == spy.id:
-            await ctx.send(f"**Tuduhan Benar!** {member.mention} memang mata-matanya. Lokasinya adalah **{location}**. Selamat kepada tim warga, kalian semua mendapat hadiah!")
-            for p in players:
-                if p.id != spy.id: # Beri reward kepada semua pemain non-mata-mata
-                    await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
-        else:
-            await ctx.send(f"**Tuduhan Salah!** {member.mention} bukan mata-matanya. **Mata-mata ({spy.mention}) menang!** Lokasinya adalah **{location}**.")
-            await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
+        vote_embed = discord.Embed(
+            title="🗳️ VOTING UNTUK MATA-MATA!",
+            description=f"{ctx.author.mention} menuduh {member.mention} sebagai mata-mata!\n\n"
+                        f"**Setuju (✅) atau Tidak Setuju (❌)?**",
+            color=discord.Color.red()
+        )
+        vote_embed.set_footer(text="Voting akan berakhir dalam 30 detik. Mayoritas menentukan.")
+        
+        vote_msg = await ctx.send(embed=vote_embed)
+        await vote_msg.add_reaction("✅")
+        await vote_msg.add_reaction("❌")
+        
+        # Tunggu 30 detik untuk voting
+        await asyncio.sleep(30) 
+        
+        try:
+            cached_vote_msg = await ctx.channel.fetch_message(vote_msg.id)
+            yes_votes = 0
+            no_votes = 0
+            voters = set()
+
+            # Hitung suara dari pemain yang valid (bukan bot, bukan penuduh, bukan yang dituduh)
+            # Dan pastikan pemain tersebut memang bagian dari game saat ini
+            for reaction in cached_vote_msg.reactions:
+                if str(reaction.emoji) == "✅":
+                    async for user_reaction in reaction.users():
+                        if not user_reaction.bot and user_reaction.id != ctx.author.id and user_reaction.id != member.id and user_reaction in players:
+                            yes_votes += 1
+                            voters.add(user_reaction.id)
+                elif str(reaction.emoji) == "❌":
+                    async for user_reaction in reaction.users():
+                        if not user_reaction.bot and user_reaction.id != ctx.author.id and user_reaction.id != member.id and user_reaction in players:
+                            no_votes += 1
+                            voters.add(user_reaction.id)
             
-        self.end_game_cleanup(ctx.channel.id) # Bersihkan game setelah ada pemenang
+            total_eligible_voters = len(players) - 1 # Total pemain dikurangi penuduh
+            if ctx.author.id != member.id: # Jika penuduh bukan yang dituduh, kurangi 1 lagi
+                total_eligible_voters -= 1
+            
+            # Jika hanya 1 atau 0 pemain lain yang bisa vote (misal game 3 pemain, satu tuduh satu, sisa 1)
+            # Maka perlu penyesuaian logika mayoritas atau minimum voter
+            if total_eligible_voters <= 0: # Ini berarti hanya ada penuduh dan/atau yang dituduh saja
+                 await ctx.send("Voting tidak bisa dilakukan karena tidak ada pemain lain yang memenuhi syarat untuk memilih.")
+                 game['vote_in_progress'] = False
+                 return
+
+            # Mayoritas: lebih dari setengah dari total suara yang diberikan
+            # Atau, jika total_eligible_voters <= 2, mungkin perlu dipertimbangkan 1 suara mayoritas
+            if yes_votes > no_votes and yes_votes >= (total_eligible_voters / 2) : # Setuju > Tidak Setuju, dan setuju minimal separuh dari yang bisa vote
+                await ctx.send(f"✅ **Voting Berhasil!** Mayoritas setuju {member.mention} adalah mata-mata.")
+                if member.id == spy.id:
+                    await ctx.send(f"**Tuduhan Benar!** {member.mention} memang mata-matanya. Lokasinya adalah **{location}**.")
+                    await ctx.send(f"Selamat kepada tim warga, kalian semua mendapat hadiah!")
+                    for p in players:
+                        if p.id != spy.id: await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
+                else:
+                    await ctx.send(f"**Tuduhan Salah!** {member.mention} bukan mata-matanya. **Mata-mata ({spy.mention}) menang!** Lokasinya adalah **{location}**.")
+                    await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
+                self.end_game_cleanup(ctx.channel.id)
+            else:
+                await ctx.send(f"❌ **Voting Gagal.** Tidak cukup suara untuk menuduh {member.mention}. Permainan dilanjutkan!")
+                game['vote_in_progress'] = False # Reset flag
+        
+        except discord.NotFound:
+            await ctx.send("Pesan voting tidak ditemukan.")
+            game['vote_in_progress'] = False # Reset flag
 
     @commands.command(name="ungkap_lokasi", aliases=['ulokasi'], help="Sebagai mata-mata, coba tebak lokasi rahasia.")
     async def ungkap_lokasi(self, ctx, *, guessed_location: str):
-        # Pastikan game aktif dan fase diskusi sudah berakhir
-        if ctx.channel.id not in self.spyfall_game_states or not self.spyfall_game_states[ctx.channel.id]['discussion_over']:
-            return await ctx.send("Game Mata-Mata belum dimulai atau waktu diskusi belum habis. Tunggu hingga fase penuduhan!", ephemeral=True)
+        if ctx.channel.id not in self.spyfall_game_states:
+            return await ctx.send("Game Mata-Mata belum dimulai.", ephemeral=True)
 
         game = self.spyfall_game_states[ctx.channel.id]
         spy, location = game['spy'], game['location']
 
-        # Hanya mata-mata yang bisa menggunakan perintah ini
         if ctx.author.id != spy.id:
             return await ctx.send("Hanya mata-mata yang bisa menggunakan perintah ini.", ephemeral=True)
         
+        # Pastikan tidak ada voting yang sedang berjalan
+        if game['vote_in_progress']:
+            return await ctx.send("Saat ini sedang ada voting. Tunggu sampai selesai.", ephemeral=True)
+
         if guessed_location.lower() == location.lower():
             await ctx.send(f"🎉 **Mata-Mata Ungkap Lokasi Dengan Benar!** {spy.mention} berhasil menebak lokasi rahasia yaitu **{location}**! Mata-mata menang!")
             await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
         else:
             await ctx.send(f"❌ **Mata-Mata Gagal Mengungkap Lokasi!** Tebakan {guessed_location} salah. Lokasi sebenarnya adalah **{location}**. Warga menang!")
-            # Beri reward kepada semua pemain non-mata-mata
             for p in game['players']:
                 if p.id != spy.id:
                     await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
 
-        self.end_game_cleanup(ctx.channel.id) # Bersihkan game setelah ada pemenang
+        self.end_game_cleanup(ctx.channel.id)
 
-    # --- GAME TEKA-TEKI HARIAN ---
+    # --- GAME TEKA-TEKI HARIAN (Tidak ada perubahan) ---
     @tasks.loop(time=time(hour=5, minute=0, tzinfo=None))
     async def post_daily_puzzle(self):
         await self.bot.wait_until_ready()
-        # Mengatur zona waktu ke WIB (UTC+7)
         now = datetime.now()
         target_time = now.replace(hour=5, minute=0, second=0, microsecond=0)
         
-        # Jika waktu sekarang sudah melewati 05:00 WIB hari ini, jadwalkan untuk besok
         if now > target_time:
             target_time += timedelta(days=1)
         
-        # Hitung detik yang tersisa
         time_until_post = (target_time - now).total_seconds()
         
         if time_until_post > 0:
@@ -486,10 +506,8 @@ class UltimateGameArena(commands.Cog):
 
     @commands.command(name="jawab", help="Jawab teka-teki harian.")
     async def jawab(self, ctx, *, answer: str):
-        if not self.daily_puzzle:
-            return await ctx.send("Belum ada teka-teki untuk hari ini. Sabar ya!")
-        if ctx.author.id in self.daily_puzzle_solvers:
-            return await ctx.send("Kamu sudah menjawab dengan benar hari ini!", ephemeral=True)
+        if not self.daily_puzzle: return await ctx.send("Belum ada teka-teki untuk hari ini. Sabar ya!")
+        if ctx.author.id in self.daily_puzzle_solvers: return await ctx.send("Kamu sudah menjawab dengan benar hari ini!", ephemeral=True)
             
         if answer.lower() == self.daily_puzzle['answer'].lower():
             self.daily_puzzle_solvers.add(ctx.author.id)
