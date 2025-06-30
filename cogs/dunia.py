@@ -6,6 +6,7 @@ import asyncio
 import os
 from datetime import datetime, timedelta, time
 import string
+import pytz # Import pytz untuk zona waktu
 
 # --- Helper Functions (Wajib ada di awal) ---
 def load_json_from_root(file_path):
@@ -114,7 +115,8 @@ class DuniaHidup(commands.Cog):
         self.monster_attackers = set() # Set ini digunakan untuk melacak penyerang monster utama
         self.active_anomaly = None
         self.anomaly_end_time = None
-        self.sick_users_cooldown = {}
+        # Mengubah sick_users_cooldown menjadi menyimpan datetime objek atau isoformat string
+        self.sick_users_cooldown = load_json_from_root('data/sick_users_cooldown.json') 
         self.protected_users = load_json_from_root('data/protected_users.json') 
         self.dropped_codes = {}
         self.attacked_users_log = [] # New: Untuk melacak user yang diserang monster
@@ -128,8 +130,10 @@ class DuniaHidup(commands.Cog):
         self.event_channel_id = 765140300145360896 
         # Ganti dengan ID role 'Sakit' di server Discord Anda
         self.sick_role_id = 1388744189063200860 
-        self.sickness_cooldown_minutes = 1.5
-        
+        self.sickness_cooldown_minutes = 1.5 # Cooldown pesan normal
+        self.sickness_duration_minutes = 60 # Durasi sakit default 60 menit
+        self.sickness_duration_minutes_quiz = 120 # Durasi sakit akibat kuis (2 jam)
+
         # Memuat data dari file JSON
         self.monsters_data = load_json_from_root('data/monsters.json')
         self.anomalies_data = load_json_from_root('data/world_anomalies.json').get('anomalies', [])
@@ -139,12 +143,53 @@ class DuniaHidup(commands.Cog):
         self.world_event_loop.start()
         self.monster_attack_processor.start()
         self.protection_cleaner.start()
+        # Menambahkan sick_status_cleaner
+        self.sick_status_cleaner.start() 
+
 
     def cog_unload(self):
         """Dipanggil saat cog dibongkar."""
         self.world_event_loop.cancel()
         self.monster_attack_processor.cancel()
         self.protection_cleaner.cancel()
+        self.sick_status_cleaner.cancel() # Pastikan cleaner ini juga dibatalkan
+
+    @tasks.loop(minutes=30)
+    async def sick_status_cleaner(self):
+        """Membersihkan status 'sakit' dari pengguna yang sudah melewati durasinya."""
+        now = datetime.utcnow()
+        guild = self.bot.guilds[0] # Asumsi bot hanya di satu guild
+        sick_role = guild.get_role(self.sick_role_id)
+        if not sick_role: return
+
+        # Membuat salinan keys untuk menghindari RuntimeError: dictionary changed size during iteration
+        users_to_check = list(self.sick_users_cooldown.keys()) 
+        
+        for user_id_str in users_to_check:
+            user_data = self.sick_users_cooldown.get(user_id_str)
+            if not user_data: continue
+
+            sickness_end_time = datetime.fromisoformat(user_data['sickness_end_time'])
+            
+            if now >= sickness_end_time:
+                member = guild.get_member(int(user_id_str))
+                if member and sick_role in member.roles:
+                    try:
+                        await member.remove_roles(sick_role)
+                        channel = self.bot.get_channel(self.event_channel_id)
+                        if channel:
+                            await channel.send(f"🎉 **{member.display_name}** ({member.mention}) telah pulih dari wabah penyakit!")
+                        print(f"{member.display_name} sembuh dari sakit.")
+                    except discord.Forbidden:
+                        print(f"Bot tidak memiliki izin untuk menghapus role 'Sakit' dari {member.display_name}.")
+                    except Exception as e:
+                        print(f"Error saat membersihkan role sakit dari {member.display_name}: {e}")
+                
+                # Hapus dari sick_users_cooldown setelah sembuh
+                del self.sick_users_cooldown[user_id_str]
+        
+        save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
+
 
     @tasks.loop(hours=random.randint(3, 6)) # Event dunia terjadi setiap 3-6 jam
     async def world_event_loop(self):
@@ -358,7 +403,7 @@ class DuniaHidup(commands.Cog):
             description=f"**{ctx.author.display_name}** dengan berani mengajakmu menghadapi **{self.current_monster['name']}**!\n\nPara pemberani, klik 'Gabung Pertarungan' untuk ikut serta! Waktu 60 detik untuk memutuskan takdirmu!\n\n**Gunakan perintah:** `!serangmonster`", # Deskripsi diubah
             color=discord.Color.blurple()
         )
-        embed.set_footer(text="Semakin banyak yang berjuang, semakin besar peluang kemenanganmu... atau kematianmu bersama!") # Footer diubah
+        embed.set_footer(text="Semakin banyak yang berjuang, semakin besar peluang peluang kemenanganmu... atau kematianmu bersama!") # Footer diubah
         
         async def join_callback(interaction: discord.Interaction):
             """Callback untuk tombol 'Gabung Pertarungan'."""
@@ -457,7 +502,7 @@ class DuniaHidup(commands.Cog):
             attack_summary_embed.set_footer(text="Dunia ini tidak akan pernah sama lagi. Bersiaplah untuk yang terburuk.")
             await channel.send(embed=attack_summary_embed)
         else:
-            await channel.send("Entah bagaimana, monster ini gagal menimbulkan kerusakan fatal! Keberuntungan sesaat ada di pihak kita, tapi jangan lengah!")
+            await channel.send("Entah somehow, monster ini gagal menimbulkan kerusakan fatal! Keberuntungan sesaat ada di pihak kita, tapi jangan lengah!")
 
         # --- Peningkatan: Pesan Ancaman Berikutnya (Embed yang Lebih Serius) ---
         await asyncio.sleep(5) # Jeda sebentar sebelum pesan ancaman
@@ -642,48 +687,101 @@ class DuniaHidup(commands.Cog):
             print("Hukuman kuis: Peningkatan serangan monster, kerugian 2x lipat, dan wabah penyakit diaktifkan.")
 
             # SEBARKAN WABAH SAKIT
-            await self.start_sickness_plague(guild, is_quiz_punishment=True) # Tambahkan argumen baru
+            await self.start_sickness_plague(guild, is_quiz_punishment=True, custom_duration=self.sickness_duration_minutes_quiz) 
 
             self.active_anomaly = None # Reset anomali setelah kuis selesai
 
-    async def start_sickness_plague(self, guild, is_quiz_punishment=False): # Tambahkan argumen baru
+    async def start_sickness_plague(self, guild, is_quiz_punishment=False, custom_duration=None): # Tambahkan argumen baru
         """Menyebarkan wabah penyakit ke pengguna aktif."""
+        channel = self.bot.get_channel(self.event_channel_id)
+        if not channel: return # Pastikan channel ada
+
         level_data = load_json_from_root('data/level_data.json').get(str(guild.id), {})
+        
         # Filter pengguna yang aktif dalam 3 hari terakhir dan masih ada di guild
+        # FIX: Tambahkan pengecekan `isinstance(data.get('last_active'), str)`
         active_users = [
             uid for uid, data in level_data.items() 
-            if 'last_active' in data and datetime.utcnow() - datetime.fromisoformat(data['last_active']) < timedelta(days=3)
+            if 'last_active' in data and isinstance(data.get('last_active'), str) and datetime.utcnow() - datetime.fromisoformat(data['last_active']) < timedelta(days=3)
             and guild.get_member(int(uid)) # Pastikan member masih ada di guild
         ]
         
         # Jika dipicu oleh hukuman kuis, infeksi lebih banyak orang
         if is_quiz_punishment:
             num_to_infect = min(len(active_users), random.randint(7, 12)) # Infeksi antara 7 hingga 12 pengguna
+            duration = custom_duration if custom_duration else self.sickness_duration_minutes_quiz # Gunakan custom_duration jika ada
         else:
             num_to_infect = min(len(active_users), random.randint(3, 7)) # Infeksi antara 3 hingga 7 pengguna
+            duration = self.sickness_duration_minutes # Durasi normal
         
-        if num_to_infect == 0: return # Tidak ada yang bisa diinfeksi
+        if num_to_infect == 0: 
+            if channel and not is_quiz_punishment: # Hanya kirim pesan jika bukan hukuman kuis
+                await channel.send("Udara terasa bersih, tidak ada yang jatuh sakit kali ini. Sebuah keajaiban...")
+            return # Tidak ada yang bisa diinfeksi
 
-        infected_users_ids = random.sample(active_users, num_to_infect)
-        
-        role = guild.get_role(self.sick_role_id)
-        if not role: 
+        infected_mentions_for_log_and_embed = [] # List untuk mention di embed
+        # Pastikan sick_role didefinisikan sebelum digunakan di loop
+        sick_role = guild.get_role(self.sick_role_id)
+        if not sick_role:
             print(f"Peringatan: Role 'Sakit' dengan ID {self.sick_role_id} tidak ditemukan di guild {guild.name}.")
-            return # Tidak ada role sakit
+            if channel: await channel.send("⚠️ Peringatan: Role 'Sakit' tidak ditemukan, wabah tidak dapat menyebar sepenuhnya.")
+            return # Keluar jika role tidak ditemukan
 
-        infected_mentions = []
-        for user_id in infected_users_ids:
+
+        for user_id in random.sample(active_users, num_to_infect):
             member = guild.get_member(int(user_id))
             if member and sick_role not in member.roles: # Hanya infeksi yang belum sakit
-                await member.add_roles(role)
-                infected_mentions.append(member.mention)
+                try:
+                    await member.add_roles(sick_role)
+                    # Simpan waktu berakhir sakit untuk setiap user
+                    self.sick_users_cooldown[str(member.id)] = {
+                        'last_message_time': datetime.utcnow().isoformat(), # Waktu pesan terakhir (untuk cooldown)
+                        'sickness_end_time': (datetime.utcnow() + timedelta(minutes=duration)).isoformat(),
+                        'duration_minutes': duration
+                    }
+                    infected_mentions_for_log_and_embed.append(f"**{member.display_name}** ({member.mention})")
+                except discord.Forbidden:
+                    print(f"Bot tidak memiliki izin untuk menambahkan role 'Sakit' ke {member.display_name}.")
+                except Exception as e:
+                    print(f"Error saat menginfeksi {member.display_name}: {e}")
         
-        channel = self.bot.get_channel(self.event_channel_id)
-        if channel and infected_mentions and not is_quiz_punishment: # Hanya kirim pesan jika bukan hukuman kuis karena pesan sudah ada di embed teror
-            await channel.send(f"😷 **WABAH KEJI MENYEBAR!** {', '.join(infected_mentions)} telah jatuh sakit. Interaksi mereka akan terbatas. Cepat cari obat di `!shop` sebelum terlambat!")
-        elif channel and infected_mentions and is_quiz_punishment:
-            # Tidak perlu pesan tambahan di sini karena sudah ada di embed teror
-            pass
+        save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
+
+        if channel and infected_mentions_for_log_and_embed: # Kirim notifikasi umum ke channel jika ada yang terinfeksi
+            # Pesan untuk wabah normal atau hukuman kuis
+            embed_title = "😷 WABAH KEJI MENYEBAR! 😷"
+            embed_description = (
+                f"Beberapa penduduk telah jatuh sakit dan akan merasakan penderitaan selama **{duration} menit**!\n\n"
+                f"**Korban Wabah:**\n"
+                f"{', '.join(infected_mentions_for_log_and_embed)}\n\n"
+                f"Mereka akan kesulitan berinteraksi. Cepat cari obat di `!shop` sebelum terlambat!"
+            )
+            embed_color = discord.Color.red()
+            embed_thumbnail = "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/An5.jpg" # Gambar wabah
+
+            if is_quiz_punishment:
+                embed_title = "☠️ KUTUKAN WABAH DARI KEGAGALAN KUIS! ☠️"
+                embed_description = (
+                    f"Akibat kegagalan kuis, wabah penyakit telah menyebar lebih luas dan parah!\n"
+                    f"Para korban akan menderita selama **{duration} menit**!\n\n"
+                    f"**Korban Wabah:**\n"
+                    f"{', '.join(infected_mentions_for_log_and_embed)}\n\n"
+                    f"Tidak ada yang aman dari malapetaka ini! Biarkan mereka menderita!"
+                )
+                embed_color = discord.Color.dark_red()
+                embed_thumbnail = "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/An6.jpg" # Gambar yang lebih parah
+
+            embed = discord.Embed(
+                title=embed_title,
+                description=embed_description,
+                color=embed_color
+            )
+            embed.set_thumbnail(url=embed_thumbnail)
+            embed.set_footer(text="Waspadalah! Penyakit ini tidak mengenal belas kasihan.")
+            await channel.send(embed=embed)
+        elif channel and not infected_mentions_for_log_and_embed and is_quiz_punishment:
+             await channel.send("Wabah telah menyebar, namun entah kenapa tidak ada yang terinfeksi kali ini... Mungkin nasib sedang berpihak, untuk sementara.")
+
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -696,30 +794,53 @@ class DuniaHidup(commands.Cog):
         if message.author.bot or not message.guild:
             return
         
-        user_id = message.author.id
+        user_id_str = str(message.author.id)
         sick_role = message.guild.get_role(self.sick_role_id)
 
         # Logika untuk role "sakit" dan cooldown pesan
         if sick_role and sick_role in message.author.roles:
             now = datetime.utcnow()
-            last_message_time = self.sick_users_cooldown.get(user_id)
-            if last_message_time:
+            user_sickness_data = self.sick_users_cooldown.get(user_id_str)
+            
+            # Pastikan user_sickness_data ada dan punya last_message_time
+            if user_sickness_data and 'last_message_time' in user_sickness_data:
+                last_message_time = datetime.fromisoformat(user_sickness_data['last_message_time'])
                 cooldown = timedelta(minutes=self.sickness_cooldown_minutes)
+                
                 # Jika waktu sejak pesan terakhir kurang dari cooldown
                 if now - last_message_time < cooldown:
-                    time_left = cooldown - (now - last_message_time)
+                    time_left_cooldown = cooldown - (now - last_message_time)
+                    
+                    # Hitung sisa durasi sakit
+                    sickness_end_time = datetime.fromisoformat(user_sickness_data['sickness_end_time'])
+                    time_left_sickness = sickness_end_time - now
+                    
+                    # Format sisa waktu sakit agar mudah dibaca
+                    total_seconds_sickness = int(time_left_sickness.total_seconds())
+                    hours_sickness = total_seconds_sickness // 3600
+                    minutes_sickness = (total_seconds_sickness % 3600) // 60
+                    seconds_sickness = total_seconds_sickness % 60
+                    
+                    sickness_time_str = []
+                    if hours_sickness > 0: sickness_time_str.append(f"{hours_sickness} jam")
+                    if minutes_sickness > 0: sickness_time_str.append(f"{minutes_sickness} menit")
+                    if seconds_sickness > 0 or not sickness_time_str: sickness_time_str.append(f"{seconds_sickness} detik")
+                    
                     try:
                         # Hapus pesan pengguna dan kirim DM peringatan
                         await message.delete()
                         await message.author.send(
-                            f"Kamu sakit parah dan tubuhmu lemah... Kamu harus beristirahat selama **{int(time_left.total_seconds())} detik** sebelum bisa bicara lagi. Jangan coba melawan takdirmu!", 
+                            f"Kamu sakit parah dan tubuhmu lemah... Kamu harus beristirahat selama **{int(time_left_cooldown.total_seconds())} detik** sebelum bisa bicara lagi. Jangan coba melawan takdirmu! (Sisa sakit: {' '.join(sickness_time_str)})", # Menampilkan sisa durasi sakit
                             delete_after=60 # DM akan terhapus sendiri setelah 60 detik
                         )
                     except (discord.Forbidden, discord.NotFound): 
                         # Abaikan jika bot tidak bisa menghapus pesan (izin) atau mengirim DM (privasi user)
                         pass 
                     return # Hentikan pemrosesan pesan lebih lanjut jika user dalam cooldown
-            self.sick_users_cooldown[user_id] = now # Update waktu pesan terakhir pengguna
+            
+            # Update waktu pesan terakhir pengguna, pastikan struktur dict ada
+            self.sick_users_cooldown.setdefault(user_id_str, {})['last_message_time'] = now.isoformat()
+            save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
 
         # Tidak ada `await self.bot.process_commands(message)` di sini!
 
@@ -766,8 +887,9 @@ class DuniaHidup(commands.Cog):
             heal_embed = discord.Embed(title="✨ KEAJAIBAN! ATAU HANYA PENUNDAAN?! ✨", color=discord.Color.green())
             await ctx.author.remove_roles(sick_role) # Hapus role sakit dari pengguna
             if str(ctx.author.id) in self.sick_users_cooldown: 
-                del self.sick_users_cooldown[str(ctx.author.id)] # Reset cooldown sakit
-            
+                del self.sick_users_cooldown[str(ctx.author.id)] # Reset cooldown sakit dan status sakit
+            save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json') # Simpan perubahan
+
             if chosen_medicine['heal_chance'] == 100: # Jika obat memberikan perlindungan penuh
                 expiry = datetime.utcnow() + timedelta(hours=24)
                 self.protected_users[user_id_str] = expiry.isoformat()
@@ -797,8 +919,10 @@ class DuniaHidup(commands.Cog):
 
         try:
             await member.remove_roles(sick_role)
-            if member.id in self.sick_users_cooldown:
-                del self.sick_users_cooldown[member.id]
+            # Hapus juga dari sick_users_cooldown
+            if str(member.id) in self.sick_users_cooldown:
+                del self.sick_users_cooldown[str(member.id)]
+                save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
             
             await ctx.send(f"✨ **Kekuatan admin telah menyembuhkan!** {member.display_name} ({member.mention}) telah pulih dari sakitnya!")
             print(f"Admin {ctx.author.display_name} menyembuhkan {member.display_name}.")
@@ -807,6 +931,64 @@ class DuniaHidup(commands.Cog):
             await ctx.send("❌ Aku tidak punya izin untuk menghapus role dari pengguna ini. Pastikan role bot di atas role 'Sakit'.", ephemeral=True)
         except Exception as e:
             await ctx.send(f"❌ Terjadi kesalahan saat mencoba menyembuhkan {member.display_name}: {e}", ephemeral=True)
+
+    @commands.command(name="daftar_sakit")
+    @commands.has_permissions(administrator=True) # Hanya admin yang bisa menggunakan command ini
+    async def daftar_sakit(self, ctx):
+        """
+        [ADMIN ONLY] Menampilkan daftar pengguna yang saat ini terkena wabah penyakit
+        beserta sisa durasi sakit mereka.
+        """
+        sick_role = ctx.guild.get_role(self.sick_role_id)
+        if not sick_role:
+            return await ctx.send("⚠️ Error: Role 'Sakit' tidak ditemukan di server ini.", ephemeral=True)
+
+        now = datetime.utcnow()
+        sick_list = []
+
+        for user_id_str, user_data in list(self.sick_users_cooldown.items()):
+            # Pastikan data ada dan memiliki 'sickness_end_time'
+            if 'sickness_end_time' not in user_data:
+                continue
+
+            sickness_end_time = datetime.fromisoformat(user_data['sickness_end_time'])
+            
+            if now < sickness_end_time: # Jika masih sakit
+                member = ctx.guild.get_member(int(user_id_str))
+                if member and sick_role in member.roles: # Pastikan masih di guild dan punya role
+                    time_left = sickness_end_time - now
+                    # Format waktu tersisa agar mudah dibaca
+                    total_seconds = int(time_left.total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    seconds = total_seconds % 60
+                    
+                    time_str = []
+                    if hours > 0: time_str.append(f"{hours} jam")
+                    if minutes > 0: time_str.append(f"{minutes} menit")
+                    if seconds > 0 or not time_str: time_str.append(f"{seconds} detik") # Pastikan ada detik jika tidak ada jam/menit
+                    
+                    sick_list.append(f"- **{member.display_name}** ({member.mention}): Sisa **{' '.join(time_str)}**")
+            else:
+                # Jika sudah lewat waktu, tapi belum terhapus oleh sick_status_cleaner, abaikan
+                pass
+        
+        if not sick_list:
+            embed = discord.Embed(
+                title="✅ DAFTAR PENGGUNA SAKIT",
+                description="Sejauh ini, tidak ada penduduk yang terinfeksi wabah penyakit. Tetap waspada!",
+                color=discord.Color.green()
+            )
+        else:
+            embed = discord.Embed(
+                title="😷 DAFTAR PENGGUNA SAKIT SAAT INI 😷",
+                description="Berikut adalah mereka yang terinfeksi wabah penyakit dan sedang dalam penderitaan:",
+                color=discord.Color.red()
+            )
+            embed.add_field(name="Korban Wabah", value="\n".join(sick_list), inline=False)
+        
+        embed.set_footer(text=f"Diperbarui pada: {datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%H:%M:%S WIB')}") # Menggunakan waktu lokal
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):
