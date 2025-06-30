@@ -278,7 +278,7 @@ class UltimateGameArena(commands.Cog):
             await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{answer}**.")
         self.end_game_cleanup(ctx.channel.id)
 
-    # --- GAME 4: MATA-MATA (Perubahan besar di sini) ---
+    # --- GAME 4: MATA-MATA (Perubahan di sini) ---
     @commands.command(name="matamata", help="Mulai game Mata-Mata. Temukan siapa mata-matanya!")
     @commands.cooldown(1, 300, commands.BucketType.channel)
     async def matamata(self, ctx):
@@ -326,7 +326,6 @@ class UltimateGameArena(commands.Cog):
         embed.set_footer(text="Jika 5 menit habis, fase penuduhan akhir dimulai, atau mata-mata bisa coba menebak lokasi.")
         game_start_message = await ctx.send(embed=embed)
         
-        # Simpan pesan ini untuk referensi nanti, jika diperlukan
         self.spyfall_game_states[ctx.channel.id]['game_start_message_id'] = game_start_message.id
 
         try:
@@ -337,10 +336,9 @@ class UltimateGameArena(commands.Cog):
                 # Cek apakah waktu diskusi 5 menit sudah habis
                 if elapsed_time >= 300: # 5 menit = 300 detik
                     await ctx.send(f"⏰ **Waktu diskusi 5 menit habis!** Sekarang adalah fase penuduhan akhir. "
-                                   f"Pemain biasa bisa menggunakan `!tuduh @nama_pemain` untuk voting.\n"
-                                   f"Mata-mata ({spy.mention}) bisa menggunakan `!ungkap_lokasi <lokasi>` untuk mencoba menebak lokasi. "
-                                   f"Jika mata-mata menebak lokasi dengan benar dan belum dituduh, mata-mata menang! "
-                                   f"\n\n**Permainan akan berakhir otomatis dalam 2 menit jika tidak ada aktivitas tuduhan atau pengungkapan lokasi.**")
+                                   f"Pemain biasa bisa menggunakan `!tuduh @nama_pemain` untuk memulai voting.\n"
+                                   f"Mata-mata bisa menggunakan `!ungkap_lokasi <lokasi>` untuk mencoba menebak lokasi.\n\n"
+                                   f"Jika mata-mata berhasil menebak lokasi dengan benar dan belum dituduh, mata-mata menang! Jika tidak ada yang menuduh atau mata-mata tidak menebak lokasi dalam waktu 2 menit, maka **mata-mata menang secara otomatis.**")
                     
                     # Berikan 2 menit tambahan untuk fase akhir
                     await asyncio.sleep(120)
@@ -350,7 +348,6 @@ class UltimateGameArena(commands.Cog):
                         await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
                     break # Keluar dari loop game
                 
-                # Jika waktu belum habis, tunggu sebentar sebelum cek lagi atau biarkan perintah lain yang memicu voting
                 await asyncio.sleep(5) # Tunggu sebentar sebelum cek kondisi lagi
                 
                 # Jika game diakhiri oleh !tuduh atau !ungkap_lokasi, loop akan terputus karena channel_id dihapus dari state
@@ -358,7 +355,6 @@ class UltimateGameArena(commands.Cog):
                     break
 
         except asyncio.CancelledError:
-            # Ini akan terjadi jika game dibersihkan oleh end_game_cleanup dari perintah lain
             pass
         finally:
             self.end_game_cleanup(ctx.channel.id)
@@ -375,7 +371,6 @@ class UltimateGameArena(commands.Cog):
         if ctx.author not in players or member not in players: 
             return await ctx.send("Hanya pemain yang berpartisipasi yang bisa menuduh atau dituduh.", ephemeral=True)
         
-        # Cek apakah sedang ada voting lain
         if game['vote_in_progress']:
             return await ctx.send("Saat ini sedang ada voting lain. Tunggu sampai selesai.", ephemeral=True)
 
@@ -393,8 +388,7 @@ class UltimateGameArena(commands.Cog):
         await vote_msg.add_reaction("✅")
         await vote_msg.add_reaction("❌")
         
-        # Tunggu 30 detik untuk voting
-        await asyncio.sleep(30) 
+        await asyncio.sleep(30) # Waktu voting
         
         try:
             cached_vote_msg = await ctx.channel.fetch_message(vote_msg.id)
@@ -402,16 +396,16 @@ class UltimateGameArena(commands.Cog):
             no_votes = 0
             voters = set()
 
-            # Hitung suara dari pemain yang valid (bukan bot, bukan penuduh, bukan yang dituduh)
-            # Dan pastikan pemain tersebut memang bagian dari game saat ini
             for reaction in cached_vote_msg.reactions:
                 if str(reaction.emoji) == "✅":
                     async for user_reaction in reaction.users():
+                        # Pastikan user_reaction adalah pemain yang valid dan bukan penuduh/yang dituduh
                         if not user_reaction.bot and user_reaction.id != ctx.author.id and user_reaction.id != member.id and user_reaction in players:
                             yes_votes += 1
                             voters.add(user_reaction.id)
                 elif str(reaction.emoji) == "❌":
                     async for user_reaction in reaction.users():
+                        # Pastikan user_reaction adalah pemain yang valid dan bukan penuduh/yang dituduh
                         if not user_reaction.bot and user_reaction.id != ctx.author.id and user_reaction.id != member.id and user_reaction in players:
                             no_votes += 1
                             voters.add(user_reaction.id)
@@ -420,16 +414,14 @@ class UltimateGameArena(commands.Cog):
             if ctx.author.id != member.id: # Jika penuduh bukan yang dituduh, kurangi 1 lagi
                 total_eligible_voters -= 1
             
-            # Jika hanya 1 atau 0 pemain lain yang bisa vote (misal game 3 pemain, satu tuduh satu, sisa 1)
-            # Maka perlu penyesuaian logika mayoritas atau minimum voter
-            if total_eligible_voters <= 0: # Ini berarti hanya ada penuduh dan/atau yang dituduh saja
-                 await ctx.send("Voting tidak bisa dilakukan karena tidak ada pemain lain yang memenuhi syarat untuk memilih.")
+            # Jika tidak ada pemain yang berpartisipasi dalam voting
+            if total_eligible_voters <= 0 or (yes_votes == 0 and no_votes == 0): 
+                 await ctx.send("Voting gagal karena tidak ada pemain lain yang memenuhi syarat untuk memilih atau tidak ada yang berpartisipasi. Permainan dilanjutkan.")
                  game['vote_in_progress'] = False
                  return
 
             # Mayoritas: lebih dari setengah dari total suara yang diberikan
-            # Atau, jika total_eligible_voters <= 2, mungkin perlu dipertimbangkan 1 suara mayoritas
-            if yes_votes > no_votes and yes_votes >= (total_eligible_voters / 2) : # Setuju > Tidak Setuju, dan setuju minimal separuh dari yang bisa vote
+            if yes_votes > no_votes and yes_votes >= (total_eligible_voters / 2) : 
                 await ctx.send(f"✅ **Voting Berhasil!** Mayoritas setuju {member.mention} adalah mata-mata.")
                 if member.id == spy.id:
                     await ctx.send(f"**Tuduhan Benar!** {member.mention} memang mata-matanya. Lokasinya adalah **{location}**.")
@@ -437,7 +429,8 @@ class UltimateGameArena(commands.Cog):
                     for p in players:
                         if p.id != spy.id: await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
                 else:
-                    await ctx.send(f"**Tuduhan Salah!** {member.mention} bukan mata-matanya. **Mata-mata ({spy.mention}) menang!** Lokasinya adalah **{location}**.")
+                    await ctx.send(f"**Tuduhan Salah!** {member.mention} bukan mata-matanya. Lokasi sebenarnya adalah **{location}**.")
+                    await ctx.send(f"**Mata-mata ({spy.mention}) menang!**")
                     await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
                 self.end_game_cleanup(ctx.channel.id)
             else:
@@ -459,7 +452,6 @@ class UltimateGameArena(commands.Cog):
         if ctx.author.id != spy.id:
             return await ctx.send("Hanya mata-mata yang bisa menggunakan perintah ini.", ephemeral=True)
         
-        # Pastikan tidak ada voting yang sedang berjalan
         if game['vote_in_progress']:
             return await ctx.send("Saat ini sedang ada voting. Tunggu sampai selesai.", ephemeral=True)
 
