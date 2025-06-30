@@ -190,7 +190,7 @@ async def load_cogs():
         "cogs.quotes",
         "cogs.newgame",
         "cogs.multigame",
-        "cogs.dunia" # Pastikan nama file adalah `dunia.py` di dalam folder `cogs`
+        "cogs.dunia"
     ]
     for extension in initial_extensions:
         try:
