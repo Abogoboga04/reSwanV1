@@ -82,7 +82,7 @@
                 "disallow_bots": false,
                 "disallow_media": false,
                 "disallow_prefix": false,
-                "disallow_url": false,
+                "disallow_url": true,
                 "auto_delete_seconds": 0
             },
             "1255226119221940265": {
