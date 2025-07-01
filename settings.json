@@ -24,8 +24,8 @@
     },
     "788337048997199882": {
         "auto_role_id": null,
-        "welcome_channel_id": null,
-        "welcome_message": "Selamat datang di **{guild_name}**, {user}! 🎉",
+        "welcome_channel_id": 788337048997199885,
+        "welcome_message": "Welcome to RTM {user} di {guild_name} jangan lupa ambil role di https://discord.com/channels/788337048997199882/1384603362787590246",
         "log_channel_id": null,
         "reaction_roles": {
             "1384604148053442782": {
@@ -42,6 +42,13 @@
                 "auto_delete_seconds": 0
             },
             "1382047607702028339": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "788337048997199885": {
                 "disallow_bots": false,
                 "disallow_media": false,
                 "disallow_prefix": false,
@@ -86,6 +93,20 @@
                 "auto_delete_seconds": 0
             },
             "1388480998060331102": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "1389302816031510578": {
+                "disallow_bots": false,
+                "disallow_media": false,
+                "disallow_prefix": false,
+                "disallow_url": false,
+                "auto_delete_seconds": 0
+            },
+            "965586009859452928": {
                 "disallow_bots": false,
                 "disallow_media": false,
                 "disallow_prefix": false,
