@@ -1466,4 +1466,147 @@ class UltimateGameArena(commands.Cog):
         spy, location, players = game['spy'], game['location'], game['players']
 
         if ctx.author not in players or member not in players: 
-            return await ctx.send("Hanya pemain yang berpartisipasi yang bisa menuduh atau dituduh
+            return await ctx.send("Hanya pemain yang berpartisipasi yang bisa menuduh atau dituduh.", ephemeral=True)
+        
+        if game['vote_in_progress']:
+            return await ctx.send("Saat ini sedang ada voting lain. Tunggu sampai selesai.", ephemeral=True)
+
+        game['vote_in_progress'] = True 
+        
+        vote_embed = discord.Embed(
+            title="🗳️ VOTING UNTUK MATA-MATA!",
+            description=f"{ctx.author.mention} menuduh {member.mention} sebagai mata-mata!\n\n"
+                        f"**Setuju (✅) atau Tidak Setuju (❌)?**",
+            color=discord.Color.red()
+        )
+        vote_embed.set_footer(text="Voting akan berakhir dalam 30 detik. Mayoritas menentukan.")
+        
+        vote_msg = await ctx.send(embed=vote_embed)
+        await vote_msg.add_reaction("✅")
+        await vote_msg.add_reaction("❌")
+        
+        await asyncio.sleep(30)
+        
+        if ctx.channel.id not in self.spyfall_game_states:
+            print(f"[{datetime.now()}] Spyfall game state not found during vote tally for channel {ctx.channel.id}.")
+            return 
+
+        game = self.spyfall_game_states[ctx.channel.id]
+        game['vote_in_progress'] = False
+
+        try:
+            cached_vote_msg = await ctx.channel.fetch_message(vote_msg.id)
+            yes_votes = 0
+            no_votes = 0
+            actual_voters = set() 
+
+            for reaction in cached_vote_msg.reactions:
+                if str(reaction.emoji) == "✅":
+                    async for user_reaction in reaction.users():
+                        if not user_reaction.bot and user_reaction in players and user_reaction.id not in actual_voters:
+                            yes_votes += 1
+                            actual_voters.add(user_reaction.id)
+                elif str(reaction.emoji) == "❌":
+                    async for user_reaction in reaction.users():
+                        if not user_reaction.bot and user_reaction in players and user_reaction.id not in actual_voters:
+                            no_votes += 1
+                            actual_voters.add(user_reaction.id)
+            
+            majority_needed = len(players) / 2 
+
+            if yes_votes > no_votes and yes_votes > majority_needed: 
+                await ctx.send(f"✅ **Voting Berhasil!** Mayoritas setuju {member.mention} adalah mata-mata.")
+                if member.id == spy.id:
+                    await ctx.send(f"**Tuduhan Benar!** {member.mention} memang mata-matanya. Lokasinya adalah **{location}**.")
+                    await ctx.send(f"Selamat kepada tim warga, kalian semua mendapat hadiah!")
+                    for p in players:
+                        if p.id != spy.id: await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
+                else:
+                    await ctx.send(f"**Tuduhan Salah!** {member.mention} bukan mata-matanya. Lokasi sebenarnya adalah **{location}**.")
+                    await ctx.send(f"**Mata-mata ({spy.mention}) menang!**")
+                    await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
+                self.end_game_cleanup(ctx.channel.id, game_type='spyfall')
+            else:
+                await ctx.send(f"❌ **Voting Gagal.** Tidak cukup suara untuk menuduh {member.mention}. Permainan dilanjutkan!")
+        
+        except discord.NotFound:
+            await ctx.send("Pesan voting tidak ditemukan.")
+        except Exception as e:
+            print(f"[{datetime.now()}] Error during Spyfall voting for channel {ctx.channel.id}: {e}")
+            await ctx.send(f"Terjadi kesalahan saat memproses voting: `{e}`. Permainan dilanjutkan.")
+
+
+    @commands.command(name="ungkap_lokasi", aliases=['ulokasi'], help="Sebagai mata-mata, coba tebak lokasi rahasia.")
+    async def ungkap_lokasi(self, ctx, *, guessed_location: str):
+        if ctx.channel.id not in self.spyfall_game_states:
+            return await ctx.send("Game Mata-Mata belum dimulai.", ephemeral=True)
+
+        game = self.spyfall_game_states[ctx.channel.id]
+        spy, location = game['spy'], game['location']
+
+        if ctx.author.id != spy.id:
+            return await ctx.send("Hanya mata-mata yang bisa menggunakan perintah ini.", ephemeral=True)
+        
+        if game['vote_in_progress']:
+            return await ctx.send("Saat ini sedang ada voting. Tunggu sampai selesai.", ephemeral=True)
+
+        if ctx.channel.id not in self.spyfall_game_states:
+            return
+
+        if guessed_location.lower() == location.lower():
+            await ctx.send(f"🎉 **Mata-Mata Ungkap Lokasi Dengan Benar!** {spy.mention} berhasil menebak lokasi rahasia yaitu **{location}**! Mata-mata menang!")
+            await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
+        else:
+            await ctx.send(f"❌ **Mata-Mata Gagal Mengungkap Lokasi!** Tebakan `{guessed_location}` salah. Lokasi sebenarnya adalah **{location}**. Warga menang!")
+            for p in game['players']:
+                if p.id != spy.id:
+                    await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
+
+        self.end_game_cleanup(ctx.channel.id, game_type='spyfall')
+
+    # --- TEKA-TEKI HARIAN ---
+    @tasks.loop(time=time(hour=5, minute=0, tzinfo=None)) # Kirim setiap jam 05:00 WIB
+    async def post_daily_puzzle(self):
+        await self.bot.wait_until_ready()
+        now = datetime.now()
+        target_time = now.replace(hour=5, minute=0, second=0, microsecond=0)
+        if now > target_time:
+            target_time += timedelta(days=1)
+        time_until_post = (target_time - now).total_seconds()
+        if time_until_post > 0:
+            await asyncio.sleep(time_until_post)
+
+        if not self.tekateki_harian_data or not isinstance(self.tekateki_harian_data, list):
+            print(f"[{datetime.now()}] Peringatan: Data teka-teki harian tidak ditemukan atau formatnya salah.")
+            return
+
+        self.daily_puzzle = random.choice(self.tekateki_harian_data)
+        self.daily_puzzle_solvers.clear()
+        
+        channel = self.bot.get_channel(self.daily_puzzle_channel_id)
+        if channel:
+            embed = discord.Embed(title="🤔 Teka-Teki Harian!", description=f"**Teka-teki untuk hari ini:**\n\n> {self.daily_puzzle['riddle']}", color=0x99aab5)
+            embed.set_footer(text="Gunakan !jawab <jawabanmu> untuk menebak!")
+            await channel.send(embed=embed)
+
+    @post_daily_puzzle.before_loop
+    async def before_daily_puzzle(self):
+        await self.bot.wait_until_ready()
+
+    @commands.command(name="jawab", help="Jawab teka-teki harian.")
+    async def jawab(self, ctx, *, answer: str):
+        if not self.daily_puzzle:
+            return await ctx.send("Belum ada teka-teki untuk hari ini. Sabar ya!", ephemeral=True)
+        if ctx.author.id in self.daily_puzzle_solvers:
+            return await ctx.send("Kamu sudah menjawab dengan benar hari ini!", ephemeral=True)
+            
+        if answer.lower() == self.daily_puzzle['answer'].lower():
+            self.daily_puzzle_solvers.add(ctx.author.id)
+            await self.give_rewards_with_bonus_check(ctx.author, ctx.guild.id, ctx.channel)
+            await ctx.message.add_reaction("✅")
+            await ctx.send(f"🎉 Selamat {ctx.author.mention}! Jawabanmu benar dan kamu mendapatkan hadiah!")
+        else:
+            await ctx.message.add_reaction("❌")
+
+async def setup(bot):
+    await bot.add_cog(UltimateGameArena(bot))
