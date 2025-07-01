@@ -15,6 +15,8 @@ def load_json_from_root(file_path):
         # Mengambil direktori dasar (root) dari bot
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         full_path = os.path.join(base_dir, file_path)
+        # Pastikan direktori ada sebelum mencoba membaca
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
@@ -24,7 +26,7 @@ def load_json_from_root(file_path):
             return {}
         elif any(k in file_path for k in ['monsters', 'anomalies', "medicines"]): 
             # Untuk file seperti monsters.json, anomalies.json, medicines.json yang berisi daftar
-            return {os.path.basename(file_path).replace('.json', ''): []}
+            return {'monsters': [], 'anomalies': [], 'medicines': []}.get(os.path.basename(file_path).replace('.json', ''), []) # Modified to return empty list or specific dict structure
         return {}
 
 def save_json_to_root(data, file_path):
@@ -107,9 +109,9 @@ class MonsterBattleView(discord.ui.View):
         self.turn_index = (self.turn_index + 1) % len(self.party)
         await self.update_view(interaction)
 
----
+# ---
 ## DuniaHidup Cog
----
+# ---
 
 class DuniaHidup(commands.Cog):
     def __init__(self, bot):
@@ -142,9 +144,27 @@ class DuniaHidup(commands.Cog):
         self.main_guild_id = 765138959625486357 # ID Server Utama Anda
 
         # Memuat data dari file JSON
+        # Menyesuaikan inisialisasi agar sesuai dengan load_json_from_root yang diperbarui
         self.monsters_data = load_json_from_root('data/monsters.json')
-        self.anomalies_data = load_json_from_root('data/world_anomalies.json').get('anomalies', [])
-        self.medicines_data = load_json_from_root('data/medicines.json').get('medicines', [])
+        if isinstance(self.monsters_data, dict) and 'monsters' in self.monsters_data:
+             self.monsters_data = self.monsters_data # Keep if it's already structured correctly
+        else:
+            print("Warning: monsters.json might be malformed, defaulting to empty list.")
+            self.monsters_data = {'monsters': [], 'monster_quiz': []} # Default to a dict with empty lists
+            
+        self.anomalies_data = load_json_from_root('data/world_anomalies.json')
+        if isinstance(self.anomalies_data, dict) and 'anomalies' in self.anomalies_data:
+            self.anomalies_data = self.anomalies_data.get('anomalies', [])
+        else:
+            print("Warning: world_anomalies.json might be malformed, defaulting to empty list.")
+            self.anomalies_data = []
+
+        self.medicines_data = load_json_from_root('data/medicines.json')
+        if isinstance(self.medicines_data, dict) and 'medicines' in self.medicines_data:
+            self.medicines_data = self.medicines_data.get('medicines', [])
+        else:
+            print("Warning: medicines.json might be malformed, defaulting to empty list.")
+            self.medicines_data = []
 
         # Memulai tasks loop
         self.world_event_loop.start()
@@ -223,11 +243,15 @@ class DuniaHidup(commands.Cog):
 
         event_type = random.choice(['monster', 'anomaly', 'monster_quiz'])
         self.last_event_type = event_type
-        if event_type == 'monster' and self.monsters_data.get('monsters'): 
+        # Pastikan monsters_data diinisialisasi sebagai dict dengan key 'monsters' dan 'monster_quiz'
+        if event_type == 'monster' and self.monsters_data and self.monsters_data.get('monsters'): 
             self.attacked_users_log.clear()
             await self.spawn_monster()
         elif event_type == 'anomaly' and self.anomalies_data: await self.trigger_anomaly()
-        elif event_type == 'monster_quiz' and self.monsters_data.get('monster_quiz'): await self.trigger_monster_quiz()
+        elif event_type == 'monster_quiz' and self.monsters_data and self.monsters_data.get('monster_quiz'): await self.trigger_monster_quiz()
+        else:
+            print(f"Warning: Not enough data for event type {event_type} or data is malformed.")
+
 
     @tasks.loop(minutes=30)
     async def protection_cleaner(self):
@@ -252,6 +276,11 @@ class DuniaHidup(commands.Cog):
 
     async def spawn_monster(self):
         """Memunculkan monster baru di channel event."""
+        # Ensure 'monsters' key exists and is a list
+        if not self.monsters_data or not self.monsters_data.get('monsters'):
+            print("No monster data available to spawn.")
+            return
+
         self.current_monster = random.choice(self.monsters_data['monsters']).copy()
         self.current_monster['current_hp'] = self.current_monster['max_hp']
         self.monster_attackers.clear()
@@ -272,7 +301,6 @@ class DuniaHidup(commands.Cog):
         
         await channel.send(f"**PERINGATAN, PARA PENDUDUK YANG MALANG! BAYANGAN KEMATIAN MENGHAMPIRI!**")
         await channel.send(embed=embed)
-        # Pass the main guild object to schedule_monster_attacks
         guild = self.bot.get_guild(self.main_guild_id)
         if guild:
             await self.schedule_monster_attacks(guild)
@@ -331,8 +359,11 @@ class DuniaHidup(commands.Cog):
         if not self.monster_attack_queue or not self.current_monster: return 
         
         now = datetime.utcnow()
-        if now < datetime.fromisoformat(self.monster_attack_queue[0]['attack_time']): return
+        if self.monster_attack_queue and now < datetime.fromisoformat(self.monster_attack_queue[0]['attack_time']): return
         
+        if not self.monster_attack_queue: # Add check for empty queue after popping
+            return
+
         attack = self.monster_attack_queue.pop(0)
         user_id_to_attack = attack['user_id']
 
@@ -545,6 +576,11 @@ class DuniaHidup(commands.Cog):
 
     async def trigger_anomaly(self):
         """Memicu event anomali dunia."""
+        # Ensure anomalies_data is a list
+        if not self.anomalies_data:
+            print("No anomaly data available to trigger.")
+            return
+
         anomaly = random.choice(self.anomalies_data)
         self.active_anomaly = anomaly
         self.anomaly_end_time = datetime.utcnow() + timedelta(seconds=anomaly['duration_seconds'])
@@ -619,7 +655,10 @@ class DuniaHidup(commands.Cog):
     async def trigger_monster_quiz(self):
         """Memicu event kuis monster."""
         channel = self.bot.get_channel(self.event_channel_id)
-        if not channel or not self.monsters_data.get('monster_quiz'): return
+        # Ensure 'monster_quiz' key exists and is a list
+        if not channel or not self.monsters_data or not self.monsters_data.get('monster_quiz'): 
+            print("No monster quiz data available or channel not found.")
+            return
         
         quiz_monster = random.choice(self.monsters_data['monster_quiz'])
         self.active_anomaly = quiz_monster
@@ -843,7 +882,7 @@ class DuniaHidup(commands.Cog):
                     
                     sickness_time_str = []
                     if hours_sickness > 0: sickness_time_str.append(f"{hours_sickness} jam")
-                    if minutes_sickness > 0: sickness_time_str.append(f"{minutes_sickness} menit")
+                    if minutes_sickness > 0: sickness_time_str.append(f"{minutes} menit") # Changed to minutes_sickness
                     if seconds_sickness > 0 or (not hours_sickness and not minutes_sickness): sickness_time_str.append(f"{seconds_sickness} detik")
                     
                     if not sickness_time_str: sickness_time_str.append("segera pulih")
@@ -984,7 +1023,7 @@ class DuniaHidup(commands.Cog):
                     time_str = []
                     if hours > 0: time_str.append(f"{hours} jam")
                     if minutes > 0: time_str.append(f"{minutes} menit")
-                    if seconds > 0 or not time_str: time_str.append(f"{seconds} detik")
+                    if seconds > 0 or (not hours and not minutes): time_str.append(f"{seconds} detik") # Corrected logic for seconds display
                     
                     sick_list.append(f"- **{member.display_name}** ({member.mention}): Sisa **{' '.join(time_str)}**")
             else:
