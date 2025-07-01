@@ -1,0 +1,42 @@
+{
+    "123456789012345678": {
+        "roles": {
+            "Werewolf": 2,
+            "Warga Polos": 4,
+            "Dokter": 1,
+            "Peramal": 1
+        },
+        "image_urls": {
+            "game_start_image_url": "https://example.com/werewolf_start.gif",
+            "night_phase_image_url": "https://example.com/werewolf_night.gif",
+            "day_phase_image_url": "https://example.com/werewolf_day.gif",
+            "night_resolution_image_url": "https://example.com/werewolf_victim.gif"
+        },
+        "audio_urls": {
+            "game_start_audio_url": "https://example.com/audio/start_music.mp3",
+            "night_phase_audio_url": "https://example.com/audio/night_ambience.mp3",
+            "day_phase_audio_url": "https://example.com/audio/day_discussion.mp3",
+            "vote_phase_audio_url": "https://example.com/audio/tense_vote.mp3",
+            "game_end_audio_url": "https://example.com/audio/game_over_fanfare.mp3"
+        }
+    },
+    "987654321098765432": {
+        "roles": {
+            "Werewolf": 1,
+            "Warga Polos": 3
+        },
+        "image_urls": {
+            "game_start_image_url": "https://another-example.com/start_scene.gif",
+            "night_phase_image_url": "https://another-example.com/dark_forest.gif",
+            "day_phase_image_url": null,
+            "night_resolution_image_url": "https://another-example.com/bloody_trail.gif"
+        },
+        "audio_urls": {
+            "game_start_audio_url": "https://another-example.com/audio/intro_simple.mp3",
+            "night_phase_audio_url": "https://another-example.com/audio/creepy_night.mp3",
+            "day_phase_audio_url": null,
+            "vote_phase_audio_url": null,
+            "game_end_audio_url": "https://another-example.com/audio/end_sound.mp3"
+        }
+    }
+}
