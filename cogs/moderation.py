@@ -54,6 +54,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     """
     def __init__(self, bot):
         self.bot = bot
+        # Pastikan path ke folder data sudah benar relatif terhadap main bot script
         self.settings_file = "data/settings.json"
         self.filters_file = "data/filters.json"
         self.warnings_file = "data/warnings.json"
@@ -339,11 +340,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberi peringatan kepada anggota dengan role setara atau lebih tinggi.", color=self.color_error))
             return
         if member.bot:
-            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberi peringatan kepada bot.", color=self.color_error))
-            return
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberi peringatan kepada bot.", color=self.color_error)); return
         if member.id == ctx.guild.owner.id:
-            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memperingatkan pemilik server.", color=self.color_error))
-            return
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memperingatkan pemilik server.", color=self.color_error)); return
 
         timestamp = int(time.time())
         warning_data = {
@@ -623,8 +622,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                     button.label = f"{label_text}: {'Aktif' if is_active else 'Nonaktif'}"
                     button.style = discord.ButtonStyle.green if is_active else discord.ButtonStyle.red
                 
-                self.clear_items()
+                self.clear_items() # Clear existing items before adding updated ones
                 
+                # Re-create and add buttons with updated states
                 self.toggle_bots = discord.ui.Button(emoji="🛡️", row=0)
                 self.toggle_bots.callback = lambda i: self.toggle_rule(i, "disallow_bots")
                 set_button_state(self.toggle_bots, "Dilarang Bot", rules.get("disallow_bots", False))
@@ -874,9 +874,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         target_channel = channel or ctx.channel
 
         class AnnouncementModal(discord.ui.Modal, title="Buat Pengumuman Baru"):
-            # Max length for short text input is 45 characters
-            # Max length for paragraph text input is 4000 characters
-
+            # Input fields
             announcement_title = discord.ui.TextInput(
                 label="Judul Pengumuman",
                 placeholder="Contoh: Pembaruan Server!",
@@ -884,7 +882,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 required=True,
                 row=0
             )
-            # Menggunakan satu field deskripsi utama
             announcement_description = discord.ui.TextInput(
                 label="Deskripsi Pengumuman (Maks 4000 karakter)",
                 placeholder="Tuliskan detail pengumumanmu di sini. Mendukung Discord Markdown.",
@@ -893,25 +890,22 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 required=True,
                 row=1
             )
-            # Input untuk nama pengirim kustom
             sender_name = discord.ui.TextInput(
                 label="Nama Pengirim (Opsional, default: Anda)",
-                placeholder=ctx.author.display_name, # Default placeholder
-                default=ctx.author.display_name, # Pre-fill with current user's name
+                placeholder=ctx.author.display_name, # Placeholder shows current user's name
+                default=ctx.author.display_name,      # Pre-fill with current user's name
                 max_length=256,
                 required=False,
                 row=2
             )
-            # Input untuk URL avatar pengirim kustom
             sender_avatar_url = discord.ui.TextInput(
                 label="URL Avatar Pengirim (Opsional, default: Avatar Anda)",
-                placeholder="Contoh: https://example.com/avatar.png", # Placeholder
-                default=str(ctx.author.display_avatar.url), # Pre-fill with current user's avatar
+                placeholder="Contoh: https://example.com/avatar.png", # Generic placeholder
+                default=str(ctx.author.display_avatar.url),      # Pre-fill with current user's avatar
                 max_length=2000,
                 required=False,
                 row=3
             )
-            # Input untuk URL gambar di akhir pengumuman
             announcement_image_url = discord.ui.TextInput(
                 label="URL Gambar di Akhir Pengumuman (Opsional)",
                 placeholder="Contoh: https://example.com/banner.png",
@@ -924,18 +918,19 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 super().__init__()
                 self.cog = cog_instance
                 self.original_ctx = original_ctx
-                # These TextInput instances are already defined as class attributes above,
-                # and __init__ automatically handles adding them if they are defined this way.
-                # No need to manually add_item() here if defined as class attributes.
+                # The TextInput instances are already defined as class attributes above.
+                # When super().__init__() is called, it automatically adds these class attributes
+                # that are instances of discord.ui.InputText (or TextInput) to the modal's items.
+                # So, no need for self.add_item() here, unless you want to dynamically create them.
 
             async def on_submit(self, interaction: discord.Interaction):
-                # Defer the response immediately to avoid "interaction failed"
                 await interaction.response.defer(ephemeral=False) 
 
                 title = self.announcement_title.value
-                description = self.announcement_description.value # Single description field now
+                description = self.announcement_description.value
                 
-                # Get sender info from modal inputs, respecting defaults
+                # Retrieve values from modal inputs. .strip() to remove leading/trailing whitespace.
+                # If optional fields are empty, use default values (original ctx.author's info).
                 author_name = self.sender_name.value.strip() if self.sender_name.value else self.original_ctx.author.display_name
                 author_icon = self.sender_avatar_url.value.strip() if self.sender_avatar_url.value else str(self.original_ctx.author.display_avatar.url)
                 image_url = self.announcement_image_url.value.strip()
@@ -957,7 +952,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 # Create the announcement embed
                 announce_embed = discord.Embed(
                     title=title,
-                    description=description, # Use the single (but max 4000 char) description field
+                    description=description,
                     color=self.cog.color_announce,
                     timestamp=datetime.utcnow() # Use UTC for consistency
                 )
@@ -969,6 +964,15 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 announce_embed.set_footer(text=f"Pengumuman dari {self.original_ctx.guild.name}", icon_url=self.original_ctx.guild.icon.url if self.original_ctx.guild.icon else None)
 
                 try:
+                    # Check bot's permissions in the target channel before sending
+                    perms = target_channel.permissions_for(target_channel.guild.me)
+                    if not perms.send_messages or not perms.embed_links:
+                        await interaction.followup.send(embed=self.cog._create_embed(
+                            description=f"❌ Bot tidak memiliki izin untuk mengirim pesan atau menyematkan tautan di {target_channel.mention}. Pastikan bot memiliki izin 'Kirim Pesan' dan 'Sematkan Tautan'.", 
+                            color=self.cog.color_error
+                        ), ephemeral=True)
+                        return
+
                     await target_channel.send(embed=announce_embed)
                     await interaction.followup.send(embed=self.cog._create_embed(
                         description=f"✅ Pengumuman berhasil dikirim ke {target_channel.mention}!", 
@@ -992,15 +996,16 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                         color=self.cog.color_error
                     ), ephemeral=True)
                 except Exception as e:
+                    print(f"Error saat mengirim pengumuman di channel {target_channel.id}: {e}")
                     await interaction.followup.send(embed=self.cog._create_embed(
                         description=f"❌ Terjadi kesalahan saat mengirim pengumuman: {e}", 
                         color=self.cog.color_error
                     ), ephemeral=True)
 
             async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-                print(f"Error in AnnouncementModal: {error}")
+                print(f"Error in AnnouncementModal (on_error): {error}")
                 await interaction.followup.send(embed=self.cog._create_embed(
-                    description=f"❌ Terjadi kesalahan saat memproses formulir: {error}",
+                    description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}",
                     color=self.cog.color_error
                 ), ephemeral=True)
 
@@ -1018,9 +1023,21 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 if not interaction.user.guild_permissions.manage_guild:
                     return await interaction.response.send_message("Anda tidak memiliki izin `Manage Server`.", ephemeral=True)
                 
-                # Pass original_ctx to modal for defaults (author name, avatar)
                 modal = AnnouncementModal(self.cog, self.original_ctx)
-                await interaction.response.send_modal(modal)
+                try:
+                    await interaction.response.send_modal(modal)
+                except discord.Forbidden:
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description=f"❌ Bot tidak memiliki izin untuk mengirim modal. Ini bisa terjadi jika bot tidak bisa mengirim DM ke Anda atau ada masalah izin.",
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                except Exception as e:
+                    print(f"Error saat menampilkan modal pengumuman: {e}")
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description=f"❌ Terjadi kesalahan saat menampilkan formulir: {e}",
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+
 
             async def on_timeout(self) -> None:
                 for item in self.children:
@@ -1040,3 +1057,4 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
 
 async def setup(bot):
     await bot.add_cog(ServerAdminCog(bot))
+
