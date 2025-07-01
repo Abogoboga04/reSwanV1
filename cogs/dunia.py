@@ -24,10 +24,14 @@ def load_json_from_root(file_path):
         # Mengembalikan struktur data default tergantung jenis file
         if 'users' in file_path or 'inventory' in file_path or 'protected_users' in file_path or 'sick_users_cooldown' in file_path: 
             return {}
-        elif any(k in file_path for k in ['monsters', 'anomalies', "medicines"]): 
-            # Untuk file seperti monsters.json, anomalies.json, medicines.json yang berisi daftar
-            return {'monsters': [], 'anomalies': [], 'medicines': []}.get(os.path.basename(file_path).replace('.json', ''), []) # Modified to return empty list or specific dict structure
-        return {}
+        # Menangani kasus di mana file seperti monsters.json mungkin diharapkan berupa dict dengan list di dalamnya
+        elif 'monsters' in file_path:
+            return {'monsters': [], 'monster_quiz': []} 
+        elif 'anomalies' in file_path:
+            return {'anomalies': []}
+        elif 'medicines' in file_path:
+            return {'medicines': []}
+        return {} # Default safest if type is unknown
 
 def save_json_to_root(data, file_path):
     """Menyimpan data ke file JSON di root direktori proyek."""
@@ -103,15 +107,15 @@ class MonsterBattleView(discord.ui.View):
         
         if self.monster['current_hp'] > 0:
             monster_damage = random.randint(100, 300)
-            self.battle_log.append(f"Raungan mengerikan! {self.monster['name']} membalas, menghantam {interaction.user.display_name} sebesar **{monster_damage}** kerusakan!")
+            self.battle_log.append(f"Raungan mengerikan! {self.monster['name']} membalas, menghantam {interaction.user.display_player.display_name} sebesar **{monster_damage}** kerusakan!") # FIX: user.display_name
         
         # Pindah ke giliran pemain berikutnya
         self.turn_index = (self.turn_index + 1) % len(self.party)
         await self.update_view(interaction)
 
-# ---
+---
 ## DuniaHidup Cog
-# ---
+---
 
 class DuniaHidup(commands.Cog):
     def __init__(self, bot):
@@ -135,7 +139,7 @@ class DuniaHidup(commands.Cog):
         # Ganti dengan ID channel pengumuman di server Discord Anda
         self.event_channel_id = 765140300145360896 
         # Ganti dengan ID role 'Sakit' di server Discord Anda
-        self.sick_role_id = 1388744189063200860 
+        self.sick_role_id = 1388744189063200860 # ID Role Sakit yang Anda berikan
         self.sickness_cooldown_minutes = 1 # Cooldown pesan normal
         self.sickness_duration_minutes = 60 # Durasi sakit default 60 menit (untuk anomali wabah normal)
         self.sickness_duration_minutes_quiz = 300 # Durasi sakit akibat kuis (5 jam = 300 menit)
@@ -144,27 +148,22 @@ class DuniaHidup(commands.Cog):
         self.main_guild_id = 765138959625486357 # ID Server Utama Anda
 
         # Memuat data dari file JSON
-        # Menyesuaikan inisialisasi agar sesuai dengan load_json_from_root yang diperbarui
+        # Menyesuaikan inisialisasi agar lebih robust terhadap struktur file JSON
         self.monsters_data = load_json_from_root('data/monsters.json')
-        if isinstance(self.monsters_data, dict) and 'monsters' in self.monsters_data:
-             self.monsters_data = self.monsters_data # Keep if it's already structured correctly
-        else:
-            print("Warning: monsters.json might be malformed, defaulting to empty list.")
-            self.monsters_data = {'monsters': [], 'monster_quiz': []} # Default to a dict with empty lists
+        if not isinstance(self.monsters_data, dict) or 'monsters' not in self.monsters_data or 'monster_quiz' not in self.monsters_data:
+            print("Warning: monsters.json is malformed or incomplete, defaulting to empty structure.")
+            self.monsters_data = {'monsters': [], 'monster_quiz': []}
             
         self.anomalies_data = load_json_from_root('data/world_anomalies.json')
-        if isinstance(self.anomalies_data, dict) and 'anomalies' in self.anomalies_data:
-            self.anomalies_data = self.anomalies_data.get('anomalies', [])
-        else:
-            print("Warning: world_anomalies.json might be malformed, defaulting to empty list.")
-            self.anomalies_data = []
+        if not isinstance(self.anomalies_data, dict) or 'anomalies' not in self.anomalies_data:
+            print("Warning: world_anomalies.json is malformed, defaulting to empty list.")
+            self.anomalies_data = [] # Assume anomalies is a list directly
 
         self.medicines_data = load_json_from_root('data/medicines.json')
-        if isinstance(self.medicines_data, dict) and 'medicines' in self.medicines_data:
-            self.medicines_data = self.medicines_data.get('medicines', [])
-        else:
-            print("Warning: medicines.json might be malformed, defaulting to empty list.")
-            self.medicines_data = []
+        if not isinstance(self.medicines_data, dict) or 'medicines' not in self.medicines_data:
+            print("Warning: medicines.json is malformed, defaulting to empty list.")
+            self.medicines_data = [] # Assume medicines is a list directly
+
 
         # Memulai tasks loop
         self.world_event_loop.start()
@@ -187,7 +186,6 @@ class DuniaHidup(commands.Cog):
         
         await self.bot.wait_until_ready()
 
-        # --- Menggunakan self.main_guild_id untuk mendapatkan guild ---
         guild = self.bot.get_guild(self.main_guild_id) 
         if not guild:
             print(f"sick_status_cleaner: Guild dengan ID {self.main_guild_id} tidak ditemukan. Melewatkan pembersihan status sakit.")
@@ -195,7 +193,7 @@ class DuniaHidup(commands.Cog):
 
         sick_role = guild.get_role(self.sick_role_id)
         if not sick_role: 
-            print(f"sick_status_cleaner: Role 'Sakit' dengan ID {self.sick_role_id} tidak ditemukan di guild {guild.name}.")
+            print(f"sick_status_cleaner: Role 'Sakit' dengan ID {self.sick_role_id} tidak ditemukan di guild {guild.name}. Tidak dapat membersihkan status sakit.")
             return
 
         users_to_check = list(self.sick_users_cooldown.keys()) 
@@ -214,13 +212,14 @@ class DuniaHidup(commands.Cog):
                 member = guild.get_member(int(user_id_str))
                 if member and sick_role in member.roles:
                     try:
-                        await member.remove_roles(sick_role)
+                        # PENTING: Bot harus memiliki izin Manage Roles dan role-nya lebih tinggi dari role 'Sakit'
+                        await member.remove_roles(sick_role, reason="Sembuh dari wabah.")
                         channel = self.bot.get_channel(self.event_channel_id)
                         if channel:
                             await channel.send(f"🎉 **{member.display_name}** ({member.mention}) telah pulih dari wabah penyakit!")
                         print(f"{member.display_name} sembuh dari sakit.")
                     except discord.Forbidden:
-                        print(f"Bot tidak memiliki izin untuk menghapus role 'Sakit' dari {member.display_name}.")
+                        print(f"ERROR: Bot tidak memiliki izin untuk menghapus role 'Sakit' dari {member.display_name}. Pastikan role bot lebih tinggi dari role 'Sakit'.")
                     except Exception as e:
                         print(f"Error saat membersihkan role sakit dari {member.display_name}: {e}")
                 
@@ -250,7 +249,7 @@ class DuniaHidup(commands.Cog):
         elif event_type == 'anomaly' and self.anomalies_data: await self.trigger_anomaly()
         elif event_type == 'monster_quiz' and self.monsters_data and self.monsters_data.get('monster_quiz'): await self.trigger_monster_quiz()
         else:
-            print(f"Warning: Not enough data for event type {event_type} or data is malformed.")
+            print(f"Warning: Not enough data for event type {event_type} or data is malformed. Skipping event.")
 
 
     @tasks.loop(minutes=30)
@@ -276,7 +275,6 @@ class DuniaHidup(commands.Cog):
 
     async def spawn_monster(self):
         """Memunculkan monster baru di channel event."""
-        # Ensure 'monsters' key exists and is a list
         if not self.monsters_data or not self.monsters_data.get('monsters'):
             print("No monster data available to spawn.")
             return
@@ -319,7 +317,8 @@ class DuniaHidup(commands.Cog):
         user_scores = []
         for user_id, user_exp_data in level_data.items():
             member = guild.get_member(int(user_id))
-            if not member:
+            # Tambahkan pengecualian untuk bot itu sendiri dan owner guild
+            if not member or member.bot or member.id == guild.owner_id: 
                 continue
             
             exp = user_exp_data.get('exp', 0)
@@ -361,7 +360,8 @@ class DuniaHidup(commands.Cog):
         now = datetime.utcnow()
         if self.monster_attack_queue and now < datetime.fromisoformat(self.monster_attack_queue[0]['attack_time']): return
         
-        if not self.monster_attack_queue: # Add check for empty queue after popping
+        # Add check for empty queue after popping
+        if not self.monster_attack_queue: 
             return
 
         attack = self.monster_attack_queue.pop(0)
@@ -377,8 +377,9 @@ class DuniaHidup(commands.Cog):
             return
 
         member = guild.get_member(int(user_id_to_attack))
-        if not member: 
-            print(f"Melewatkan serangan monster: Anggota {user_id_to_attack} tidak ditemukan di guild.")
+        # Tambahkan pengecualian untuk bot itu sendiri dan owner guild
+        if not member or member.bot or member.id == guild.owner_id: 
+            print(f"Melewatkan serangan monster: Anggota {user_id_to_attack} adalah bot/owner atau tidak ditemukan di guild.")
             return
 
         loss_multiplier = 1
@@ -449,6 +450,9 @@ class DuniaHidup(commands.Cog):
         embed.set_footer(text="Semakin banyak yang berjuang, semakin besar peluang peluang kemenanganmu... atau kematianmu bersama!")
         
         async def join_callback(interaction: discord.Interaction):
+            if interaction.user != party[0]: # Pastikan hanya pembuat party yang bisa menekan tombol pertama kali
+                 await interaction.response.send_message("Hanya pembuat party yang bisa memulai.", ephemeral=True)
+                 return
             if interaction.user not in party:
                 party.add(interaction.user)
                 await interaction.response.send_message(f"{interaction.user.mention} telah melangkah menuju takdirnya!", ephemeral=True)
@@ -576,8 +580,7 @@ class DuniaHidup(commands.Cog):
 
     async def trigger_anomaly(self):
         """Memicu event anomali dunia."""
-        # Ensure anomalies_data is a list
-        if not self.anomalies_data:
+        if not self.anomalies_data: # Make sure it's not empty
             print("No anomaly data available to trigger.")
             return
 
@@ -733,9 +736,29 @@ class DuniaHidup(commands.Cog):
 
         sick_role = guild.get_role(self.sick_role_id)
         if not sick_role:
-            print(f"Peringatan: Role 'Sakit' dengan ID {self.sick_role_id} tidak ditemukan di guild {guild.name}.")
+            print(f"Peringatan: Role 'Sakit' dengan ID {self.sick_role_id} tidak ditemukan di guild {guild.name}. Tidak dapat menyebarkan wabah.")
             if channel: await channel.send("⚠️ Peringatan: Role 'Sakit' tidak ditemukan, wabah tidak dapat menyebar sepenuhnya.")
             return
+
+        # Pengecekan izin bot untuk mengelola role
+        bot_member = guild.get_member(self.bot.user.id)
+        if not bot_member:
+            print(f"ERROR: Bot tidak ditemukan di guild {guild.name}. Tidak dapat mengelola role.")
+            if channel: await channel.send("❌ Bot tidak ditemukan di server ini, tidak bisa menyebarkan wabah.")
+            return
+        
+        # Pastikan bot memiliki izin manage_roles dan role-nya lebih tinggi dari sick_role
+        if not bot_member.guild_permissions.manage_roles:
+            print(f"ERROR: Bot tidak memiliki izin 'manage_roles' di guild {guild.name}. Tidak dapat menyebarkan wabah.")
+            if channel: await channel.send("❌ Bot tidak memiliki izin 'Kelola Peran', tidak bisa menyebarkan wabah.")
+            return
+        
+        # Pastikan posisi role bot lebih tinggi dari role 'Sakit'
+        if bot_member.top_role <= sick_role:
+            print(f"ERROR: Posisi role bot ({bot_member.top_role.name}) lebih rendah atau setara dengan role 'Sakit' ({sick_role.name}). Tidak dapat menyebarkan wabah.")
+            if channel: await channel.send("❌ Posisi peran bot lebih rendah atau setara dengan peran 'Sakit', tidak bisa menyebarkan wabah.")
+            return
+
 
         level_data = load_json_from_root('data/level_data.json').get(str(guild.id), {})
         bank_data = load_json_from_root('data/bank_data.json')
@@ -744,9 +767,12 @@ class DuniaHidup(commands.Cog):
         users_eligible_for_infection = []
         for user_id_str, user_exp_data in level_data.items():
             member = guild.get_member(int(user_id_str))
-            if (member and sick_role not in member.roles and 
-                'last_active' in user_exp_data and isinstance(user_exp_data.get('last_active'), str) and 
-                datetime.utcnow() - datetime.fromisoformat(user_exp_data['last_active']) < timedelta(days=3)):
+            # Tambahkan pengecualian untuk bot itu sendiri dan owner guild, serta yang sudah sakit
+            if not member or member.bot or member.id == guild.owner_id or sick_role in member.roles: 
+                continue
+            
+            # Pastikan user aktif dalam 3 hari terakhir
+            if 'last_active' in user_exp_data and isinstance(user_exp_data.get('last_active'), str) and datetime.utcnow() - datetime.fromisoformat(user_exp_data['last_active']) < timedelta(days=3):
                 
                 exp = user_exp_data.get('exp', 0)
                 balance = bank_data.get(user_id_str, {}).get('balance', 0)
@@ -759,18 +785,18 @@ class DuniaHidup(commands.Cog):
         if is_quiz_punishment:
             users_eligible_for_infection.sort(key=lambda x: x[0], reverse=True)
             
-            num_to_infect = min(len(users_eligible_for_infection), 30) 
+            num_to_infect = min(len(users_eligible_for_infection), 30) # Maksimal 30 user teratas
             duration = custom_duration if custom_duration else self.sickness_duration_minutes_quiz
 
             targets_to_infect = users_eligible_for_infection[:num_to_infect]
 
-            if not targets_to_infect:
-                await channel.send("Wabah telah menyebar, namun entah somehow tidak ada yang terinfeksi kali ini... Mungkin nasib sedang berpihak, untuk sementara. (Tidak ada user yang memenuhi syarat untuk diinfeksi.)")
+            if not targets_to_infect: # Jika tidak ada user yang eligible sama sekali setelah filter
+                await channel.send("Wabah telah menyebar, namun entah somehow tidak ada yang terinfeksi kali ini... Mungkin nasib sedang berpihak, untuk sementara. (Tidak ada user yang memenuhi syarat untuk diinfeksi setelah pengecualian.)")
                 return
 
             for score, user_id_str, member in targets_to_infect:
                 try:
-                    await member.add_roles(sick_role)
+                    await member.add_roles(sick_role, reason="Terinfeksi wabah akibat kegagalan kuis.")
                     self.sick_users_cooldown[str(member.id)] = {
                         'last_message_time': datetime.utcnow().isoformat(),
                         'sickness_end_time': (datetime.utcnow() + timedelta(minutes=duration)).isoformat(),
@@ -784,11 +810,11 @@ class DuniaHidup(commands.Cog):
                     infected_mentions_for_log_and_embed.append(f"**{member.display_name}** ({member.mention})")
                     infected_count += 1
                 except discord.Forbidden:
-                    print(f"Bot tidak memiliki izin untuk menambahkan role 'Sakit' ke {member.display_name}.")
+                    print(f"ERROR: Bot tidak memiliki izin untuk menambahkan role 'Sakit' ke {member.display_name}. Pastikan role bot lebih tinggi dari role 'Sakit'.")
                 except Exception as e:
                     print(f"Error saat menginfeksi {member.display_name}: {e}")
         
-        else:
+        else: # Untuk wabah normal (random)
             num_to_infect = min(len(users_eligible_for_infection), random.randint(3, 7))
             duration = self.sickness_duration_minutes
             
@@ -799,7 +825,7 @@ class DuniaHidup(commands.Cog):
             random_targets = random.sample(users_eligible_for_infection, num_to_infect)
             for score, user_id_str, member in random_targets:
                  try:
-                    await member.add_roles(sick_role)
+                    await member.add_roles(sick_role, reason="Terinfeksi wabah normal.")
                     self.sick_users_cooldown[str(member.id)] = {
                         'last_message_time': datetime.utcnow().isoformat(),
                         'sickness_end_time': (datetime.utcnow() + timedelta(minutes=duration)).isoformat(),
@@ -809,7 +835,7 @@ class DuniaHidup(commands.Cog):
                     infected_mentions_for_log_and_embed.append(f"**{member.display_name}** ({member.mention})")
                     infected_count += 1
                  except discord.Forbidden:
-                    print(f"Bot tidak memiliki izin untuk menambahkan role 'Sakit' ke {member.display_name}.")
+                    print(f"ERROR: Bot tidak memiliki izin untuk menambahkan role 'Sakit' ke {member.display_name}. Pastikan role bot lebih tinggi dari role 'Sakit'.")
                  except Exception as e:
                     print(f"Error saat menginfeksi {member.display_name}: {e}")
 
@@ -848,7 +874,7 @@ class DuniaHidup(commands.Cog):
             embed.set_footer(text="Waspadalah! Penyakit ini tidak mengenal belas kasihan.")
             await channel.send(embed=embed)
         elif channel and infected_count == 0 and is_quiz_punishment:
-             await channel.send("Wabah telah menyebar, namun entah somehow tidak ada yang terinfeksi kali ini... Mungkin nasib sedang berpihak, untuk sementara. (Tidak ada user yang memenuhi syarat untuk diinfeksi atau bot tidak memiliki izin untuk menambahkan role.)")
+             await channel.send("Wabah telah menyebar, namun entah somehow tidak ada yang terinfeksi kali ini... Mungkin nasib sedang berpihak, untuk sementara. (Tidak ada user yang memenuhi syarat untuk diinfeksi setelah pengecualian bot/owner, atau bot tidak memiliki izin.)")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -882,7 +908,7 @@ class DuniaHidup(commands.Cog):
                     
                     sickness_time_str = []
                     if hours_sickness > 0: sickness_time_str.append(f"{hours_sickness} jam")
-                    if minutes_sickness > 0: sickness_time_str.append(f"{minutes} menit") # Changed to minutes_sickness
+                    if minutes_sickness > 0: sickness_time_str.append(f"{minutes_sickness} menit")
                     if seconds_sickness > 0 or (not hours_sickness and not minutes_sickness): sickness_time_str.append(f"{seconds_sickness} detik")
                     
                     if not sickness_time_str: sickness_time_str.append("segera pulih")
@@ -945,19 +971,24 @@ class DuniaHidup(commands.Cog):
         if random.randint(1, 100) <= chosen_medicine['heal_chance']:
             await asyncio.sleep(2)
             heal_embed = discord.Embed(title="✨ KEAJAIBAN! ATAU HANYA PENUNDAAN?! ✨", color=discord.Color.green())
-            await ctx.author.remove_roles(sick_role)
-            if str(ctx.author.id) in self.sick_users_cooldown: 
-                del self.sick_users_cooldown[str(ctx.author.id)]
-            save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
+            try:
+                await ctx.author.remove_roles(sick_role, reason="Sembuh dengan obat.")
+                if str(ctx.author.id) in self.sick_users_cooldown: 
+                    del self.sick_users_cooldown[str(ctx.author.id)]
+                save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
 
-            if chosen_medicine['heal_chance'] == 100:
-                expiry = datetime.utcnow() + timedelta(hours=24)
-                self.protected_users[user_id_str] = expiry.isoformat()
-                save_json_to_root(self.protected_users, 'data/protected_users.json')
-                heal_embed.description = "Kamu sembuh total dari penderitaanmu! Role 'Sakit' telah dilepas dan kamu mendapat **perlindungan 24 jam** dari serangan monster! Nikmati kelegaan sesaat ini..."
-            else:
-                heal_embed.description = "Kamu merasa jauh lebih baik dan sembuh total! Role 'Sakit' telah dilepas. Tapi ingat, bahaya selalu mengintai."
-            await ctx.send(embed=heal_embed)
+                if chosen_medicine['heal_chance'] == 100:
+                    expiry = datetime.utcnow() + timedelta(hours=24)
+                    self.protected_users[user_id_str] = expiry.isoformat()
+                    save_json_to_root(self.protected_users, 'data/protected_users.json')
+                    heal_embed.description = "Kamu sembuh total dari penderitaanmu! Role 'Sakit' telah dilepas dan kamu mendapat **perlindungan 24 jam** dari serangan monster! Nikmati kelegaan sesaat ini..."
+                else:
+                    heal_embed.description = "Kamu merasa jauh lebih baik dan sembuh total! Role 'Sakit' telah dilepas. Tapi ingat, bahaya selalu mengintai."
+                await ctx.send(embed=heal_embed)
+            except discord.Forbidden:
+                await ctx.send(f"❌ Bot tidak bisa menghapus role 'Sakit' dari Anda. Pastikan role bot lebih tinggi dari role 'Sakit'.")
+            except Exception as e:
+                await ctx.send(f"❌ Terjadi kesalahan saat menyembuhkan: {e}")
         else:
             await asyncio.sleep(2)
             await ctx.send("Sayang sekali... obatnya tidak bekerja. Kamu masih merasa pusing, mual, dan tak berdaya. Coba lagi lain kali, jika kau masih hidup.")
@@ -978,7 +1009,7 @@ class DuniaHidup(commands.Cog):
             return await ctx.send(f"{member.display_name} ({member.mention}) tidak sedang sakit.", ephemeral=True)
 
         try:
-            await member.remove_roles(sick_role)
+            await member.remove_roles(sick_role, reason=f"Disembuhkan oleh Admin {ctx.author.display_name}")
             if str(member.id) in self.sick_users_cooldown:
                 del self.sick_users_cooldown[str(member.id)]
                 save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
@@ -1023,7 +1054,8 @@ class DuniaHidup(commands.Cog):
                     time_str = []
                     if hours > 0: time_str.append(f"{hours} jam")
                     if minutes > 0: time_str.append(f"{minutes} menit")
-                    if seconds > 0 or (not hours and not minutes): time_str.append(f"{seconds} detik") # Corrected logic for seconds display
+                    # Tampilkan detik jika ada atau jika tidak ada jam/menit
+                    if seconds > 0 or (not hours and not minutes): time_str.append(f"{seconds} detik") 
                     
                     sick_list.append(f"- **{member.display_name}** ({member.mention}): Sisa **{' '.join(time_str)}**")
             else:
@@ -1043,6 +1075,7 @@ class DuniaHidup(commands.Cog):
             )
             embed.add_field(name="Korban Wabah", value="\n".join(sick_list), inline=False)
         
+        # Menggunakan Asia/Jakarta timezone untuk tampilan waktu lokal
         embed.set_footer(text=f"Diperbarui pada: {datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%H:%M:%S WIB')}")
         await ctx.send(embed=embed)
 
