@@ -670,7 +670,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- Contoh Perintah untuk Memulai Werewolf (placeholder) ---
     @commands.command(name="startwerewolf", help="Mulai game Werewolf (contoh, perlu integrasi lebih lanjut).")
-    @commands.cooldown(1, 30, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def start_werewolf_game_example(self, ctx):
         if await self._check_mimic_attack(ctx): return # Cek mimic attack
         if not await self.start_game_check(ctx): return
@@ -761,7 +761,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 1: DESKRIPSIKAN & TEBAK ---
     @commands.command(name="deskripsi", help="Mulai game Gartic Phone versi teks.")
-    @commands.cooldown(1, 30, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def deskripsi(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -816,7 +816,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 2: PERANG OTAK (Placeholder) ---
     @commands.command(name="perangotak", help="Mulai game Family Feud.")
-    @commands.cooldown(1, 60, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def perangotak(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -834,7 +834,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 3: CERITA BERSAMBUNG ---
     @commands.command(name="cerita", help="Mulai game membuat cerita bersama.")
-    @commands.cooldown(1, 60, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def cerita(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -882,7 +882,7 @@ class UltimateGameArena(commands.Cog):
         
     # --- GAME 4: TIC-TAC-TOE ---
     @commands.command(name="tictactoe", help="Tantang temanmu bermain Tic-Tac-Toe.")
-    @commands.cooldown(1, 10, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def tictactoe(self, ctx, opponent: discord.Member):
         if await self._check_mimic_attack(ctx): return
         if opponent.bot or opponent == ctx.author:
@@ -897,7 +897,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 5: SIAPAKAH AKU? ---
     @commands.command(name="siapakahaku", help="Mulai sesi 10 soal tebak-tebakan kompetitif.")
-    @commands.cooldown(1, 60, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def siapakahaku(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -1036,7 +1036,7 @@ class UltimateGameArena(commands.Cog):
     
     # --- GAME 6: PERNAH GAK PERNAH ---
     @commands.command(name="pernahgak", help="Mulai game 'Pernah Gak Pernah'.")
-    @commands.cooldown(1, 60, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def pernahgak(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not ctx.author.voice or not ctx.author.voice.channel:
@@ -1073,7 +1073,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 7: HITUNG CEPAT ---
     @commands.command(name="hitungcepat", help="Selesaikan soal matematika secepat mungkin!")
-    @commands.cooldown(1, 15, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def hitungcepat(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -1120,7 +1120,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 8: TARUHAN BALAP KUDA ---
     @commands.command(name="balapankuda", help="Mulai taruhan balap kuda.")
-    @commands.cooldown(1, 120, commands.BucketType.channel)
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def balapankuda(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -1257,7 +1257,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 9: RODA TAKDIR GILA! ---
     @commands.command(name="putarroda", aliases=['putar'], help="Putar Roda Takdir Gila untuk takdir tak terduga!")
-    @commands.cooldown(1, 10, commands.BucketType.user)
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def putarroda(self, ctx):
         if await self._check_mimic_attack(ctx): return
         
