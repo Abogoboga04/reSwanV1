@@ -21,11 +21,13 @@ def load_data(file_path):
             content = f.read()
             if not content: return {}
             return json.loads(content)
-    except (json.JSONDecodeError, IOError):
-        return {} # Kembalikan dict kosong jika file rusak atau tidak bisa dibaca
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error loading {file_path}: {e}")
+        return {}
 
 def save_data(file_path, data):
     """Menyimpan data ke file JSON."""
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
@@ -52,22 +54,25 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     """
     def __init__(self, bot):
         self.bot = bot
-        self.settings_file = "settings.json"
-        self.filters_file = "filters.json"
-        self.warnings_file = "warnings.json" # ---> DITAMBAHKAN: File baru untuk data peringatan
+        self.settings_file = "data/settings.json"
+        self.filters_file = "data/filters.json"
+        self.warnings_file = "data/warnings.json"
         
-        # ---> DITAMBAHKAN: Regex dan prefix untuk aturan channel
         self.common_prefixes = ('!', '.', '?', '-', '$', '%', '&', '#', '+', '=')
         self.url_regex = re.compile(r'https?://[^\s/$.?#].[^\s]*')
         
         # Palet Warna untuk Embeds
-        self.color_success = 0x2ECC71; self.color_error = 0xE74C3C
-        self.color_info = 0x3498DB; self.color_warning = 0xF1C40F
-        self.color_log = 0x95A5A6; self.color_welcome = 0x9B59B6
+        self.color_success = 0x2ECC71
+        self.color_error = 0xE74C3C
+        self.color_info = 0x3498DB
+        self.color_warning = 0xF1C40F
+        self.color_log = 0x95A5A6
+        self.color_welcome = 0x9B59B6
+        self.color_announce = 0x7289DA # Warna baru untuk announcement
         
         self.settings = load_data(self.settings_file)
         self.filters = load_data(self.filters_file)
-        self.warnings = load_data(self.warnings_file) # ---> DITAMBAHKAN: Memuat data peringatan saat bot mulai
+        self.warnings = load_data(self.warnings_file)
 
     # --- Helper Methods for Data Management ---
     def get_guild_settings(self, guild_id: int):
@@ -77,17 +82,14 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 "auto_role_id": None, "welcome_channel_id": None,
                 "welcome_message": "Selamat datang di **{guild_name}**, {user}! 🎉",
                 "log_channel_id": None, "reaction_roles": {},
-                # ---> DITAMBAHKAN: Struktur dasar untuk aturan channel
                 "channel_rules": {}
             }
             self.save_settings()
-        # ---> DITAMBAHKAN: Pengecekan untuk kompatibilitas data lama
         elif "channel_rules" not in self.settings[guild_id_str]:
             self.settings[guild_id_str]["channel_rules"] = {}
             self.save_settings()
         return self.settings[guild_id_str]
 
-    # ---> DITAMBAHKAN: Fungsi baru untuk mengelola aturan per-channel
     def get_channel_rules(self, guild_id: int, channel_id: int) -> dict:
         guild_settings = self.get_guild_settings(guild_id)
         channel_id_str = str(channel_id)
@@ -108,7 +110,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         
     def save_settings(self): save_data(self.settings_file, self.settings)
     def save_filters(self): save_data(self.filters_file, self.filters)
-    def save_warnings(self): save_data(self.warnings_file, self.warnings) # ---> DITAMBAHKAN: Fungsi untuk menyimpan peringatan
+    def save_warnings(self): save_data(self.warnings_file, self.warnings)
 
     # --- Helper Methods for UI & Logging ---
     def _create_embed(self, title: str = "", description: str = "", color: int = 0, author_name: str = "", author_icon_url: str = ""):
@@ -139,7 +141,10 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             await ctx.send(embed=self._create_embed(description=f"❌ Anggota tidak ditemukan.", color=self.color_error))
         elif isinstance(error, commands.UserNotFound):
             await ctx.send(embed=self._create_embed(description=f"❌ Pengguna tidak ditemukan.", color=self.color_error))
-        else: print(f"Error pada perintah '{ctx.command}': {error}")
+        elif isinstance(error, commands.BadArgument):
+            await ctx.send(embed=self._create_embed(description=f"❌ Argument tidak valid: {error}", color=self.color_error), delete_after=15)
+        else:
+            print(f"Error pada perintah '{ctx.command}': {error}")
 
 
     @commands.Cog.listener()
@@ -153,14 +158,15 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             embed.set_footer(text=f"Kamu adalah anggota ke-{member.guild.member_count}!")
             await channel.send(embed=embed)
         if (auto_role_id := guild_settings.get("auto_role_id")) and (role := member.guild.get_role(auto_role_id)):
-            await member.add_roles(role, reason="Auto Role")
+            try:
+                await member.add_roles(role, reason="Auto Role")
+            except discord.Forbidden:
+                print(f"Bot lacks permissions to assign auto-role {role.name} in {member.guild.name}.")
             
-    # ---> DITAMBAHKAN: Logika baru untuk on_message yang memprioritaskan aturan channel
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if not message.guild or message.author.id == self.bot.user.id: return
 
-        # 1. Penegakan Aturan Spesifik per-Channel
         rules = self.get_channel_rules(message.guild.id, message.channel.id)
         log_fields = {"Pengirim": message.author.mention, "Channel": message.channel.mention, "Isi Pesan": f"```{message.content[:1000]}```"}
         
@@ -173,7 +179,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             await self.log_action(message.guild, "🛡️ Pesan Bot Dihapus", log_fields, self.color_info)
             return
 
-        if message.author.bot: return
+        if message.author.bot:
+             return
 
         if rules.get("disallow_media") and message.attachments:
             await message.delete()
@@ -189,10 +196,12 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             return
         
         if rules.get("disallow_prefix") and message.content.startswith(self.common_prefixes):
-            await message.delete()
-            await message.channel.send(embed=self._create_embed(description=f"❗ {message.author.mention}, dilarang menggunakan perintah bot di channel ini.", color=self.color_warning), delete_after=10)
-            await self.log_action(message.guild, "❗ Perintah Bot Dihapus", log_fields, self.color_warning)
-            return
+            command_prefix = await self.bot.get_prefix(message)
+            if message.content.startswith(command_prefix):
+                await message.delete()
+                await message.channel.send(embed=self._create_embed(description=f"❗ {message.author.mention}, dilarang menggunakan perintah bot di channel ini.", color=self.color_warning), delete_after=10)
+                await self.log_action(message.guild, "❗ Perintah Bot Dihapus", log_fields, self.color_warning)
+                return
 
         if rules.get("disallow_url") and self.url_regex.search(message.content):
             await message.delete()
@@ -207,7 +216,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             except discord.Forbidden: pass
             return
 
-        # 2. Filter Global se-Server (berjalan jika tidak ada aturan channel yang dilanggar)
         guild_filters = self.get_guild_filters(message.guild.id)
         content_lower = message.content.lower()
         for bad_word in guild_filters.get("bad_words", []):
@@ -222,7 +230,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 await message.channel.send(embed=self._create_embed(description=f"🚨 {message.author.mention}, jenis link tersebut tidak diizinkan di sini.", color=self.color_warning), delete_after=10)
                 await self.log_action(message.guild, "🔗 Pesan Disensor (Pola Link)", log_fields, self.color_warning)
                 return
-
+        
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         if payload.guild_id is None or payload.member.bot: return
@@ -231,7 +239,11 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
            (role_id := role_map.get(str(payload.emoji))) and \
            (guild := self.bot.get_guild(payload.guild_id)) and \
            (role := guild.get_role(role_id)):
-            await payload.member.add_roles(role, reason="Reaction Role")
+            try:
+                await payload.member.add_roles(role, reason="Reaction Role")
+            except discord.Forbidden:
+                print(f"Bot lacks permissions to assign reaction role {role.name} in {guild.name}.")
+
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
@@ -242,7 +254,11 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         if (role_map := guild_settings.get("reaction_roles", {}).get(str(payload.message_id))) and \
            (role_id := role_map.get(str(payload.emoji))) and \
            (role := guild.get_role(role_id)) and role in member.roles:
-            await member.remove_roles(role, reason="Reaction Role Removed")
+            try:
+                await member.remove_roles(role, reason="Reaction Role Removed")
+            except discord.Forbidden:
+                print(f"Bot lacks permissions to remove reaction role {role.name} from {member.display_name} in {guild.name}.")
+
 
     # =======================================================================================
     # MODERATION COMMANDS
@@ -252,50 +268,68 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     @commands.has_permissions(kick_members=True)
     async def kick(self, ctx, member: discord.Member, *, reason: Optional[str] = "Tidak ada alasan."):
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengeluarkan anggota dengan role setara atau lebih tinggi.", color=self.color_error)); return
-        await member.kick(reason=reason)
-        await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** telah dikeluarkan.", color=self.color_success))
-        await self.log_action(ctx.guild, "👢 Member Dikeluarkan", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_warning)
+        if member.id == ctx.guild.owner.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengeluarkan pemilik server.", color=self.color_error)); return
+        if member.id == self.bot.user.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengeluarkan bot ini sendiri.", color=self.color_error)); return
+
+        try:
+            await member.kick(reason=reason)
+            await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** telah dikeluarkan.", color=self.color_success))
+            await self.log_action(ctx.guild, "👢 Member Dikeluarkan", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_warning)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk mengeluarkan anggota ini. Pastikan role bot lebih tinggi.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat mengeluarkan anggota: {e}", color=self.color_error))
+
 
     @commands.command(name="ban")
     @commands.has_permissions(ban_members=True)
     async def ban(self, ctx, member: discord.Member, *, reason: Optional[str] = "Tidak ada alasan."):
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memblokir anggota dengan role setara atau lebih tinggi.", color=self.color_error)); return
-        await member.ban(reason=reason)
-        await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** telah diblokir.", color=self.color_success))
-        await self.log_action(ctx.guild, "🔨 Member Diblokir", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_error)
+        if member.id == ctx.guild.owner.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memblokir pemilik server.", color=self.color_error)); return
+        if member.id == self.bot.user.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memblokir bot ini sendiri.", color=self.color_error)); return
 
-    # ---> PERINTAH BARU: UNBAN <---
+        try:
+            await member.ban(reason=reason)
+            await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** telah diblokir.", color=self.color_success))
+            await self.log_action(ctx.guild, "🔨 Member Diblokir", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_error)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk memblokir anggota ini. Pastikan role bot lebih tinggi.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat memblokir anggota: {e}", color=self.color_error))
+
+
     @commands.command(name="unban")
     @commands.has_permissions(ban_members=True)
     async def unban(self, ctx, *, user_identifier: str, reason: Optional[str] = "Tidak ada alasan."):
         """Membuka blokir pengguna berdasarkan Nama#Tag atau ID."""
-        ban_entries = [entry async for entry in ctx.guild.bans()]
-        banned_user_entry = None
-
+        user_to_unban = None
         try:
-            # Coba cari berdasarkan ID dulu, ini cara paling akurat
             user_id = int(user_identifier)
-            target_user = await self.bot.fetch_user(user_id)
-            banned_user_entry = await ctx.guild.fetch_ban(target_user)
+            temp_user = await self.bot.fetch_user(user_id)
+            user_to_unban = temp_user
         except ValueError:
-            # Jika bukan ID, cari berdasarkan Nama#Tag
-            for entry in ban_entries:
-                if str(entry.user) == user_identifier:
-                    banned_user_entry = entry
+            for entry in [entry async for entry in ctx.guild.bans()]:
+                if str(entry.user).lower() == user_identifier.lower():
+                    user_to_unban = entry.user
                     break
         except discord.NotFound:
-             await ctx.send(embed=self._create_embed(description=f"❌ Pengguna dengan ID `{user_identifier}` tidak ditemukan dalam daftar blokir.", color=self.color_error))
-             return
+            pass
 
-
-        if banned_user_entry is None:
-            await ctx.send(embed=self._create_embed(description=f"❌ Pengguna `{user_identifier}` tidak ditemukan dalam daftar blokir. Coba gunakan ID pengguna.", color=self.color_error))
+        if user_to_unban is None:
+            await ctx.send(embed=self._create_embed(description=f"❌ Pengguna `{user_identifier}` tidak ditemukan dalam daftar blokir atau ID/Nama#Tag tidak valid.", color=self.color_error))
             return
 
-        user_to_unban = banned_user_entry.user
-        await ctx.guild.unban(user_to_unban, reason=reason)
-        await ctx.send(embed=self._create_embed(description=f"✅ Blokir untuk **{user_to_unban}** telah dibuka.", color=self.color_success))
-        await self.log_action(ctx.guild, "🤝 Blokir Dibuka", {"Pengguna": f"{user_to_unban} ({user_to_unban.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_success)
+        try:
+            await ctx.guild.unban(user_to_unban, reason=reason)
+            await ctx.send(embed=self._create_embed(description=f"✅ Blokir untuk **{user_to_unban}** telah dibuka.", color=self.color_success))
+            await self.log_action(ctx.guild, "🤝 Blokir Dibuka", {"Pengguna": f"{user_to_unban} ({user_to_unban.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_success)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk membuka blokir anggota ini. Pastikan role bot lebih tinggi.", color=self.color_error))
+        except discord.NotFound:
+            await ctx.send(embed=self._create_embed(description=f"❌ Pengguna `{user_to_unban}` tidak ditemukan dalam daftar blokir.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat membuka blokir: {e}", color=self.color_error))
+
 
     @commands.command(name="warn")
     @commands.has_permissions(kick_members=True)
@@ -307,8 +341,10 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         if member.bot:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberi peringatan kepada bot.", color=self.color_error))
             return
+        if member.id == ctx.guild.owner.id:
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memperingatkan pemilik server.", color=self.color_error))
+            return
 
-        # ---> DITAMBAHKAN: Logika untuk menyimpan peringatan <---
         timestamp = int(time.time())
         warning_data = {
             "moderator_id": ctx.author.id,
@@ -317,16 +353,10 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         }
         guild_id_str = str(ctx.guild.id)
         member_id_str = str(member.id)
-        if guild_id_str not in self.warnings:
-            self.warnings[guild_id_str] = {}
-        if member_id_str not in self.warnings[guild_id_str]:
-            self.warnings[guild_id_str][member_id_str] = []
         
-        self.warnings[guild_id_str][member_id_str].append(warning_data)
+        self.warnings.setdefault(guild_id_str, {}).setdefault(member_id_str, []).append(warning_data)
         self.save_warnings()
-        # ---> Akhir dari logika penyimpanan <---
 
-        # Kirim DM ke pengguna
         try:
             dm_embed = self._create_embed(title=f"🚨 Anda Menerima Peringatan di {ctx.guild.name}", color=self.color_warning)
             dm_embed.add_field(name="Alasan Peringatan", value=reason, inline=False)
@@ -336,7 +366,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         except discord.Forbidden:
             dm_sent = False
 
-        # Kirim konfirmasi di channel & log
         confirm_desc = f"✅ **{member.display_name}** telah diperingatkan."
         if not dm_sent:
             confirm_desc += "\n*(Pesan peringatan tidak dapat dikirim ke DM pengguna.)*"
@@ -344,7 +373,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         await ctx.send(embed=self._create_embed(description=confirm_desc, color=self.color_success))
         await self.log_action(ctx.guild, "⚠️ Member Diperingatkan", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention, "Alasan": reason}, self.color_warning)
 
-    # ---> PERINTAH BARU: UNWARN <---
     @commands.command(name="unwarn")
     @commands.has_permissions(kick_members=True)
     async def unwarn(self, ctx, member: discord.Member, warning_index: int, *, reason: Optional[str] = "Kesalahan admin."):
@@ -373,7 +401,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         }
         await self.log_action(ctx.guild, "👍 Peringatan Dihapus", log_fields, self.color_success)
 
-    # ---> PERINTAH BARU: WARNINGS <---
     @commands.command(name="warnings", aliases=["history"])
     @commands.has_permissions(kick_members=True)
     async def warnings(self, ctx, member: discord.Member):
@@ -402,53 +429,112 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     @commands.has_permissions(moderate_members=True)
     async def timeout(self, ctx, member: discord.Member, duration: str, *, reason: Optional[str] = "Tidak ada alasan."):
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada anggota dengan role setara atau lebih tinggi.", color=self.color_error)); return
+        if member.id == ctx.guild.owner.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada pemilik server.", color=self.color_error)); return
+        if member.id == self.bot.user.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada bot ini sendiri.", color=self.color_error)); return
+
         delta = parse_duration(duration)
         if not delta: await ctx.send(embed=self._create_embed(description="❌ Format durasi tidak valid. Gunakan `s` (detik), `m` (menit), `h` (jam), `d` (hari). Contoh: `10m`.", color=self.color_error)); return
-        await member.timeout(delta, reason=reason)
-        await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** telah diberi timeout selama `{duration}`.", color=self.color_success))
-        await self.log_action(ctx.guild, "🤫 Member Timeout", {"Member": f"{member} ({member.id})", "Durasi": duration, "Moderator": ctx.author.mention, "Alasan": reason}, self.color_warning)
+        if delta.total_seconds() > 2419200:
+            await ctx.send(embed=self._create_embed(description="❌ Durasi timeout tidak bisa lebih dari 28 hari.", color=self.color_error)); return
+
+        try:
+            await member.timeout(delta, reason=reason)
+            await ctx.send(embed=self._create_embed(description=f"✅ **{member.display_name}** telah diberi timeout selama `{duration}`.", color=self.color_success))
+            await self.log_action(ctx.guild, "🤫 Member Timeout", {"Member": f"{member} ({member.id})", "Durasi": duration, "Moderator": ctx.author.mention, "Alasan": reason}, self.color_warning)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk memberikan timeout pada anggota ini. Pastikan role bot lebih tinggi.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat memberikan timeout: {e}", color=self.color_error))
+
 
     @commands.command(name="removetimeout", aliases=["unmute"])
     @commands.has_permissions(moderate_members=True)
     async def remove_timeout(self, ctx, member: discord.Member):
-        await member.timeout(None, reason=f"Timeout dihapus oleh {ctx.author}")
-        await ctx.send(embed=self._create_embed(description=f"✅ Timeout untuk **{member.display_name}** telah dihapus.", color=self.color_success))
-        await self.log_action(ctx.guild, "😊 Timeout Dihapus", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention}, self.color_success)
+        if member.id == ctx.guild.owner.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa menghapus timeout pemilik server.", color=self.color_error)); return
+        if member.id == self.bot.user.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa menghapus timeout bot ini sendiri.", color=self.color_error)); return
+
+        if not member.is_timed_out():
+            return await ctx.send(embed=self._create_embed(description=f"❌ {member.display_name} tidak sedang dalam timeout.", color=self.color_error))
+
+        try:
+            await member.timeout(None, reason=f"Timeout dihapus oleh {ctx.author}")
+            await ctx.send(embed=self._create_embed(description=f"✅ Timeout untuk **{member.display_name}** telah dihapus.", color=self.color_success))
+            await self.log_action(ctx.guild, "😊 Timeout Dihapus", {"Member": f"{member} ({member.id})", "Moderator": ctx.author.mention}, self.color_success)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk menghapus timeout anggota ini. Pastikan role bot lebih tinggi.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat menghapus timeout: {e}", color=self.color_error))
+
         
     @commands.command(name="clear", aliases=["purge"])
     @commands.has_permissions(manage_messages=True)
     async def clear(self, ctx, amount: int):
         if amount <= 0: await ctx.send(embed=self._create_embed(description="❌ Jumlah harus lebih dari 0.", color=self.color_error)); return
-        deleted = await ctx.channel.purge(limit=amount + 1)
-        embed = self._create_embed(description=f"🗑️ Berhasil menghapus **{len(deleted) - 1}** pesan.", color=self.color_success)
-        await ctx.send(embed=embed, delete_after=5)
-        await self.log_action(ctx.guild, "🗑️ Pesan Dihapus", {"Channel": ctx.channel.mention, "Jumlah": f"{len(deleted) - 1} pesan", "Moderator": ctx.author.mention}, self.color_info)
+        if amount > 100: await ctx.send(embed=self._create_embed(description="❌ Anda hanya bisa menghapus maksimal 100 pesan sekaligus.", color=self.color_error)); return
+
+        try:
+            deleted = await ctx.channel.purge(limit=amount + 1)
+            embed = self._create_embed(description=f"🗑️ Berhasil menghapus **{len(deleted) - 1}** pesan.", color=self.color_success)
+            await ctx.send(embed=embed, delete_after=5)
+            await self.log_action(ctx.guild, "🗑️ Pesan Dihapus", {"Channel": ctx.channel.mention, "Jumlah": f"{len(deleted) - 1} pesan", "Moderator": ctx.author.mention}, self.color_info)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin `Manage Messages` untuk menghapus pesan.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat menghapus pesan: {e}", color=self.color_error))
         
     @commands.command(name="slowmode")
     @commands.has_permissions(manage_channels=True)
     async def slowmode(self, ctx, seconds: int):
-        await ctx.channel.edit(slowmode_delay=seconds)
-        status = f"diatur ke `{seconds}` detik" if seconds > 0 else "dinonaktifkan"
-        await ctx.send(embed=self._create_embed(description=f"✅ Mode lambat di channel ini telah {status}.", color=self.color_success))
-        await self.log_action(ctx.guild, "⏳ Slowmode Diubah", {"Channel": ctx.channel.mention, "Durasi": f"{seconds} detik", "Moderator": ctx.author.mention}, self.color_info)
+        if seconds < 0: await ctx.send(embed=self._create_embed(description="❌ Durasi slowmode tidak bisa negatif.", color=self.color_error)); return
+        if seconds > 21600: await ctx.send(embed=self._create_embed(description="❌ Durasi slowmode tidak bisa lebih dari 6 jam (21600 detik).", color=self.color_error)); return
+
+        try:
+            await ctx.channel.edit(slowmode_delay=seconds)
+            status = f"diatur ke `{seconds}` detik" if seconds > 0 else "dinonaktifkan"
+            await ctx.send(embed=self._create_embed(description=f"✅ Mode lambat di channel ini telah {status}.", color=self.color_success))
+            await self.log_action(ctx.guild, "⏳ Slowmode Diubah", {"Channel": ctx.channel.mention, "Durasi": f"{seconds} detik", "Moderator": ctx.author.mention}, self.color_info)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin `Manage Channels` untuk mengatur slowmode.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat mengatur slowmode: {e}", color=self.color_error))
+
 
     @commands.command(name="lock")
     @commands.has_permissions(manage_channels=True)
     async def lock(self, ctx, channel: Optional[discord.TextChannel] = None):
         target_channel = channel or ctx.channel
-        await target_channel.set_permissions(ctx.guild.default_role, send_messages=False)
-        await ctx.send(embed=self._create_embed(description=f"🔒 Channel {target_channel.mention} telah dikunci.", color=self.color_success))
-        await self.log_action(ctx.guild, "🔒 Channel Dikunci", {"Channel": target_channel.mention, "Moderator": ctx.author.mention}, self.color_warning)
+        current_perms = target_channel.permissions_for(ctx.guild.default_role)
+        if not current_perms.send_messages is False:
+            try:
+                await target_channel.set_permissions(ctx.guild.default_role, send_messages=False)
+                await ctx.send(embed=self._create_embed(description=f"🔒 Channel {target_channel.mention} telah dikunci.", color=self.color_success))
+                await self.log_action(ctx.guild, "🔒 Channel Dikunci", {"Channel": target_channel.mention, "Moderator": ctx.author.mention}, self.color_warning)
+            except discord.Forbidden:
+                await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin `Manage Channels` untuk mengunci channel.", color=self.color_error))
+            except Exception as e:
+                await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat mengunci channel: {e}", color=self.color_error))
+        else:
+            await ctx.send(embed=self._create_embed(description=f"❌ Channel {target_channel.mention} sudah terkunci.", color=self.color_error))
+
 
     @commands.command(name="unlock")
     @commands.has_permissions(manage_channels=True)
     async def unlock(self, ctx, channel: Optional[discord.TextChannel] = None):
         target_channel = channel or ctx.channel
-        await target_channel.set_permissions(ctx.guild.default_role, send_messages=None)
-        await ctx.send(embed=self._create_embed(description=f"🔓 Kunci channel {target_channel.mention} telah dibuka.", color=self.color_success))
-        await self.log_action(ctx.guild, "🔓 Kunci Dibuka", {"Channel": target_channel.mention, "Moderator": ctx.author.mention}, self.color_success)
+        current_perms = target_channel.permissions_for(ctx.guild.default_role)
+        if not current_perms.send_messages is True:
+            try:
+                await target_channel.set_permissions(ctx.guild.default_role, send_messages=None)
+                await ctx.send(embed=self._create_embed(description=f"🔓 Kunci channel {target_channel.mention} telah dibuka.", color=self.color_success))
+                await self.log_action(ctx.guild, "🔓 Kunci Dibuka", {"Channel": target_channel.mention, "Moderator": ctx.author.mention}, self.color_success)
+            except discord.Forbidden:
+                await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin `Manage Channels` untuk membuka kunci channel.", color=self.color_error))
+            except Exception as e:
+                await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat membuka kunci channel: {e}", color=self.color_error))
+        else:
+            await ctx.send(embed=self._create_embed(description=f"❌ Channel {target_channel.mention} sudah tidak terkunci.", color=self.color_error))
 
-    # ---> PERINTAH BARU: ADDROLE & REMOVEROLE <---
+
     @commands.command(name="addrole")
     @commands.has_permissions(manage_roles=True)
     async def add_role(self, ctx, member: discord.Member, role: discord.Role):
@@ -457,10 +543,18 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan role yang lebih tinggi atau setara dengan role Anda.", color=self.color_error))
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
             return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah role anggota yang posisinya lebih tinggi atau setara.", color=self.color_error))
+        if role in member.roles:
+            return await ctx.send(embed=self._create_embed(description=f"❌ {member.display_name} sudah memiliki role {role.mention}.", color=self.color_error))
 
-        await member.add_roles(role, reason=f"Diberikan oleh {ctx.author}")
-        await ctx.send(embed=self._create_embed(description=f"✅ Role {role.mention} telah diberikan kepada {member.mention}.", color=self.color_success))
-        await self.log_action(ctx.guild, "➕ Role Diberikan", {"Member": member.mention, "Role": role.mention, "Moderator": ctx.author.mention}, self.color_info)
+        try:
+            await member.add_roles(role, reason=f"Diberikan oleh {ctx.author}")
+            await ctx.send(embed=self._create_embed(description=f"✅ Role {role.mention} telah diberikan kepada {member.mention}.", color=self.color_success))
+            await self.log_action(ctx.guild, "➕ Role Diberikan", {"Member": member.mention, "Role": role.mention, "Moderator": ctx.author.mention}, self.color_info)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk memberikan role ini. Pastikan role bot lebih tinggi dari role yang ingin diberikan.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat memberikan role: {e}", color=self.color_error))
+
 
     @commands.command(name="removerole")
     @commands.has_permissions(manage_roles=True)
@@ -470,32 +564,47 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa menghapus role yang lebih tinggi atau setara dengan role Anda.", color=self.color_error))
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
             return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah role anggota yang posisinya lebih tinggi atau setara.", color=self.color_error))
+        if role not in member.roles:
+            return await ctx.send(embed=self._create_embed(description=f"❌ {member.display_name} tidak memiliki role {role.mention}.", color=self.color_error))
             
-        await member.remove_roles(role, reason=f"Dihapus oleh {ctx.author}")
-        await ctx.send(embed=self._create_embed(description=f"✅ Role {role.mention} telah dihapus dari {member.mention}.", color=self.color_success))
-        await self.log_action(ctx.guild, "➖ Role Dihapus", {"Member": member.mention, "Role": role.mention, "Moderator": ctx.author.mention}, self.color_info)
+        try:
+            await member.remove_roles(role, reason=f"Dihapus oleh {ctx.author}")
+            await ctx.send(embed=self._create_embed(description=f"✅ Role {role.mention} telah dihapus dari {member.mention}.", color=self.color_success))
+            await self.log_action(ctx.guild, "➖ Role Dihapus", {"Member": member.mention, "Role": role.mention, "Moderator": ctx.author.mention}, self.color_info)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk menghapus role ini. Pastikan role bot lebih tinggi dari role yang ingin dihapus.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat menghapus role: {e}", color=self.color_error))
 
-    # ---> PERINTAH BARU: NICK <---
+
     @commands.command(name="nick")
     @commands.has_permissions(manage_nicknames=True)
     async def nick(self, ctx, member: discord.Member, *, new_nickname: Optional[str] = None):
         """Mengubah atau mereset nickname seorang anggota."""
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
             return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah nickname anggota dengan role lebih tinggi atau setara.", color=self.color_error))
+        if member.id == ctx.guild.owner.id:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah nickname pemilik server.", color=self.color_error)); return
+        if member.id == self.bot.user.id:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengubah nickname bot ini sendiri.", color=self.color_error)); return
 
         old_nickname = member.display_name
-        await member.edit(nick=new_nickname, reason=f"Diubah oleh {ctx.author}")
-        
-        if new_nickname:
-            await ctx.send(embed=self._create_embed(description=f"✅ Nickname **{old_nickname}** telah diubah menjadi **{new_nickname}**.", color=self.color_success))
-            await self.log_action(ctx.guild, "👤 Nickname Diubah", {"Member": member.mention, "Dari": old_nickname, "Menjadi": new_nickname, "Moderator": ctx.author.mention}, self.color_info)
-        else:
-            await ctx.send(embed=self._create_embed(description=f"✅ Nickname untuk **{old_nickname}** telah direset.", color=self.color_success))
-            await self.log_action(ctx.guild, "👤 Nickname Direset", {"Member": member.mention, "Moderator": ctx.author.mention}, self.color_info)
+        try:
+            await member.edit(nick=new_nickname, reason=f"Diubah oleh {ctx.author}")
+            if new_nickname:
+                await ctx.send(embed=self._create_embed(description=f"✅ Nickname **{old_nickname}** telah diubah menjadi **{new_nickname}**.", color=self.color_success))
+                await self.log_action(ctx.guild, "👤 Nickname Diubah", {"Member": member.mention, "Dari": old_nickname, "Menjadi": new_nickname, "Moderator": ctx.author.mention}, self.color_info)
+            else:
+                await ctx.send(embed=self._create_embed(description=f"✅ Nickname untuk **{old_nickname}** telah direset.", color=self.color_success))
+                await self.log_action(ctx.guild, "👤 Nickname Direset", {"Member": member.mention, "Moderator": ctx.author.mention}, self.color_info)
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin yang cukup untuk mengubah nickname ini. Pastikan role bot lebih tinggi dari anggota ini.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan saat mengubah nickname: {e}", color=self.color_error))
 
 
     # =======================================================================================
-    # ---> DITAMBAHKAN: Perintah dan UI untuk `channelrules`
+    # CHANNEL RULES COMMANDS
     # =======================================================================================
     @commands.command(name="channelrules", aliases=["cr"])
     @commands.has_permissions(manage_channels=True)
@@ -507,35 +616,103 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 self.cog, self.author, self.target_channel = cog_instance, author, target_channel
                 self.guild_id, self.channel_id = target_channel.guild.id, target_channel.id
                 self.update_buttons()
+
             def update_buttons(self):
                 rules = self.cog.get_channel_rules(self.guild_id, self.channel_id)
                 def set_button_state(button, label_text, is_active):
                     button.label = f"{label_text}: {'Aktif' if is_active else 'Nonaktif'}"
                     button.style = discord.ButtonStyle.green if is_active else discord.ButtonStyle.red
+                
+                self.clear_items()
+                
+                self.toggle_bots = discord.ui.Button(emoji="🛡️", row=0)
+                self.toggle_bots.callback = lambda i: self.toggle_rule(i, "disallow_bots")
                 set_button_state(self.toggle_bots, "Dilarang Bot", rules.get("disallow_bots", False))
+                self.add_item(self.toggle_bots)
+
+                self.toggle_media = discord.ui.Button(emoji="🖼️", row=0)
+                self.toggle_media.callback = lambda i: self.toggle_rule(i, "disallow_media")
                 set_button_state(self.toggle_media, "Dilarang Media", rules.get("disallow_media", False))
+                self.add_item(self.toggle_media)
+
+                self.toggle_prefix = discord.ui.Button(emoji="❗", row=0)
+                self.toggle_prefix.callback = lambda i: self.toggle_rule(i, "disallow_prefix")
                 set_button_state(self.toggle_prefix, "Dilarang Prefix", rules.get("disallow_prefix", False))
+                self.add_item(self.toggle_prefix)
+
+                self.toggle_url = discord.ui.Button(emoji="🔗", row=1)
+                self.toggle_url.callback = lambda i: self.toggle_rule(i, "disallow_url")
                 set_button_state(self.toggle_url, "Dilarang URL", rules.get("disallow_url", False))
+                self.add_item(self.toggle_url)
+                
+                self.toggle_auto_delete = discord.ui.Button(emoji="⏳", row=1)
+                self.toggle_auto_delete.callback = lambda i: self.set_auto_delete(i)
                 delay = rules.get("auto_delete_seconds", 0)
                 self.toggle_auto_delete.label = f"Hapus Otomatis: {delay}s" if delay > 0 else "Hapus Otomatis: Nonaktif"
                 self.toggle_auto_delete.style = discord.ButtonStyle.green if delay > 0 else discord.ButtonStyle.red
+                self.add_item(self.toggle_auto_delete)
+
             async def interaction_check(self, interaction: discord.Interaction) -> bool:
                 if interaction.user != self.author: await interaction.response.send_message("Hanya pengguna yang memulai perintah yang dapat berinteraksi.", ephemeral=True); return False
+                if not interaction.user.guild_permissions.manage_channels:
+                    await interaction.response.send_message("Anda tidak memiliki izin `Manage Channels` untuk mengubah aturan ini.", ephemeral=True)
+                    return False
                 return True
+
             async def toggle_rule(self, interaction: discord.Interaction, rule_name: str):
-                rules = self.cog.get_channel_rules(self.guild_id, self.channel_id); rules[rule_name] = not rules.get(rule_name, False); self.cog.save_settings(); self.update_buttons(); await interaction.response.edit_message(view=self)
-            @discord.ui.button(emoji="🛡️", row=0)
-            async def toggle_bots(self, interaction: discord.Interaction, button: discord.ui.Button): await self.toggle_rule(interaction, "disallow_bots")
-            @discord.ui.button(emoji="🖼️", row=0)
-            async def toggle_media(self, interaction: discord.Interaction, button: discord.ui.Button): await self.toggle_rule(interaction, "disallow_media")
-            @discord.ui.button(emoji="❗", row=0)
-            async def toggle_prefix(self, interaction: discord.Interaction, button: discord.ui.Button): await self.toggle_rule(interaction, "disallow_prefix")
-            @discord.ui.button(emoji="🔗", row=1)
-            async def toggle_url(self, interaction: discord.Interaction, button: discord.ui.Button): await self.toggle_rule(interaction, "disallow_url")
-            @discord.ui.button(emoji="⏳", row=1)
-            async def toggle_auto_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
-                rules = self.cog.get_channel_rules(self.guild_id, self.channel_id); rules["auto_delete_seconds"] = 0 if rules.get("auto_delete_seconds", 0) > 0 else 30; self.cog.save_settings(); self.update_buttons(); await interaction.response.edit_message(view=self)
-        embed = self._create_embed(title=f"🔧 Aturan untuk Channel: #{target_channel.name}", description="Tekan tombol untuk mengaktifkan (hijau) atau menonaktifkan (merah) aturan untuk channel ini.", color=self.color_info)
+                rules = self.cog.get_channel_rules(self.guild_id, self.channel_id)
+                rules[rule_name] = not rules.get(rule_name, False)
+                self.cog.save_settings()
+                self.update_buttons()
+                await interaction.response.edit_message(view=self)
+                await self.cog.log_action(
+                    self.target_channel.guild, 
+                    "🔧 Aturan Channel Diubah", 
+                    {"Channel": self.target_channel.mention, f"Aturan '{rule_name}'": "Diaktifkan" if rules[rule_name] else "Dinonaktifkan", "Moderator": interaction.user.mention}, 
+                    self.cog.color_info
+                )
+
+            async def set_auto_delete(self, interaction: discord.Interaction):
+                class AutoDeleteModal(discord.ui.Modal, title="Atur Hapus Otomatis"):
+                    def __init__(self, current_delay):
+                        super().__init__()
+                        self.delay_input = discord.ui.TextInput(
+                            label="Durasi (detik, 0 untuk nonaktif)",
+                            placeholder="Contoh: 30 (maks 3600)",
+                            default=str(current_delay),
+                            max_length=4
+                        )
+                        self.add_item(self.delay_input)
+
+                    async def on_submit(self, modal_interaction: discord.Interaction):
+                        try:
+                            delay = int(self.delay_input.value)
+                            if not (0 <= delay <= 3600):
+                                await modal_interaction.response.send_message(embed=self.cog._create_embed(description="❌ Durasi harus antara 0 dan 3600 detik (1 jam).", color=self.cog.color_error), ephemeral=True)
+                                return
+                            
+                            rules = self.cog.get_channel_rules(self.guild_id, self.channel_id)
+                            rules["auto_delete_seconds"] = delay
+                            self.cog.save_settings()
+                            self.update_buttons()
+                            await modal_interaction.response.edit_message(view=self)
+                            
+                            await self.cog.log_action(
+                                self.target_channel.guild, 
+                                "⏳ Hapus Otomatis Diubah", 
+                                {"Channel": self.target_channel.mention, "Durasi": f"{delay} detik" if delay > 0 else "Dinonaktifkan", "Moderator": modal_interaction.user.mention}, 
+                                self.cog.color_info
+                            )
+                        except ValueError:
+                            await modal_interaction.response.send_message(embed=self.cog._create_embed(description="❌ Durasi harus berupa angka.", color=self.cog.color_error), ephemeral=True)
+                        except Exception as e:
+                            await modal_interaction.response.send_message(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan: {e}", color=self.cog.color_error), ephemeral=True)
+                
+                rules = self.cog.get_channel_rules(self.guild_id, self.channel_id)
+                current_delay = rules.get("auto_delete_seconds", 0)
+                await interaction.response.send_modal(AutoDeleteModal(current_delay))
+
+        embed = self._create_embed(title=f"🔧 Aturan untuk Channel: #{target_channel.name}", description="Tekan tombol untuk mengaktifkan (hijau) atau menonaktifkan (merah) aturan untuk channel ini. Tekan tombol hapus otomatis untuk mengatur durasi (default 30s).", color=self.color_info)
         await ctx.send(embed=embed, view=ChannelRuleView(self, ctx.author, target_channel))
         
     # =======================================================================================
@@ -558,13 +735,22 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     @commands.command(name="setreactionrole")
     @commands.has_permissions(manage_roles=True)
     async def set_reaction_role(self, ctx, message: discord.Message, emoji: str, role: discord.Role):
+        if ctx.author.top_role <= role:
+            return await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengatur reaction role untuk role yang lebih tinggi atau setara dengan role Anda.", color=self.color_error))
+        
         guild_settings = self.get_guild_settings(ctx.guild.id)
         message_id_str = str(message.id)
         if message_id_str not in guild_settings["reaction_roles"]: guild_settings["reaction_roles"][message_id_str] = {}
         guild_settings["reaction_roles"][message_id_str][emoji] = role.id
         self.save_settings()
-        await message.add_reaction(emoji)
-        await ctx.send(embed=self._create_embed(description=f"✅ Role **{role.mention}** akan diberikan untuk reaksi {emoji} pada [pesan itu]({message.jump_url}).", color=self.color_success))
+        try:
+            await message.add_reaction(emoji)
+            await ctx.send(embed=self._create_embed(description=f"✅ Role **{role.mention}** akan diberikan untuk reaksi {emoji} pada [pesan itu]({message.jump_url}).", color=self.color_success))
+        except discord.Forbidden:
+            await ctx.send(embed=self._create_embed(description="❌ Bot tidak memiliki izin untuk menambahkan reaksi atau mengatur role. Pastikan izinnya lengkap.", color=self.color_error))
+        except Exception as e:
+            await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan: {e}", color=self.color_error))
+
 
     @commands.command(name="setup")
     @commands.has_permissions(manage_guild=True)
@@ -575,13 +761,20 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 self.cog = cog_instance; self.guild_id = ctx.guild.id; self.author = ctx.author
             async def interaction_check(self, interaction: discord.Interaction) -> bool:
                 if interaction.user != self.author: await interaction.response.send_message("Hanya pengguna yang memulai setup yang dapat berinteraksi.", ephemeral=True); return False
+                if not interaction.user.guild_permissions.manage_guild:
+                    await interaction.response.send_message("Anda tidak memiliki izin `Manage Server` untuk menggunakan setup ini.", ephemeral=True)
+                    return False
                 return True
+
             async def handle_response(self, interaction, prompt, callback):
                 await interaction.response.send_message(embed=self.cog._create_embed(description=prompt, color=self.cog.color_info), ephemeral=True)
                 try:
                     msg = await self.cog.bot.wait_for('message', check=lambda m: m.author == self.author and m.channel == interaction.channel, timeout=120)
-                    await msg.delete(); await callback(msg, interaction)
+                    await callback(msg, interaction)
                 except asyncio.TimeoutError: await interaction.followup.send(embed=self.cog._create_embed(description="❌ Waktu habis.", color=self.cog.color_error), ephemeral=True)
+                except Exception as e:
+                    await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan: {e}", color=self.cog.color_error), ephemeral=True)
+
             @discord.ui.button(label="Auto Role", style=discord.ButtonStyle.primary, emoji="👤", row=0)
             async def set_auto_role(self, interaction: discord.Interaction, button: discord.ui.Button):
                 async def callback(msg, inter):
@@ -597,6 +790,15 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                     self.cog.get_guild_settings(self.guild_id)['welcome_message'] = msg.content; self.cog.save_settings()
                     await inter.followup.send(embed=self.cog._create_embed(description="✅ Pesan selamat datang berhasil diatur.", color=self.cog.color_success), ephemeral=True)
                 await self.handle_response(interaction, "Ketik pesan selamat datangmu. Gunakan `{user}` dan `{guild_name}`.", callback)
+            @discord.ui.button(label="Log Channel", style=discord.ButtonStyle.primary, emoji="📝", row=0)
+            async def set_log_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
+                async def callback(msg, inter):
+                    channel = msg.channel_mentions[0] if msg.channel_mentions else ctx.guild.get_channel(int(msg.content)) if msg.content.isdigit() else None
+                    if channel and isinstance(channel, discord.TextChannel):
+                        self.cog.get_guild_settings(self.guild_id)['log_channel_id'] = channel.id; self.cog.save_settings()
+                        await inter.followup.send(embed=self.cog._create_embed(description=f"✅ Log Channel diatur ke **{channel.mention}**.", color=self.cog.color_success), ephemeral=True)
+                    else: await inter.followup.send(embed=self.cog._create_embed(description="❌ Channel tidak ditemukan atau bukan channel teks.", color=self.cog.color_error), ephemeral=True)
+                await self.handle_response(interaction, "Sebutkan (mention) atau masukkan ID channel untuk log aktivitas bot:", callback)
             @discord.ui.button(label="Kelola Filter", style=discord.ButtonStyle.secondary, emoji="🛡️", row=1)
             async def manage_filters(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(view=FilterManageView(self.cog, self.author), ephemeral=True)
             @discord.ui.button(label="Lihat Konfigurasi", style=discord.ButtonStyle.secondary, emoji="📋", row=1)
@@ -611,6 +813,19 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 embed.add_field(name="Filter Kata Kasar", value=f"Total: {len(filters.get('bad_words',[]))} kata", inline=True)
                 embed.add_field(name="Filter Link", value=f"Total: {len(filters.get('link_patterns',[]))} pola", inline=True)
                 await interaction.response.send_message(embed=embed, ephemeral=True)
+        class AddFilterModal(discord.ui.Modal, title="Tambah Filter"):
+            def __init__(self, cog_instance, filter_type):
+                super().__init__(); self.cog = cog_instance; self.filter_type = filter_type
+                self.item_to_add = discord.ui.TextInput(label=f"Masukkan {('kata' if filter_type == 'bad_words' else 'pola regex')} untuk ditambahkan", style=discord.TextStyle.paragraph)
+                self.add_item(self.item_to_add)
+            async def on_submit(self, interaction: discord.Interaction):
+                filters = self.cog.get_guild_filters(interaction.guild_id); item = self.item_to_add.value.lower().strip()
+                if item in filters[self.filter_type]:
+                    await interaction.response.send_message(embed=self.cog._create_embed(description=f"❌ `{item}` sudah ada di filter.", color=self.cog.color_error), ephemeral=True)
+                else:
+                    filters[self.filter_type].append(item); self.cog.save_filters()
+                    await interaction.response.send_message(embed=self.cog._create_embed(description=f"✅ `{item}` berhasil ditambahkan ke filter.", color=self.cog.color_success), ephemeral=True)
+
         class RemoveFilterModal(discord.ui.Modal, title="Hapus Filter"):
             def __init__(self, cog_instance, filter_type):
                 super().__init__(); self.cog = cog_instance; self.filter_type = filter_type
@@ -627,10 +842,14 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 super().__init__(timeout=180); self.cog = cog_instance; self.author = author
             async def interaction_check(self, interaction: discord.Interaction) -> bool: return interaction.user == self.author
             @discord.ui.button(label="Tambah Kata Kasar", style=discord.ButtonStyle.primary, emoji="🤬")
-            async def add_bad_word(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message("Fitur ini belum diimplementasikan di sini.", ephemeral=True)
+            async def add_bad_word(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_modal(AddFilterModal(self.cog, "bad_words"))
             @discord.ui.button(label="Hapus Kata Kasar", style=discord.ButtonStyle.danger, emoji="🗑️")
             async def remove_bad_word(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_modal(RemoveFilterModal(self.cog, "bad_words"))
-            @discord.ui.button(label="Lihat Semua Filter", style=discord.ButtonStyle.secondary, emoji="📋")
+            @discord.ui.button(label="Tambah Pola Link", style=discord.ButtonStyle.primary, emoji="🔗")
+            async def add_link_pattern(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_modal(AddFilterModal(self.cog, "link_patterns"))
+            @discord.ui.button(label="Hapus Pola Link", style=discord.ButtonStyle.danger, emoji="🔗")
+            async def remove_link_pattern(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_modal(RemoveFilterModal(self.cog, "link_patterns"))
+            @discord.ui.button(label="Lihat Semua Filter", style=discord.ButtonStyle.secondary, emoji="📋", row=2)
             async def view_filters(self, interaction: discord.Interaction, button: discord.ui.Button):
                 filters = self.cog.get_guild_filters(interaction.guild_id); bad_words = ", ".join(f"`{w}`" for w in filters['bad_words']) or "Kosong"; link_patterns = ", ".join(f"`{p}`" for p in filters['link_patterns']) or "Kosong"
                 embed = self.cog._create_embed(title="Daftar Filter Aktif", color=self.cog.color_info)
@@ -639,6 +858,185 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         embed = self._create_embed(title="⚙️ Panel Kontrol Server", description="Gunakan tombol di bawah ini untuk mengatur bot. Anda memiliki 5 menit sebelum panel ini nonaktif.", color=self.color_info, author_name=ctx.guild.name, author_icon_url=ctx.guild.icon.url if ctx.guild.icon else "")
         await ctx.send(embed=embed, view=SetupView(self))
 
+
+    # =======================================================================================
+    # ANNOUNCEMENT FEATURE - DITAMBAHKAN DAN DIOPTIMALKAN
+    # =======================================================================================
+
+    @commands.command(name="announce", aliases=["pengumuman", "broadcast"])
+    @commands.has_permissions(manage_guild=True)
+    async def announce(self, ctx, channel: Optional[discord.TextChannel] = None):
+        """
+        Membuat pengumuman kustom dengan tampilan modern.
+        Pengguna akan mengisi detail melalui pop-up form (Modal UI).
+        Pengumuman akan dikirim ke channel yang ditentukan atau channel saat ini.
+        """
+        target_channel = channel or ctx.channel
+
+        class AnnouncementModal(discord.ui.Modal, title="Buat Pengumuman Baru"):
+            # Max length for short text input is 45 characters
+            # Max length for paragraph text input is 4000 characters
+
+            announcement_title = discord.ui.TextInput(
+                label="Judul Pengumuman",
+                placeholder="Contoh: Pembaruan Server!",
+                max_length=256,
+                required=True,
+                row=0
+            )
+            # Menggunakan satu field deskripsi utama
+            announcement_description = discord.ui.TextInput(
+                label="Deskripsi Pengumuman (Maks 4000 karakter)",
+                placeholder="Tuliskan detail pengumumanmu di sini. Mendukung Discord Markdown.",
+                style=discord.TextStyle.paragraph,
+                max_length=4000,
+                required=True,
+                row=1
+            )
+            # Input untuk nama pengirim kustom
+            sender_name = discord.ui.TextInput(
+                label="Nama Pengirim (Opsional, default: Anda)",
+                placeholder=ctx.author.display_name, # Default placeholder
+                default=ctx.author.display_name, # Pre-fill with current user's name
+                max_length=256,
+                required=False,
+                row=2
+            )
+            # Input untuk URL avatar pengirim kustom
+            sender_avatar_url = discord.ui.TextInput(
+                label="URL Avatar Pengirim (Opsional, default: Avatar Anda)",
+                placeholder="Contoh: https://example.com/avatar.png", # Placeholder
+                default=str(ctx.author.display_avatar.url), # Pre-fill with current user's avatar
+                max_length=2000,
+                required=False,
+                row=3
+            )
+            # Input untuk URL gambar di akhir pengumuman
+            announcement_image_url = discord.ui.TextInput(
+                label="URL Gambar di Akhir Pengumuman (Opsional)",
+                placeholder="Contoh: https://example.com/banner.png",
+                max_length=2000,
+                required=False,
+                row=4
+            )
+
+            def __init__(self, cog_instance, original_ctx):
+                super().__init__()
+                self.cog = cog_instance
+                self.original_ctx = original_ctx
+                # These TextInput instances are already defined as class attributes above,
+                # and __init__ automatically handles adding them if they are defined this way.
+                # No need to manually add_item() here if defined as class attributes.
+
+            async def on_submit(self, interaction: discord.Interaction):
+                # Defer the response immediately to avoid "interaction failed"
+                await interaction.response.defer(ephemeral=False) 
+
+                title = self.announcement_title.value
+                description = self.announcement_description.value # Single description field now
+                
+                # Get sender info from modal inputs, respecting defaults
+                author_name = self.sender_name.value.strip() if self.sender_name.value else self.original_ctx.author.display_name
+                author_icon = self.sender_avatar_url.value.strip() if self.sender_avatar_url.value else str(self.original_ctx.author.display_avatar.url)
+                image_url = self.announcement_image_url.value.strip()
+                
+                # Basic URL validation
+                if author_icon and not (author_icon.startswith("http://") or author_icon.startswith("https://")):
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description="❌ URL Avatar Pengirim tidak valid. Harus dimulai dengan `http://` atau `https://`.", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                    return
+                if image_url and not (image_url.startswith("http://") or image_url.startswith("https://")):
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description="❌ URL Gambar Pengumuman tidak valid. Harus dimulai dengan `http://` atau `https://`.", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                    return
+
+                # Create the announcement embed
+                announce_embed = discord.Embed(
+                    title=title,
+                    description=description, # Use the single (but max 4000 char) description field
+                    color=self.cog.color_announce,
+                    timestamp=datetime.utcnow() # Use UTC for consistency
+                )
+                announce_embed.set_author(name=author_name, icon_url=author_icon)
+                if image_url:
+                    announce_embed.set_image(url=image_url)
+                
+                # Footer tetap dengan informasi bot atau server
+                announce_embed.set_footer(text=f"Pengumuman dari {self.original_ctx.guild.name}", icon_url=self.original_ctx.guild.icon.url if self.original_ctx.guild.icon else None)
+
+                try:
+                    await target_channel.send(embed=announce_embed)
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description=f"✅ Pengumuman berhasil dikirim ke {target_channel.mention}!", 
+                        color=self.cog.color_success
+                    ), ephemeral=True)
+                    # Log the announcement creation
+                    await self.cog.log_action(
+                        self.original_ctx.guild, 
+                        "📢 Pengumuman Baru Dibuat", 
+                        {
+                            "Pengirim": self.original_ctx.author.mention, 
+                            "Channel Target": target_channel.mention, 
+                            "Judul": title, 
+                            "Deskripsi (Awal)": description[:1024] + "..." if len(description) > 1024 else description
+                        }, 
+                        self.cog.color_announce
+                    )
+                except discord.Forbidden:
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description=f"❌ Bot tidak memiliki izin untuk mengirim pesan di {target_channel.mention}. Pastikan bot memiliki izin 'Send Messages' dan 'Embed Links'.", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                except Exception as e:
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description=f"❌ Terjadi kesalahan saat mengirim pengumuman: {e}", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+
+            async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+                print(f"Error in AnnouncementModal: {error}")
+                await interaction.followup.send(embed=self.cog._create_embed(
+                    description=f"❌ Terjadi kesalahan saat memproses formulir: {error}",
+                    color=self.cog.color_error
+                ), ephemeral=True)
+
+        class AnnounceButtonView(discord.ui.View):
+            def __init__(self, cog_instance, original_ctx, target_channel):
+                super().__init__(timeout=60)
+                self.cog = cog_instance
+                self.original_ctx = original_ctx
+                self.target_channel = target_channel
+
+            @discord.ui.button(label="Buat Pengumuman", style=discord.ButtonStyle.primary, emoji="📣")
+            async def open_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if interaction.user != self.original_ctx.author:
+                    return await interaction.response.send_message("Hanya orang yang memulai perintah yang dapat membuat pengumuman.", ephemeral=True)
+                if not interaction.user.guild_permissions.manage_guild:
+                    return await interaction.response.send_message("Anda tidak memiliki izin `Manage Server`.", ephemeral=True)
+                
+                # Pass original_ctx to modal for defaults (author name, avatar)
+                modal = AnnouncementModal(self.cog, self.original_ctx)
+                await interaction.response.send_modal(modal)
+
+            async def on_timeout(self) -> None:
+                for item in self.children:
+                    item.disabled = True
+                try:
+                    await self.original_ctx.edit_original_response(view=self)
+                except discord.NotFound:
+                    pass
+
+        # Send the initial message with the button
+        await ctx.send(embed=self._create_embed(
+            title="🔔 Siap Membuat Pengumuman?", 
+            description=f"Tekan tombol di bawah untuk membuka formulir pengumuman yang akan dikirim ke channel {target_channel.mention}. Anda memiliki **60 detik**.", 
+            color=self.color_info), 
+            view=AnnounceButtonView(self, ctx, target_channel)
+        )
+
 async def setup(bot):
     await bot.add_cog(ServerAdminCog(bot))
-
