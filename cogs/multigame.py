@@ -10,16 +10,16 @@ from datetime import datetime, time, timedelta
 from .music import Music # Sesuaikan path ini jika file music.py Anda ada di folder yang berbeda
 
 # --- Helper Functions to handle JSON data from the bot's root directory ---
-def load_json_from_root(file_path):
+def load_json_from_root(file_path, default_value={}): # Menambahkan default_value
     try:
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         full_path = os.path.join(base_dir, file_path)
-        os.makedirs(os.path.dirname(full_path), exist_ok=True) # Ensure directory exists
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        print(f"Peringatan: Tidak dapat memuat {full_path}. Pastikan file ada dan formatnya benar.")
-        return {} # Mengembalikan dictionary kosong untuk menghindari error jika file baru/kosong
+        print(f"Peringatan: Tidak dapat memuat {full_path}. Pastikan file ada dan formatnya benar. Menggunakan nilai default.")
+        return default_value # Mengembalikan default_value jika file tidak ditemukan atau error
 
 def save_json_to_root(data, file_path):
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -56,14 +56,15 @@ class URLInput(discord.ui.TextInput):
             required=False
         )
 
+# Modal untuk mengatur gambar (GIF) dan audio (MP3/WebM) - Sekarang Global
 class WerewolfMediaSetupModal(discord.ui.Modal):
-    def __init__(self, game_cog, channel_id, current_config):
-        super().__init__(title="Atur Media Werewolf")
+    def __init__(self, game_cog, current_global_config): # Menerima global config
+        super().__init__(title="Atur Media Werewolf (Global)") # Judul diubah
         self.game_cog = game_cog
-        self.channel_id = channel_id
+        self.current_global_config = current_global_config # Simpan referensi ke global config
         
-        current_image_urls = current_config.get('image_urls', {})
-        current_audio_urls = current_config.get('audio_urls', {})
+        current_image_urls = current_global_config.get('image_urls', {})
+        current_audio_urls = current_global_config.get('audio_urls', {})
 
         self.add_item(URLInput("Game Start Image URL (GIF)", "url_game_start_img", "URL untuk awal game (GIF/PNG/JPG)", current_image_urls.get('game_start_image_url', '')))
         self.add_item(URLInput("Night Phase Image URL (GIF)", "url_night_phase_img", "URL untuk fase malam (GIF/PNG/JPG)", current_image_urls.get('night_phase_image_url', '')))
@@ -78,47 +79,56 @@ class WerewolfMediaSetupModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        game_config = self.game_cog.werewolf_roles_config.setdefault(self.channel_id, {})
+        # Langsung update ke global_werewolf_config
+        global_config_ref = self.game_cog.global_werewolf_config.setdefault('default_config', {})
         
-        if 'image_urls' not in game_config:
-            game_config['image_urls'] = {}
-        if 'audio_urls' not in game_config:
-            game_config['audio_urls'] = {}
+        global_config_ref['image_urls'] = {
+            'game_start_image_url': self.children[0].value or None,
+            'night_phase_image_url': self.children[1].value or None,
+            'day_phase_image_url': self.children[2].value or None,
+            'night_resolution_image_url': self.children[3].value or None
+        }
 
-        game_config['image_urls']['game_start_image_url'] = self.children[0].value or None
-        game_config['image_urls']['night_phase_image_url'] = self.children[1].value or None
-        game_config['image_urls']['day_phase_image_url'] = self.children[2].value or None
-        game_config['image_urls']['night_resolution_image_url'] = self.children[3].value or None
+        global_config_ref['audio_urls'] = {
+            'game_start_audio_url': self.children[4].value or None,
+            'night_phase_audio_url': self.children[5].value or None,
+            'day_phase_audio_url': self.children[6].value or None,
+            'vote_phase_audio_url': self.children[7].value or None,
+            'game_end_audio_url': self.children[8].value or None
+        }
+        
+        save_json_to_root(self.game_cog.global_werewolf_config, 'data/global_werewolf_config.json')
 
-        game_config['audio_urls']['game_start_audio_url'] = self.children[4].value or None
-        game_config['audio_urls']['night_phase_audio_url'] = self.children[5].value or None
-        game_config['audio_urls']['day_phase_audio_url'] = self.children[6].value or None
-        game_config['audio_urls']['vote_phase_audio_url'] = self.children[7].value or None
-        game_config['audio_urls']['game_end_audio_url'] = self.children[8].value or None
-
-        view_for_update = next((v for v in self.game_cog.bot.cached_views if isinstance(v, WerewolfRoleSetupView) and v.channel_id == self.channel_id), None)
+        # Update view yang sedang aktif agar display konsisten
+        view_for_update = next((v for v in self.game_cog.bot.cached_views if isinstance(v, WerewolfRoleSetupView) and v.channel_id == interaction.channel_id), None)
         if view_for_update:
-            view_for_update.image_urls = game_config['image_urls']
-            view_for_update.audio_urls = game_config['audio_urls']
+            view_for_update.image_urls = global_config_ref['image_urls']
+            view_for_update.audio_urls = global_config_ref['audio_urls']
             await view_for_update.update_message(interaction.message)
 
-        await interaction.followup.send("URL gambar dan audio berhasil disimpan!", ephemeral=True)
+        await interaction.followup.send("URL gambar dan audio global berhasil disimpan!", ephemeral=True)
 
 
 class WerewolfRoleSetupView(discord.ui.View):
-    def __init__(self, game_cog, channel_id, total_players, current_config):
+    def __init__(self, game_cog, channel_id, total_players, current_config): # current_config sekarang adalah config global
         super().__init__(timeout=300) 
         self.game_cog = game_cog
-        self.channel_id = channel_id
+        self.channel_id = channel_id # Tetap per channel untuk game state
         self.total_players = total_players
+        
+        # Ambil peran dari current_config (global)
         self.selected_roles = current_config.get('roles', {}).copy()
-        self.image_urls = current_config.get('image_urls', {}).copy() 
-        self.audio_urls = current_config.get('audio_urls', {}).copy()
+        
+        # Ambil URL dari global_werewolf_config
+        global_media_config = game_cog.global_werewolf_config.get('default_config', {})
+        self.image_urls = global_media_config.get('image_urls', {}).copy() 
+        self.audio_urls = global_media_config.get('audio_urls', {}).copy()
+        
         self.available_roles = game_cog.werewolf_roles_data.get('roles', {})
         
         self._add_role_selects()
         
-        self.add_item(discord.ui.Button(label="Atur Media Game", style=discord.ButtonStyle.secondary, custom_id="setup_media", row=4))
+        self.add_item(discord.ui.Button(label="Atur Media Game (Global)", style=discord.ButtonStyle.secondary, custom_id="setup_media", row=4)) # Label diubah
         self.add_item(discord.ui.Button(label="Selesai Mengatur", style=discord.ButtonStyle.success, custom_id="finish_role_setup", row=4))
 
     def _add_role_selects(self):
@@ -155,7 +165,7 @@ class WerewolfRoleSetupView(discord.ui.View):
         villager_count, warnings = self.calculate_balance()
         
         embed = discord.Embed(
-            title="🐺 Pengaturan Peran Werewolf 🐺",
+            title="🐺 Pengaturan Peran Werewolf (Global) 🐺", # Judul diubah
             description=f"Total Pemain: **{self.total_players}**\n\nAtur jumlah peran untuk game ini:",
             color=discord.Color.blue()
         )
@@ -183,7 +193,7 @@ class WerewolfRoleSetupView(discord.ui.View):
         if self.image_urls.get('day_phase_image_url'): image_summary += "✅ Day Image\n"
         if self.image_urls.get('night_resolution_image_url'): image_summary += "✅ Night Resolution Image\n"
         if image_summary:
-            embed.add_field(name="Status Gambar/GIF", value=image_summary, inline=False)
+            embed.add_field(name="Status Gambar/GIF (Global)", value=image_summary, inline=False) # Label diubah
 
         # Ringkasan Audio
         audio_summary = ""
@@ -193,21 +203,22 @@ class WerewolfRoleSetupView(discord.ui.View):
         if self.audio_urls.get('vote_phase_audio_url'): audio_summary += "🎵 Vote Audio\n"
         if self.audio_urls.get('game_end_audio_url'): audio_summary += "🎵 Game End Audio\n"
         if audio_summary:
-            embed.add_field(name="Status Audio (MP3/WebM)", value=audio_summary, inline=False)
+            embed.add_field(name="Status Audio (Global - MP3/WebM)", value=audio_summary, inline=False) # Label diubah
         
         self._add_role_selects() 
         
         await message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Atur Media Game", style=discord.ButtonStyle.secondary, custom_id="setup_media", row=4)
+    @discord.ui.button(label="Atur Media Game (Global)", style=discord.ButtonStyle.secondary, custom_id="setup_media", row=4)
     async def setup_media_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         game_state = self.game_cog.werewolf_game_states.get(self.channel_id)
+        # Hanya host game yang sedang aktif di channel ini yang bisa memanggil setup
         if not game_state or interaction.user.id != game_state['host'].id:
-            await interaction.response.send_message("Hanya host yang bisa mengatur media.", ephemeral=True)
+            await interaction.response.send_message("Hanya host game Werewolf yang aktif di channel ini yang bisa mengatur media global.", ephemeral=True)
             return
         
-        current_config = self.game_cog.werewolf_roles_config.get(self.channel_id, {})
-        await interaction.response.send_modal(WerewolfMediaSetupModal(self.game_cog, self.channel_id, current_config))
+        # Panggil modal dengan global config
+        await interaction.response.send_modal(WerewolfMediaSetupModal(self.game_cog, self.game_cog.global_werewolf_config.get('default_config', {})))
 
     @discord.ui.button(label="Selesai Mengatur", style=discord.ButtonStyle.success, custom_id="finish_role_setup", row=4)
     async def finish_setup_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -223,21 +234,15 @@ class WerewolfRoleSetupView(discord.ui.View):
             await interaction.followup.send("Ada masalah kritis dengan komposisi peran yang dipilih. Mohon perbaiki sebelum melanjutkan.", ephemeral=True)
             return
 
-        current_config_for_channel = self.game_cog.werewolf_roles_config.get(self.channel_id, {})
-        self.image_urls = current_config_for_channel.get('image_urls', {})
-        self.audio_urls = current_config_for_channel.get('audio_urls', {})
-
-        self.game_cog.werewolf_roles_config[self.channel_id] = {
-            'roles': self.selected_roles,
-            'image_urls': self.image_urls,
-            'audio_urls': self.audio_urls
-        }
+        # Simpan roles yang dipilih ke global config
+        self.game_cog.global_werewolf_config.setdefault('default_config', {})['roles'] = self.selected_roles
+        save_json_to_root(self.game_cog.global_werewolf_config, 'data/global_werewolf_config.json')
         
         for item in self.children:
             item.disabled = True
         
         embed = interaction.message.embeds[0]
-        embed.description = f"**Komposisi peran untuk game ini telah diatur!**\n\nTotal Pemain: **{self.total_players}**"
+        embed.description = f"**Komposisi peran untuk game ini telah diatur (Global)!**\n\nTotal Pemain: **{self.total_players}**" # Label diubah
         embed.color = discord.Color.green()
         embed.set_footer(text="Host bisa gunakan !forcestartwerewolf untuk memulai game!")
 
@@ -280,7 +285,7 @@ class TicTacToeView(discord.ui.View):
         await interaction.message.edit(embed=embed, view=self)
         if self.winner or is_draw:
             self.stop()
-            self.game_cog.end_game_cleanup(interaction.channel.id, game_type='tictactoe') # Added game_type
+            self.game_cog.end_game_cleanup(interaction.channel.id, game_type='tictactoe')
 
 
 class TicTacToeButton(discord.ui.Button):
@@ -371,11 +376,11 @@ class WheelOfMadFateView(discord.ui.View):
             elif outcome['type'] == 'tax': result_embed.set_image(url="https://media.giphy.com/media/l3V0cE3tV6h6rC3m0/giphy.gif")
             elif outcome['type'] == 'nickname_transform': result_embed.set_image(url="https://media.giphy.com/media/rY9zudf2f2o8M/giphy.gif")
             elif outcome['type'] == 'message_mishap': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
-            elif outcome['type'] == 'bless_random_user': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1rE0J0I/giphy.gif")
-            elif outcome['type'] == 'curse_mute_random': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1rE0J0I/giphy.gif")
+            elif outcome['type'] == 'bless_random_user': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
+            elif outcome['type'] == 'curse_mute_random': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
             elif outcome['type'] == 'ping_random_user': result_embed.set_image(url="https://media.giphy.com/media/3ohhwpvL89Q8zN0n2g/giphy.gif")
             elif outcome['type'] == 'emoji_rain': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif")
-            elif outcome['type'] == 'channel_rename': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1rE0J0I/giphy.gif")
+            elif outcome['type'] == 'channel_rename': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
             elif outcome['type'] == 'random_duck': result_embed.set_image(url="https://media.giphy.com/media/f3ekFq7v18B9lTzY/giphy.gif")
             elif outcome['type'] == 'absurd_fortune': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
 
@@ -396,10 +401,28 @@ class UltimateGameArena(commands.Cog):
         # Werewolf Game States
         self.werewolf_join_queues = {} # {guild_id: {channel_id: [players]}}
         self.werewolf_game_states = {} # {channel_id: {'players': [members], 'roles': {member.id: role}, 'phase': 'day'/'night', 'day_num': 1, 'active_players': set(), 'killed_this_night': None, 'voted_out_today': None, 'host': member, 'role_actions_pending': {}, 'timers': {}, 'vote_message': None, 'players_who_voted': set(), 'last_role_setup_message': None, 'voice_client': None, 'game_task': None}} # Added 'game_task' for Werewolf
-        # Store role config and image URLs here
-        self.werewolf_roles_config = {} # {channel_id: {'roles': {'Werewolf': 1}, 'image_urls': {}, 'audio_urls': {}}} 
+        
+        # Konfigurasi Werewolf GLOBAL - MUAT DARI FILE BARU
+        # Pastikan default_value cocok dengan struktur JSON di global_werewolf_config.json
+        self.global_werewolf_config = load_json_from_root(
+            'data/global_werewolf_config.json', 
+            default_value={
+                "default_config": {
+                    "roles": {}, 
+                    "image_urls": {
+                        "game_start_image_url": None, "night_phase_image_url": None,
+                        "day_phase_image_url": None, "night_resolution_image_url": None
+                    }, 
+                    "audio_urls": {
+                        "game_start_audio_url": None, "night_phase_audio_url": None,
+                        "day_phase_audio_url": None, "vote_phase_audio_url": None,
+                        "game_end_audio_url": None
+                    }
+                }
+            }
+        )
         self.werewolf_roles_data = load_json_from_root('data/werewolf_roles.json') # Master role data (name, description, team, color, icon)
-
+        
         # Horse Race Game States
         self.horse_race_games = {} # {channel_id: {'status': 'betting'/'racing', 'bets': [], 'horses': {}, 'race_message': None, 'winner_horse': None, 'game_task': None}} # Added 'game_task' for Horse Race
 
@@ -438,21 +461,24 @@ class UltimateGameArena(commands.Cog):
         if not self.music_cog:
             print(f"{datetime.now()}: Peringatan: Cog 'Music' tidak ditemukan. Fungsi audio Werewolf mungkin tidak berfungsi.")
         # Reinstate views for Werewolf Role Setup
-        for channel_id, config in self.werewolf_roles_config.items():
-            if 'last_role_setup_message' in config:
-                channel = self.bot.get_channel(channel_id)
-                if channel:
-                    try:
-                        message = await channel.fetch_message(config['last_role_setup_message'])
-                        # Re-instantiate the view with the correct parameters
-                        view = WerewolfRoleSetupView(self, channel_id, config.get('total_players', 0), config)
-                        self.bot.add_view(view, message=message)
-                        print(f"[{datetime.now()}] WerewolfRoleSetupView reinstated for channel {channel_id}")
-                    except discord.NotFound:
-                        print(f"[{datetime.now()}] Could not find Werewolf setup message for channel {channel_id}. Clearing config.")
-                        del self.werewolf_roles_config[channel_id]
-                    except Exception as e:
-                        print(f"[{datetime.now()}] Error reinstating WerewolfRoleSetupView for channel {channel_id}: {e}")
+        # Karena kita sekarang pakai global config, reinstatement view sedikit berbeda.
+        # Kita tidak lagi menyimpan last_role_setup_message per channel di werewolf_roles_config
+        # Jika Anda ingin view pengaturan tetap ada setelah restart, perlu sistem berbeda
+        # Ini akan dikesampingkan untuk saat ini, fokus pada global config
+        # for channel_id, config in self.werewolf_roles_config.items():
+        #     if 'last_role_setup_message' in config:
+        #         channel = self.bot.get_channel(channel_id)
+        #         if channel:
+        #             try:
+        #                 message = await channel.fetch_message(config['last_role_setup_message'])
+        #                 view = WerewolfRoleSetupView(self, channel_id, config.get('total_players', 0), self.global_werewolf_config.get('default_config', {}))
+        #                 self.bot.add_view(view, message=message)
+        #                 print(f"[{datetime.now()}] WerewolfRoleSetupView reinstated for channel {channel_id}")
+        #             except discord.NotFound:
+        #                 print(f"[{datetime.now()}] Could not find Werewolf setup message for channel {channel_id}. Clearing config.")
+        #                 del self.werewolf_roles_config[channel_id] # This was previous behavior, now not needed as per-channel config is removed
+        #             except Exception as e:
+        #                 print(f"[{datetime.now()}] Error reinstating WerewolfRoleSetupView for channel {channel_id}: {e}")
 
 
     def cog_unload(self):
@@ -463,7 +489,7 @@ class UltimateGameArena(commands.Cog):
             game_state = self.spyfall_game_states.get(channel_id)
             if game_state and 'game_task' in game_state and not game_state['game_task'].done():
                 game_state['game_task'].cancel()
-            self.end_game_cleanup(channel_id, game_type='spyfall') # Ensure cleanup
+            self.end_game_cleanup(channel_id, game_type='spyfall')
             
         for channel_id in list(self.werewolf_game_states.keys()):
             game_state = self.werewolf_game_states.get(channel_id)
@@ -479,7 +505,7 @@ class UltimateGameArena(commands.Cog):
                 game_state['game_task'].cancel()
             self.end_game_cleanup(channel_id, game_type='horse_race')
         
-        # Wheel of fate config does not need explicit cleanup on unload, as it's static per channel config
+        # wheel_of_fate_config and werewolf_roles_config (now global) are loaded/saved directly, no per-channel cleanup needed here
 
 
     def get_anomaly_multiplier(self):
@@ -529,48 +555,47 @@ class UltimateGameArena(commands.Cog):
 
         if game_type == 'spyfall' and channel_id in self.spyfall_game_states:
             game_state = self.spyfall_game_states[channel_id]
-            if 'game_task' in game_state and not game_state['game_task'].done():
-                game_state['game_task'].cancel() # Cancel the associated task
+            if 'game_task' in game_state and game_state['game_task'] and not game_state['game_task'].done():
+                game_state['game_task'].cancel()
                 print(f"[{datetime.now()}] Spyfall game_task cancelled for channel {channel_id}.")
-            self.last_spy_id = self.spyfall_game_states[channel_id]['spy'].id
+            self.last_spy_id = game_state['spy'].id # Simpan spy terakhir
             del self.spyfall_game_states[channel_id]
         elif game_type == 'werewolf' and channel_id in self.werewolf_game_states:
             game_state = self.werewolf_game_states.get(channel_id)
             if game_state and game_state.get('voice_client'):
                 self.bot.loop.create_task(game_state['voice_client'].disconnect())
                 game_state['voice_client'] = None
-            if game_state and 'game_task' in game_state and not game_state['game_task'].done():
+            if game_state and 'game_task' in game_state and game_state['game_task'] and not game_state['game_task'].done():
                 game_state['game_task'].cancel()
                 print(f"[{datetime.now()}] Werewolf game_task cancelled for channel {channel_id}.")
             del self.werewolf_game_states[channel_id]
         elif game_type == 'horse_race' and channel_id in self.horse_race_games:
             game_state = self.horse_race_games.get(channel_id)
-            if game_state and 'game_task' in game_state and not game_state['game_task'].done():
+            if game_state and 'game_task' in game_state and game_state['game_task'] and not game_state['game_task'].done():
                 game_state['game_task'].cancel()
                 print(f"[{datetime.now()}] Horse Race game_task cancelled for channel {channel_id}.")
             del self.horse_race_games[channel_id]
-        # For TicTacToe, just remove from active_games (no specific state dict or task needed beyond the view timeout)
-        # For other simple games like Siapakah Aku, Pernah Gak Pernah, etc., they naturally clean up their async ops.
-        
+        elif game_type == 'tictactoe' and channel_id in self.active_games: # TicTacToe hanya di active_games
+            pass # View akan timeout sendiri
+
         # Clean up join queues regardless of game_type
-        if channel_id in self.werewolf_join_queues.get(channel_id, {}): # This logic seems a bit off, it should be guild_id then channel_id
-            # Corrected lookup for join queues
-            for guild_id in list(self.werewolf_join_queues.keys()):
-                if channel_id in self.werewolf_join_queues[guild_id]:
-                    del self.werewolf_join_queues[guild_id][channel_id]
-                    if not self.werewolf_join_queues[guild_id]: # If guild has no more queues, remove guild entry
-                        del self.werewolf_join_queues[guild_id]
-                    break # Found and removed, no need to check other guilds
-        
-        # Spyfall specific cleanup (already done at the top of this function, but ensure consistency)
-        if channel_id in self.spyfall_game_states: # This should ideally already be gone if game_type='spyfall' was used
-            del self.spyfall_game_states[channel_id]
+        # Loop melalui guild_id karena werewolf_join_queues adalah {guild_id: {channel_id: [players]}}
+        guild_id_to_remove = None
+        for g_id, channels_data in list(self.werewolf_join_queues.items()): # Iterate over a copy
+            if channel_id in channels_data:
+                del channels_data[channel_id]
+                if not channels_data: # If guild has no more queues, remove guild entry
+                    guild_id_to_remove = g_id
+                break
+        if guild_id_to_remove:
+            del self.werewolf_join_queues[guild_id_to_remove]
 
 
     # --- Fungsi untuk Mengirim Visual Werewolf (Hanya GIF/Gambar) ---
     async def _send_werewolf_visual(self, channel: discord.TextChannel, phase: str):
-        config = self.werewolf_roles_config.get(channel.id, {})
-        image_urls = config.get('image_urls', {})
+        # Ambil URL dari global config
+        global_config = self.global_werewolf_config.get('default_config', {})
+        image_urls = global_config.get('image_urls', {})
 
         visual_url = None
         if phase == "game_start":
@@ -607,8 +632,9 @@ class UltimateGameArena(commands.Cog):
             return
 
         voice_client = game_state['voice_client']
-        config = self.werewolf_roles_config.get(text_channel.id, {})
-        audio_urls = config.get('audio_urls', {})
+        # Ambil URL dari global config
+        global_config = self.global_werewolf_config.get('default_config', {})
+        audio_urls = global_config.get('audio_urls', {})
 
         audio_url = None
         if audio_type == "game_start_audio_url":
@@ -674,7 +700,6 @@ class UltimateGameArena(commands.Cog):
 
         vc_channel = ctx.author.voice.channel
         game_players = self.werewolf_game_states.get(ctx.channel.id, {}).get('players', [])
-        # Jika players masih kosong, anggap semua yang ada di VC adalah pemain untuk contoh ini
         if not game_players:
              game_players = [m for m in vc_channel.members if not m.bot]
              self.werewolf_game_states[ctx.channel.id]['players'] = game_players
@@ -750,7 +775,7 @@ class UltimateGameArena(commands.Cog):
             print(f"[{datetime.now()}] Error in Werewolf game flow for channel {channel_id}: {e}")
             await ctx.send(f"Terjadi kesalahan fatal pada game Werewolf: `{e}`. Game dihentikan.")
         finally:
-            self.end_game_cleanup(channel_id, game_type='werewolf') # Bersihkan game state dan putuskan dari VC
+            self.end_game_cleanup(channel_id, game_type='werewolf')
 
 
     # --- GAME 1: DESKRIPSIKAN & TEBAK ---
@@ -761,19 +786,19 @@ class UltimateGameArena(commands.Cog):
         
         vc = ctx.author.voice.channel if ctx.author.voice else None
         if not vc or len(vc.members) < 2:
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi') # Added game_type
+            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
             return await ctx.send("Game ini butuh minimal 2 orang di voice channel yang sama.", ephemeral=True)
 
         players = [m for m in vc.members if not m.bot]
         if len(players) < 2:
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi') # Added game_type
+            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
             return await ctx.send("Kurang pemain nih, ajak temanmu!", ephemeral=True)
 
         deskriptor = random.choice(players)
         
         if not self.deskripsi_data or not isinstance(self.deskripsi_data, list):
             await ctx.send("Data untuk game deskripsi tidak ditemukan atau formatnya salah.", ephemeral=True)
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi') # Added game_type
+            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
             return
 
         item = random.choice(self.deskripsi_data)
@@ -782,7 +807,7 @@ class UltimateGameArena(commands.Cog):
         try:
             await deskriptor.send(f"✍️ Kamu adalah **Deskriptor**! Kata rahasiamu adalah: **{word}**. Deskripsikan kata ini tanpa menyebutkannya langsung!")
         except discord.Forbidden:
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi') # Added game_type
+            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
             return await ctx.send(f"Gagal memulai karena tidak bisa mengirim DM ke {deskriptor.mention}. Pastikan DM-nya terbuka.", ephemeral=True)
 
         embed = discord.Embed(title="💡 Deskripsikan & Tebak!", color=0x3498db)
@@ -805,7 +830,7 @@ class UltimateGameArena(commands.Cog):
         except asyncio.TimeoutError:
             await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{word}**.")
         
-        self.end_game_cleanup(ctx.channel.id, game_type='deskripsi') # Added game_type
+        self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
 
     # --- GAME 2: PERANG OTAK (Placeholder) ---
     @commands.command(name="perangotak", help="Mulai game Family Feud.")
@@ -813,7 +838,7 @@ class UltimateGameArena(commands.Cog):
     async def perangotak(self, ctx):
         if not await self.start_game_check(ctx): return
         await ctx.send("Fitur **Perang Otak** sedang dalam pengembangan! Nantikan update selanjutnya. 🚧", ephemeral=True)
-        self.end_game_cleanup(ctx.channel.id, game_type='perangotak') # Added game_type
+        self.end_game_cleanup(ctx.channel.id, game_type='perangotak')
 
     # --- GAME 3: CERITA BERSAMBUNG ---
     @commands.command(name="cerita", help="Mulai game membuat cerita bersama.")
@@ -823,7 +848,7 @@ class UltimateGameArena(commands.Cog):
 
         vc = ctx.author.voice.channel if ctx.author.voice else None
         if not vc or len(vc.members) < 2:
-            self.end_game_cleanup(ctx.channel.id, game_type='cerita') # Added game_type
+            self.end_game_cleanup(ctx.channel.id, game_type='cerita')
             return await ctx.send("Ayo kumpul di voice channel dulu (minimal 2 orang) buat bikin cerita!", ephemeral=True)
 
         players = [m for m in vc.members if not m.bot]
@@ -831,7 +856,7 @@ class UltimateGameArena(commands.Cog):
         
         if not self.cerita_pembuka_data or not isinstance(self.cerita_pembuka_data, list):
             await ctx.send("Data untuk cerita pembuka tidak ditemukan atau formatnya salah.", ephemeral=True)
-            self.end_game_cleanup(ctx.channel.id, game_type='cerita') # Added game_type
+            self.end_game_cleanup(ctx.channel.id, game_type='cerita')
             return
 
         story = [random.choice(self.cerita_pembuka_data)]
@@ -860,7 +885,7 @@ class UltimateGameArena(commands.Cog):
         for p in players:
             await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
         
-        self.end_game_cleanup(ctx.channel.id, game_type='cerita') # Added game_type
+        self.end_game_cleanup(ctx.channel.id, game_type='cerita')
         
     # --- GAME 4: TIC-TAC-TOE ---
     @commands.command(name="tictactoe", help="Tantang temanmu bermain Tic-Tac-Toe.")
@@ -1072,7 +1097,7 @@ class UltimateGameArena(commands.Cog):
         if channel_id not in self.wheel_of_fate_config:
             self.wheel_of_fate_config[channel_id] = {
                 'cost': self.wheel_spin_cost,
-                'spinning_gif_url': 'https://media.giphy.com/media/l4FGFIg12vLw83XcA/giphy.gif', # Default gif
+                'spinning_gif_url': 'https://i.imgur.com/39hN44u.gif', # Default gif
                 'segments': self._get_default_wheel_segments(),
                 'outcome_image_urls': {}
             }
@@ -1101,19 +1126,19 @@ class UltimateGameArena(commands.Cog):
             description=f"{user.mention} telah membayar **{current_wheel_config['cost']} RSWN** dan memutar roda... Apa takdir yang menantinya?",
             color=discord.Color.gold()
         )
-        if current_wheel_config['spinning_gif_url']: # Use configured GIF
-            spin_embed.set_image(url=current_wheel_config['spinning_gif_url'])
+        if spinning_gif_url: # Use configured GIF
+            spin_embed.set_image(url=spinning_gif_url)
         
         spin_message = await ctx.send(embed=spin_embed)
         
-        await asyncio.sleep(random.uniform(3, 5))
+        await asyncio.sleep(random.uniform(3, 5)) # Simulate spinning time
         
         outcome = self._get_wheel_outcome(current_wheel_config['segments'])
-        outcome_image_url = current_wheel_config.get('outcome_image_urls', {}).get(outcome['type'])
+        outcome_image_url = config.get('outcome_image_urls', {}).get(outcome['type'])
 
         result_embed = discord.Embed(
             title=f"✨ **Roda Berhenti!** ✨",
-            description=f"Untuk {ctx.author.mention}: **{outcome['description']}**",
+            description=f"Untuk {user.mention}: **{outcome['description']}**",
             color=discord.Color.from_rgb(*outcome['color'])
         )
         # Prioritize configured outcome image, then fallback to hardcoded
@@ -1126,25 +1151,17 @@ class UltimateGameArena(commands.Cog):
             elif outcome['type'] == 'tax': result_embed.set_image(url="https://media.giphy.com/media/l3V0cE3tV6h6rC3m0/giphy.gif")
             elif outcome['type'] == 'nickname_transform': result_embed.set_image(url="https://media.giphy.com/media/rY9zudf2f2o8M/giphy.gif")
             elif outcome['type'] == 'message_mishap': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
-            elif outcome['type'] == 'bless_random_user': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1rE0J0I/giphy.gif")
-            elif outcome['type'] == 'curse_mute_random': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1rE0J0I/giphy.gif")
+            elif outcome['type'] == 'bless_random_user': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
+            elif outcome['type'] == 'curse_mute_random': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
             elif outcome['type'] == 'ping_random_user': result_embed.set_image(url="https://media.giphy.com/media/3ohhwpvL89Q8zN0n2g/giphy.gif")
             elif outcome['type'] == 'emoji_rain': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif")
-            elif outcome['type'] == 'channel_rename': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1rE0J0I/giphy.gif")
+            elif outcome['type'] == 'channel_rename': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
             elif outcome['type'] == 'random_duck': result_embed.set_image(url="https://media.giphy.com/media/f3ekFq7v18B9lTzY/giphy.gif")
             elif outcome['type'] == 'absurd_fortune': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
 
         await spin_message.edit(embed=result_embed)
         
-        await self._apply_wheel_consequence(interaction.guild, channel, user, outcome)
-
-        # Update stats based on outcome
-        if outcome['type'] in ['jackpot_rsw', 'boost_exp', 'protection', 'bless_random_user']:
-            player_stats['wins_rsw'] += (outcome['amount'] if 'amount' in outcome else 0)
-        elif outcome['type'] in ['tax', 'nickname_transform', 'message_mishap', 'curse_mute_random', 'ping_random_user', 'emoji_rain', 'channel_rename']:
-            player_stats['losses_rsw'] += (outcome['amount'] if 'amount' in outcome else 0)
-            player_stats['weird_effects'] += 1
-        save_json_to_root(self.wheel_of_fate_data, 'data/wheel_of_mad_fate.json')
+        await self.game_cog._apply_wheel_consequence(interaction.guild, channel, user, outcome)
 
 
     def _get_default_wheel_segments(self):
@@ -1231,7 +1248,7 @@ class UltimateGameArena(commands.Cog):
                 
                 await asyncio.sleep(3600)
                 # Check if the user's nickname is still the absurd one before reverting
-                current_member = guild.get_member(user.id) # Get fresh member data
+                current_member = guild.get_member(user.id)
                 if current_member and current_member.nick == new_nickname:
                     await current_member.edit(nick=original_nickname, reason="Roda Takdir Gila: Kembali Normal")
                     await channel.send(f"✨ Nickname server {user.mention} kembali normal.")
@@ -1264,7 +1281,7 @@ class UltimateGameArena(commands.Cog):
 
 
         elif outcome['type'] == 'curse_mute_random':
-            active_members = [m for m m.guild.members if m.status != discord.Status.offline and not m.bot and m.id != user.id]
+            active_members = [m for m in guild.members if m.status != discord.Status.offline and not m.bot and m.id != user.id]
             if active_members:
                 cursed_user = random.choice(active_members)
                 try:
@@ -1356,34 +1373,31 @@ class UltimateGameArena(commands.Cog):
     @commands.command(name="matamata", help="Mulai game Mata-Mata. Temukan siapa mata-matanya!")
     @commands.cooldown(1, 300, commands.BucketType.channel)
     async def matamata(self, ctx):
-        # Initial checks and setup
-        if not await self.start_game_check(ctx): # Checks self.active_games
+        if not await self.start_game_check(ctx):
             return
         
         if not ctx.author.voice or not ctx.author.voice.channel: 
-            self.end_game_cleanup(ctx.channel.id, game_type='spyfall') # Cleanup if conditions not met
+            self.end_game_cleanup(ctx.channel.id, game_type='spyfall')
             return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", delete_after=10)
         
         vc = ctx.author.voice.channel
         members = [m for m in vc.members if not m.bot]
         if len(members) < 3: 
-            self.end_game_cleanup(ctx.channel.id, game_type='spyfall') # Cleanup if conditions not met
+            self.end_game_cleanup(ctx.channel.id, game_type='spyfall')
             return await ctx.send("Game ini butuh minimal 3 orang di voice channel.", delete_after=10)
         
         location = random.choice(self.mata_mata_locations)
         
-        # Logic to avoid repeating the last spy
         eligible_spies = [m for m in members if m.id != self.last_spy_id]
         spy = random.choice(eligible_spies) if eligible_spies else random.choice(members)
         
-        # Initialize game state for Spyfall
         self.spyfall_game_states[ctx.channel.id] = {
             'spy': spy,
             'location': location,
             'players': members,
             'discussion_start_time': datetime.now(), 
             'vote_in_progress': False,
-            'game_task': None # Placeholder for the game flow task
+            'game_task': None
         }
 
         failed_dms = []
@@ -1411,19 +1425,15 @@ class UltimateGameArena(commands.Cog):
         game_start_message = await ctx.send(embed=embed)
         self.spyfall_game_states[ctx.channel.id]['game_start_message_id'] = game_start_message.id
 
-        # Create and store the game flow task
         game_task = self.bot.loop.create_task(self._spyfall_game_flow(ctx, ctx.channel.id, spy, location, members))
         self.spyfall_game_states[ctx.channel.id]['game_task'] = game_task
 
 
     async def _spyfall_game_flow(self, ctx, channel_id, spy, location, players):
         try:
-            # Phase 1: Discussion (5 minutes)
-            await asyncio.sleep(300) # Wait for 5 minutes of discussion
+            await asyncio.sleep(300)
             
-            # Check if the game is still active after the discussion period
             if channel_id not in self.spyfall_game_states:
-                # Game has already been ended by a successful !tuduh or !ungkap_lokasi command
                 return 
 
             await ctx.send(f"⏰ **Waktu diskusi 5 menit habis!** Sekarang adalah fase penuduhan akhir. "
@@ -1431,25 +1441,20 @@ class UltimateGameArena(commands.Cog):
                            f"Mata-mata bisa menggunakan `!ungkap_lokasi <lokasi>` untuk mencoba menebak lokasi.\n\n"
                            f"Jika mata-mata berhasil menebak lokasi dengan benar dan belum dituduh, mata-mata menang! Jika tidak ada yang menuduh atau mata-mata tidak menebak lokasi dalam waktu 2 menit, maka **mata-mata menang secara otomatis.**")
             
-            # Phase 2: Final Accusation/Revelation (2 minutes)
-            await asyncio.sleep(120) # Wait for 2 minutes for final actions
+            await asyncio.sleep(120)
             
-            # Check again if the game is still active after the final accusation phase
             if channel_id in self.spyfall_game_states:
-                # If it's still in state, it means no successful accusation or revelation occurred
                 await ctx.send(f"Waktu penuduhan habis! Mata-mata ({spy.mention}) menang karena tidak ada yang berhasil menuduh atau mata-mata tidak mengungkapkan lokasi! Lokasi sebenarnya adalah **{location}**.")
                 await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
-                self.end_game_cleanup(channel_id, game_type='spyfall') # Clean up game state
+                self.end_game_cleanup(channel_id, game_type='spyfall')
 
 
         except asyncio.CancelledError:
-            # This exception is caught if self.spyfall_game_states[channel_id]['game_task'].cancel() is called.
-            # The cleanup will be handled by the command that triggered the cancellation.
             print(f"[{datetime.now()}] Spyfall game flow for channel {channel_id} was cancelled.")
         except Exception as e:
             print(f"[{datetime.now()}] Error in _spyfall_game_flow for channel {channel_id}: {e}")
             await ctx.send(f"Terjadi kesalahan fatal pada game Mata-Mata: `{e}`. Game dihentikan.")
-            self.end_game_cleanup(channel_id, game_type='spyfall') # Ensure cleanup even on unexpected errors
+            self.end_game_cleanup(channel_id, game_type='spyfall')
 
 
     @commands.command(name="tuduh", help="Tuduh seseorang sebagai mata-mata.")
@@ -1461,159 +1466,4 @@ class UltimateGameArena(commands.Cog):
         spy, location, players = game['spy'], game['location'], game['players']
 
         if ctx.author not in players or member not in players: 
-            return await ctx.send("Hanya pemain yang berpartisipasi yang bisa menuduh atau dituduh.", ephemeral=True)
-        
-        if game['vote_in_progress']:
-            return await ctx.send("Saat ini sedang ada voting lain. Tunggu sampai selesai.", ephemeral=True)
-
-        game['vote_in_progress'] = True 
-        
-        vote_embed = discord.Embed(
-            title="🗳️ VOTING UNTUK MATA-MATA!",
-            description=f"{ctx.author.mention} menuduh {member.mention} sebagai mata-mata!\n\n"
-                        f"**Setuju (✅) atau Tidak Setuju (❌)?**",
-            color=discord.Color.red()
-        )
-        vote_embed.set_footer(text="Voting akan berakhir dalam 30 detik. Mayoritas menentukan.")
-        
-        vote_msg = await ctx.send(embed=vote_embed)
-        await vote_msg.add_reaction("✅")
-        await vote_msg.add_reaction("❌")
-        
-        await asyncio.sleep(30) # Wait for votes
-        
-        # Re-fetch game state, as it might have been cleaned up if another command ended it during sleep
-        if ctx.channel.id not in self.spyfall_game_states:
-            print(f"[{datetime.now()}] Spyfall game state not found during vote tally for channel {ctx.channel.id}.")
-            return # Game already ended by another action or cleanup
-
-        game = self.spyfall_game_states[ctx.channel.id] # Re-fetch current game state
-        game['vote_in_progress'] = False # Reset vote status
-
-        try:
-            cached_vote_msg = await ctx.channel.fetch_message(vote_msg.id)
-            yes_votes = 0
-            no_votes = 0
-            actual_voters = set() 
-
-            for reaction in cached_vote_msg.reactions:
-                if str(reaction.emoji) == "✅":
-                    async for user_reaction in reaction.users():
-                        if not user_reaction.bot and user_reaction in players and user_reaction.id not in actual_voters:
-                            yes_votes += 1
-                            actual_voters.add(user_reaction.id)
-                elif str(reaction.emoji) == "❌":
-                    async for user_reaction in reaction.users():
-                        if not user_reaction.bot and user_reaction in players and user_reaction.id not in actual_voters:
-                            no_votes += 1
-                            actual_voters.add(user_reaction.id)
-            
-            # The calculation for total_eligible_voters was slightly off. It should be based on the players who *can* vote.
-            # A simpler way is to compare actual votes to total players.
-            # A vote requires more than half of the *living* players to be successful.
-            
-            # Exclude the accuser and accused from the voting pool for simplicity, as they implicitly vote by action
-            # However, if they *can* vote (e.g., if accused isn't spy and can still vote), keep them in the pool for count.
-            # For simplicity here, let's just count total players in the game for the majority check.
-            
-            # Define majority as strictly more than half of all current players
-            majority_needed = len(players) / 2 
-
-            if yes_votes > no_votes and yes_votes > majority_needed: 
-                await ctx.send(f"✅ **Voting Berhasil!** Mayoritas setuju {member.mention} adalah mata-mata.")
-                if member.id == spy.id:
-                    await ctx.send(f"**Tuduhan Benar!** {member.mention} memang mata-matanya. Lokasinya adalah **{location}**.")
-                    await ctx.send(f"Selamat kepada tim warga, kalian semua mendapat hadiah!")
-                    for p in players:
-                        if p.id != spy.id: await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
-                else:
-                    await ctx.send(f"**Tuduhan Salah!** {member.mention} bukan mata-matanya. Lokasi sebenarnya adalah **{location}**.")
-                    await ctx.send(f"**Mata-mata ({spy.mention}) menang!**")
-                    await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
-                self.end_game_cleanup(ctx.channel.id, game_type='spyfall') # Game ends here
-            else:
-                await ctx.send(f"❌ **Voting Gagal.** Tidak cukup suara untuk menuduh {member.mention}. Permainan dilanjutkan!")
-                # Game continues, no cleanup here
-        
-        except discord.NotFound:
-            await ctx.send("Pesan voting tidak ditemukan.")
-        except Exception as e:
-            print(f"[{datetime.now()}] Error during Spyfall voting for channel {ctx.channel.id}: {e}")
-            await ctx.send(f"Terjadi kesalahan saat memproses voting: `{e}`. Permainan dilanjutkan.")
-
-
-    @commands.command(name="ungkap_lokasi", aliases=['ulokasi'], help="Sebagai mata-mata, coba tebak lokasi rahasia.")
-    async def ungkap_lokasi(self, ctx, *, guessed_location: str):
-        if ctx.channel.id not in self.spyfall_game_states:
-            return await ctx.send("Game Mata-Mata belum dimulai.", ephemeral=True)
-
-        game = self.spyfall_game_states[ctx.channel.id]
-        spy, location = game['spy'], game['location']
-
-        if ctx.author.id != spy.id:
-            return await ctx.send("Hanya mata-mata yang bisa menggunakan perintah ini.", ephemeral=True)
-        
-        if game['vote_in_progress']:
-            return await ctx.send("Saat ini sedang ada voting. Tunggu sampai selesai.", ephemeral=True)
-
-        # Re-check if the game is still active just before revealing (edge case if cleanup happened very fast)
-        if ctx.channel.id not in self.spyfall_game_states:
-            return # Game already ended by another action
-
-        if guessed_location.lower() == location.lower():
-            await ctx.send(f"🎉 **Mata-Mata Ungkap Lokasi Dengan Benar!** {spy.mention} berhasil menebak lokasi rahasia yaitu **{location}**! Mata-mata menang!")
-            await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
-        else:
-            await ctx.send(f"❌ **Mata-Mata Gagal Mengungkap Lokasi!** Tebakan `{guessed_location}` salah. Lokasi sebenarnya adalah **{location}**. Warga menang!")
-            for p in game['players']:
-                if p.id != spy.id:
-                    await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
-
-        self.end_game_cleanup(ctx.channel.id, game_type='spyfall') # Game ends here
-
-    # --- TEKA-TEKI HARIAN ---
-    @tasks.loop(time=time(hour=5, minute=0, tzinfo=None)) # Kirim setiap jam 05:00 WIB
-    async def post_daily_puzzle(self):
-        await self.bot.wait_until_ready()
-        now = datetime.now()
-        target_time = now.replace(hour=5, minute=0, second=0, microsecond=0)
-        if now > target_time:
-            target_time += timedelta(days=1)
-        time_until_post = (target_time - now).total_seconds()
-        if time_until_post > 0:
-            await asyncio.sleep(time_until_post)
-
-        if not self.tekateki_harian_data or not isinstance(self.tekateki_harian_data, list):
-            print(f"[{datetime.now()}] Peringatan: Data teka-teki harian tidak ditemukan atau formatnya salah.")
-            return
-
-        self.daily_puzzle = random.choice(self.tekateki_harian_data)
-        self.daily_puzzle_solvers.clear()
-        
-        channel = self.bot.get_channel(self.daily_puzzle_channel_id)
-        if channel:
-            embed = discord.Embed(title="🤔 Teka-Teki Harian!", description=f"**Teka-teki untuk hari ini:**\n\n> {self.daily_puzzle['riddle']}", color=0x99aab5)
-            embed.set_footer(text="Gunakan !jawab <jawabanmu> untuk menebak!")
-            await channel.send(embed=embed)
-
-    @post_daily_puzzle.before_loop
-    async def before_daily_puzzle(self):
-        await self.bot.wait_until_ready()
-
-    @commands.command(name="jawab", help="Jawab teka-teki harian.")
-    async def jawab(self, ctx, *, answer: str):
-        if not self.daily_puzzle:
-            return await ctx.send("Belum ada teka-teki untuk hari ini. Sabar ya!", ephemeral=True)
-        if ctx.author.id in self.daily_puzzle_solvers:
-            return await ctx.send("Kamu sudah menjawab dengan benar hari ini!", ephemeral=True)
-            
-        if answer.lower() == self.daily_puzzle['answer'].lower():
-            self.daily_puzzle_solvers.add(ctx.author.id)
-            await self.give_rewards_with_bonus_check(ctx.author, ctx.guild.id, ctx.channel)
-            await ctx.message.add_reaction("✅")
-            await ctx.send(f"🎉 Selamat {ctx.author.mention}! Jawabanmu benar dan kamu mendapatkan hadiah!")
-        else:
-            await ctx.message.add_reaction("❌")
-
-async def setup(bot):
-    await bot.add_cog(UltimateGameArena(bot))
+            return await ctx.send("Hanya pemain yang berpartisipasi yang bisa menuduh atau dituduh
