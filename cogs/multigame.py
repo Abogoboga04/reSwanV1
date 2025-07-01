@@ -260,7 +260,6 @@ class WerewolfRoleSetupView(discord.ui.View):
         await interaction.message.edit(embed=embed, view=self)
         self.stop() 
 
-# --- Tic Tac Toe UI & Logic ---
 class TicTacToeView(discord.ui.View):
     def __init__(self, game_cog, player1, player2):
         super().__init__(timeout=300)
@@ -284,10 +283,10 @@ class TicTacToeView(discord.ui.View):
         if self.winner:
             embed.description = f"🎉 **{self.winner.mention} Menang!** 🎉"
             embed.color = discord.Color.gold()
-            await self.game_cog.give_rewards_with_bonus_check(self.winner, interaction.guild.id, interaction.channel) 
+            await self.game_cog.give_rewards_with_bonus_check(self.winner, interaction.guild.id, interaction.channel)
             for item in self.children: item.disabled = True
         elif is_draw:
-            embed.description = "🤝 **Permainan Berakhir Seri!**"
+            embed.description = "⚖️ **Permainan Berakhir Seri!**"
             embed.color = discord.Color.light_grey()
             for item in self.children: item.disabled = True
         else:
@@ -296,8 +295,7 @@ class TicTacToeView(discord.ui.View):
         await interaction.message.edit(embed=embed, view=self)
         if self.winner or is_draw:
             self.stop()
-            self.game_cog.end_game_cleanup(interaction.channel.id, game_type='tictactoe')
-
+            self.game_cog.end_game_cleanup(interaction.channel.id)
 
 class TicTacToeButton(discord.ui.Button):
     def __init__(self, row: int):
@@ -315,100 +313,32 @@ class TicTacToeButton(discord.ui.Button):
         self.view.board[button_index] = self.label
         await view.update_board(interaction)
 
-
-# --- Roda Takdir Gila! UI & Logic ---
-class WheelOfMadFateView(discord.ui.View):
-    def __init__(self, game_cog, channel_id, cost):
-        super().__init__(timeout=120)
-        self.game_cog = game_cog
-        self.channel_id = channel_id
-        self.cost = cost
-        self.add_item(discord.ui.Button(label=f"Putar Roda ({cost} RSWN)", style=discord.ButtonStyle.success, custom_id="spin_wheel"))
-    
-    @discord.ui.button(label="Putar Roda", style=discord.ButtonStyle.success, custom_id="spin_wheel")
-    async def spin_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True)
-        
-        user = interaction.user
-        channel = interaction.channel
-        
-        user_id_str = str(user.id)
-        bank_data = load_json_from_root('data/bank_data.json')
-        current_balance = bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance']
-
-        current_wheel_config = self.game_cog.wheel_of_fate_config.get(self.channel_id, {})
-        cost_for_spin = current_wheel_config.get('cost', self.game_cog.wheel_spin_cost)
-        
-        if current_balance < cost_for_spin:
-            return await interaction.followup.send(f"Saldo RSWNmu tidak cukup untuk memutar roda ({cost_for_spin} RSWN diperlukan). Kamu punya: **{current_balance} RSWN**.", ephemeral=True)
-        
-        bank_data[user_id_str]['balance'] -= cost_for_spin
-        save_json_to_root(bank_data, 'data/bank_data.json')
-        
-        wheel_data = self.game_cog.wheel_of_fate_data.setdefault('players_stats', {})
-        wheel_data.setdefault(user_id_str, {'spins': 0, 'wins_rsw': 0, 'losses_rsw': 0, 'weird_effects': 0})
-        wheel_data[user_id_str]['spins'] += 1
-        save_json_to_root(self.game_cog.wheel_of_fate_data, 'data/wheel_of_mad_fate.json')
-
-        spinning_gif_url = current_wheel_config.get('spinning_gif_url', 'https://i.imgur.com/39hN44u.gif')
-        
-        spin_embed = discord.Embed(
-            title="🌀 Roda Takdir Gila Sedang Berputar! 🌀",
-            description=f"{user.mention} telah memutar roda... Apa takdir yang menantinya?",
-            color=discord.Color.gold()
-        )
-        if spinning_gif_url:
-            spin_embed.set_image(url=spinning_gif_url)
-        
-        spin_message = await channel.send(embed=spin_embed)
-        
-        await asyncio.sleep(random.uniform(3, 5))
-        
-        outcome = self.game_cog._get_wheel_outcome(current_wheel_config['segments'])
-        outcome_image_url = current_wheel_config.get('outcome_image_urls', {}).get(outcome['type'])
-        
-        result_embed = discord.Embed(
-            title=f"✨ **Roda Berhenti!** ✨",
-            description=f"Untuk {user.mention}: **{outcome['description']}**",
-            color=discord.Color.from_rgb(*outcome['color'])
-        )
-        if outcome_image_url:
-            result_embed.set_image(url=outcome_image_url)
-        else:
-            if outcome['type'] == 'jackpot_rsw': result_embed.set_image(url="https://media.giphy.com/media/xT39D7PvWnJ14wD5c4/giphy.gif")
-            elif outcome['type'] == 'boost_exp': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif")
-            elif outcome['type'] == 'protection': result_embed.set_image(url="https://media.giphy.com/media/3o7WIJFA5r5d9n7jcA/giphy.gif")
-            elif outcome['type'] == 'tax': result_embed.set_image(url="https://media.giphy.com/media/l3V0cE3tV6h6rC3m0/giphy.gif")
-            elif outcome['type'] == 'nickname_transform': result_embed.set_image(url="https://media.giphy.com/media/rY9zudf2f2o8M/giphy.gif")
-            elif outcome['type'] == 'message_mishap': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
-            elif outcome['type'] == 'bless_random_user': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
-            elif outcome['type'] == 'curse_mute_random': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
-            elif outcome['type'] == 'ping_random_user': result_embed.set_image(url="https://media.giphy.com/media/3ohhwpvL89Q8zN0n2g/giphy.gif")
-            elif outcome['type'] == 'emoji_rain': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif")
-            elif outcome['type'] == 'channel_rename': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
-            elif outcome['type'] == 'random_duck': result_embed.set_image(url="https://media.giphy.com/media/f3ekFq7v18B9lTzY/giphy.gif")
-            elif outcome['type'] == 'absurd_fortune': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
-
-        await spin_message.edit(embed=result_embed)
-        
-        await self.game_cog._apply_wheel_consequence(interaction.guild, channel, user, outcome)
-
-
 class UltimateGameArena(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_games = set()
-        
-        # --- Game States ---
-        self.spyfall_game_states = {}
         # last_spy_id digunakan untuk mencegah pemilihan mata-mata yang sama di sesi berikutnya
         self.last_spy_id = None       
 
-        # Werewolf Game States
-        self.werewolf_join_queues = {}
-        self.werewolf_game_states = {}
-        
-        # Konfigurasi Werewolf GLOBAL
+        # --- Game States (Diperluas untuk mencakup semua game Anda) ---
+        self.spyfall_game_states = {} # {channel_id: {'spy': member, 'location': str, 'players': [members], 'discussion_start_time': datetime, 'vote_in_progress': bool}}
+        self.werewolf_join_queues = {} # Untuk Werewolf (jika diimplementasikan secara penuh)
+        self.werewolf_game_states = {} # Untuk Werewolf (jika diimplementasikan secara penuh)
+        self.horse_race_games = {} # Untuk Balap Kuda
+        self.wheel_of_fate_config = {} # Untuk Roda Takdir Gila
+        self.wheel_of_fate_data = load_json_from_root('data/wheel_of_mad_fate.json', default_value={"players_stats": {}}) # Data statistik Roda Takdir
+
+        # --- Data Game (Diambil dari backup Anda) ---
+        self.siapakah_aku_data = load_json_from_root('data/siapakah_aku.json', default_value=[])
+        self.pernah_gak_pernah_data = load_json_from_root('data/pernah_gak_pernah.json', default_value=[])
+        self.hitung_cepat_data = load_json_from_root('data/hitung_cepat.json', default_value=[])
+        self.mata_mata_locations = load_json_from_root('data/mata_mata_locations.json', default_value=[])
+        self.deskripsi_data = load_json_from_root('data/deskripsi_tebak.json', default_value=[])
+        self.perang_otak_data = load_json_from_root('data/perang_otak.json', default_value={}).get('questions', [])
+        self.cerita_pembuka_data = load_json_from_root('data/cerita_pembuka.json', default_value=[])
+        self.tekateki_harian_data = load_json_from_root('data/teka_teki_harian.json', default_value=[])
+
+        # --- Konfigurasi Werewolf Global (Diambil dari versi UltimateGameArena yang lebih lengkap) ---
         self.global_werewolf_config = load_json_from_root(
             'data/global_werewolf_config.json', 
             default_value={
@@ -428,81 +358,79 @@ class UltimateGameArena(commands.Cog):
         )
         self.werewolf_roles_data = load_json_from_root('data/werewolf_roles.json', default_value={"roles": {}})
 
-        # Horse Race Game States
-        self.horse_race_games = {}
-        self.horse_names = ["merah", "biru", "hijau", "kuning"] # Didefinisikan di sini
-        self.horse_emojis = ["🔴", "🔵", "🟢", "🟡"] # Didefinisikan di sini
+        # --- Konfigurasi Balap Kuda (Diambil dari versi UltimateGameArena yang lebih lengkap) ---
+        self.horse_names = ["merah", "biru", "hijau", "kuning"] 
+        self.horse_emojis = ["🔴", "🔵", "🟢", "🟡"] 
 
-        # Wheel of Mad Fate States
-        self.wheel_of_fate_config = {}
-        self.wheel_of_fate_data = load_json_from_root('data/wheel_of_mad_fate.json', default_value={"players_stats": {}})
-
-        # --- Game Data ---
-        self.siapakah_aku_data = load_json_from_root('data/siapakah_aku.json', default_value=[])
-        self.pernah_gak_pernah_data = load_json_from_root('data/pernah_gak_pernah.json', default_value=[])
-        self.hitung_cepat_data = load_json_from_root('data/hitung_cepat.json', default_value=[])
-        self.mata_mata_locations = load_json_from_root('data/mata_mata_locations.json', default_value=[])
-        self.deskripsi_data = load_json_from_root('data/deskripsi_tebak.json', default_value=[])
-        self.perang_otak_data = load_json_from_root('data/perang_otak.json', default_value={}).get('questions', [])
-        self.cerita_pembuka_data = load_json_from_root('data/cerita_pembuka.json', default_value=[])
-        self.tekateki_harian_data = load_json_from_root('data/teka_teki_harian.json', default_value=[])
-
-        # Base reward amounts for non-Werewolf games
-        self.reward = {"rsw": 50, "exp": 100} 
-        # Specific Werewolf rewards
-        self.werewolf_win_rewards = {"rsw": 550, "exp": 550}
-        # Default Wheel of Mad Fate cost
-        self.wheel_spin_cost = 200
-
+        # --- Hadiah & Cooldown ---
+        self.reward = {"rsw": 50, "exp": 100}
+        self.wheel_spin_cost = 200 # Biaya putar roda takdir
         self.daily_puzzle = None
         self.daily_puzzle_solvers = set()
-        self.daily_puzzle_channel_id = 765140300145360896 
+        self.daily_puzzle_channel_id = 765140300145360896 # Ganti dengan ID channel Anda
 
-        self.dunia_cog = None # Akan diisi di on_ready listener
+        # --- Interaksi Cog Lain ---
+        self.dunia_cog = None # Akan diisi di on_ready listener dari DuniaHidup.py
+        self.music_cog = None # Akan diisi di on_ready listener dari music.py
 
-        self.post_daily_puzzle.start()
-        self.music_cog = None # Akan diisi setelah bot siap
+        self.post_daily_puzzle.start() # Memulai task loop untuk teka-teki harian
 
     @commands.Cog.listener()
     async def on_ready(self):
+        # Pastikan bot sudah siap sebelum mengakses cog lain
         await self.bot.wait_until_ready()
-        self.music_cog = self.bot.get_cog('Music')
-        if not self.music_cog:
-            print(f"[{datetime.now()}] Peringatan: Cog 'Music' tidak ditemukan. Fungsi audio Werewolf mungkin tidak berfungsi.")
         
+        # Ambil referensi ke cog DuniaHidup
         self.dunia_cog = self.bot.get_cog('DuniaHidup')
         if not self.dunia_cog:
             print(f"[{datetime.now()}] Peringatan: Cog 'DuniaHidup' tidak ditemukan. Beberapa fitur game (anomali, mimic) mungkin tidak berfungsi.")
 
+        # Ambil referensi ke cog Music
+        self.music_cog = self.bot.get_cog('Music')
+        if not self.music_cog:
+            print(f"[{datetime.now()}] Peringatan: Cog 'Music' tidak ditemukan. Fungsi audio Werewolf mungkin tidak berfungsi.")
+
     def cog_unload(self):
+        """Dipanggil saat cog dibongkar, membatalkan semua task loop."""
         self.post_daily_puzzle.cancel()
         
+        # Batalkan task game yang mungkin sedang berjalan untuk cleanup yang lebih bersih
         for channel_id in list(self.spyfall_game_states.keys()):
             game_state = self.spyfall_game_states.get(channel_id)
             if game_state and 'game_task' in game_state and not game_state['game_task'].done():
                 game_state['game_task'].cancel()
-            self.end_game_cleanup(channel_id, game_type='spyfall')
-            
+            # end_game_cleanup akan dipanggil oleh game_task atau logic game itu sendiri
+            # atau di cleanup umum jika perlu
+        
+        # Contoh cleanup untuk game lain yang mungkin memiliki game_task aktif
         for channel_id in list(self.werewolf_game_states.keys()):
             game_state = self.werewolf_game_states.get(channel_id)
             if game_state and game_state.get('voice_client'):
                 self.bot.loop.create_task(game_state['voice_client'].disconnect())
             if game_state and 'game_task' in game_state and not game_state['game_task'].done():
                 game_state['game_task'].cancel()
-            self.end_game_cleanup(channel_id, game_type='werewolf')
-
+        
         for channel_id in list(self.horse_race_games.keys()):
             game_state = self.horse_race_games.get(channel_id)
             if game_state and 'game_task' in game_state and not game_state['game_task'].done():
                 game_state['game_task'].cancel()
-            self.end_game_cleanup(channel_id, game_type='horse_race')
-        
+
     def get_anomaly_multiplier(self):
+        """Mengambil multiplier anomali EXP dari DuniaHidup cog jika ada."""
         if self.dunia_cog and hasattr(self.dunia_cog, 'active_anomaly') and self.dunia_cog.active_anomaly and self.dunia_cog.active_anomaly.get('type') == 'exp_boost':
             return self.dunia_cog.active_anomaly.get('effect', {}).get('multiplier', 1)
         return 1
 
     async def give_rewards_with_bonus_check(self, user: discord.Member, guild_id: int, channel: discord.TextChannel = None, custom_rsw: int = None, custom_exp: int = None):
+        """
+        Memberikan hadiah RSWN dan EXP kepada pengguna, dengan pengecekan bonus anomali.
+        Args:
+            user (discord.Member): Pengguna yang akan menerima hadiah.
+            guild_id (int): ID Guild tempat hadiah diberikan.
+            channel (discord.TextChannel, optional): Channel untuk mengirim pesan bonus. Defaults to None.
+            custom_rsw (int, optional): Jumlah RSWN kustom. Jika None, pakai self.reward['rsw'].
+            custom_exp (int, optional): Jumlah EXP kustom. Jika None, pakai self.reward['exp'].
+        """
         anomaly_multiplier = self.get_anomaly_multiplier()
         
         rsw_to_give = custom_rsw if custom_rsw is not None else self.reward['rsw']
@@ -517,13 +445,14 @@ class UltimateGameArena(commands.Cog):
             await channel.send(f"✨ **BONUS ANOMALI!** {user.mention} mendapatkan hadiah yang dilipatgandakan!", delete_after=15)
 
     def give_rewards_base(self, user: discord.Member, guild_id: int, rsw_amount: int, exp_amount: int):
+        """Fungsi dasar untuk menyimpan hadiah ke file JSON."""
         user_id_str, guild_id_str = str(user.id), str(guild_id)
         
-        bank_data = load_json_from_root('data/bank_data.json')
+        bank_data = load_json_from_root('data/bank_data.json', default_value={})
         bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance'] += rsw_amount
         save_json_to_root(bank_data, 'data/bank_data.json')
         
-        level_data = load_json_from_root('data/level_data.json')
+        level_data = load_json_from_root('data/level_data.json', default_value={})
         guild_data = level_data.setdefault(guild_id_str, {})
         user_data = guild_data.setdefault(user_id_str, {'exp': 0, 'level': 1})
         user_data.setdefault('exp', 0) 
@@ -531,6 +460,7 @@ class UltimateGameArena(commands.Cog):
         save_json_to_root(level_data, 'data/level_data.json')
 
     async def start_game_check(self, ctx):
+        """Memeriksa apakah ada game lain yang aktif di channel."""
         if ctx.channel.id in self.active_games:
             await ctx.send("Maaf, sudah ada permainan lain di channel ini. Tunggu selesai ya!", ephemeral=True)
             return False
@@ -538,25 +468,28 @@ class UltimateGameArena(commands.Cog):
         return True
     
     async def _check_mimic_attack(self, ctx):
+        """Memeriksa apakah ada serangan mimic yang memblokir game di channel ini."""
+        # Memblokir total game jika ada serangan mimic global di channel ini
         if self.dunia_cog and self.dunia_cog.active_mimic_attack_channel_id == ctx.channel.id:
             await ctx.send("💥 **SERANGAN MIMIC!** Permainan tidak bisa dimulai karena mimic sedang mengamuk di channel ini!", ephemeral=True)
             return True
         return False
 
     async def _check_mimic_effect(self, ctx):
+        """Memeriksa apakah event mimic yang memengaruhi jawaban sedang aktif di channel ini."""
+        # Asumsi DuniaHidup cog memiliki `mimic_effect_active_channel_id` untuk tujuan ini
         if self.dunia_cog and self.dunia_cog.mimic_effect_active_channel_id == ctx.channel.id:
             return True
         return False
 
     def end_game_cleanup(self, channel_id, game_type=None):
+        """Membersihkan state game setelah game berakhir."""
         self.active_games.discard(channel_id)
         print(f"[{datetime.now()}] end_game_cleanup called for channel {channel_id}, type {game_type}. Active games: {self.active_games}")
 
+        # Pembersihan spesifik untuk setiap jenis game
         if game_type == 'spyfall' and channel_id in self.spyfall_game_states:
-            game_state = self.spyfall_game_states[channel_id]
-            if 'game_task' in game_state and game_state['game_task'] and not game_state['game_task'].done():
-                game_state['game_task'].cancel()
-            # last_spy_id diset di _spyfall_game_flow atau tuduh/ungkap_lokasi
+            # last_spy_id sudah diset di _spyfall_game_flow atau tuduh/ungkap_lokasi
             del self.spyfall_game_states[channel_id]
         elif game_type == 'werewolf' and channel_id in self.werewolf_game_states:
             game_state = self.werewolf_game_states.get(channel_id)
@@ -575,9 +508,10 @@ class UltimateGameArena(commands.Cog):
                 pass 
              else:
                 pass
-        elif game_type == 'tictactoe' and channel_id in self.active_games:
-            pass
+        elif game_type == 'tictactoe': # TicTacToe cleanup
+            pass # View akan timeout sendiri dan cleanup.
 
+        # Cleanup untuk antrean join Werewolf (jika masih relevan)
         guild_id_to_remove = None
         for g_id, channels_data in list(self.werewolf_join_queues.items()):
             if channel_id in channels_data:
@@ -589,7 +523,98 @@ class UltimateGameArena(commands.Cog):
             del self.werewolf_join_queues[guild_id_to_remove]
 
 
-    # --- Fungsi untuk Mengirim Visual Werewolf (Hanya GIF/Gambar) ---
+    # --- GAME 0: WEREWOLF (Simulasi) ---
+    @commands.command(name="startwerewolf", help="Mulai game Werewolf (contoh, perlu integrasi lebih lanjut).")
+    @commands.cooldown(1, 30, commands.BucketType.channel) # Cooldown dipertahankan
+    async def start_werewolf_game_example(self, ctx):
+        if await self._check_mimic_attack(ctx): return # Cek mimic attack
+        if not await self.start_game_check(ctx): return
+        
+        self.werewolf_game_states[ctx.channel.id] = {
+            'host': ctx.author,
+            'players': [ctx.author], # Akan diisi dengan pemain dari VC
+            'voice_client': None,
+            'game_task': None
+        }
+        
+        if not ctx.author.voice or not ctx.author.voice.channel:
+            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
+            return await ctx.send("Untuk bermain Werewolf, kamu dan pemain lain harus berada di **voice channel** yang sama!", ephemeral=True)
+
+        vc_channel = ctx.author.voice.channel
+        game_players = [m for m in vc_channel.members if not m.bot]
+        # Ini akan mengambil semua user non-bot di VC sebagai pemain
+        self.werewolf_game_states[ctx.channel.id]['players'] = game_players
+
+        players_in_vc = [m for m in vc_channel.members if not m.bot and m in game_players]
+        
+        if len(players_in_vc) < 3:
+            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
+            return await ctx.send("Jumlah pemain di voice channel terlalu sedikit untuk memulai game Werewolf. Minimal 3 pemain aktif!", ephemeral=True)
+
+        # Bagian Music cog dikomentari sesuai diskusi, bisa diaktifkan jika Music cog ada dan berfungsi
+        # if not self.music_cog: 
+        #     self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
+        #     return await ctx.send("Cog musik bot tidak aktif. Tidak bisa memulai Werewolf dengan fitur audio.", ephemeral=True)
+        
+        try:
+            if not ctx.voice_client or ctx.voice_client.channel != vc_channel:
+                await vc_channel.connect()
+                await ctx.send(f"Bot bergabung ke voice channel: **{vc_channel.name}** untuk Werewolf.", delete_after=10)
+            
+            game_state = self.werewolf_game_states.setdefault(ctx.channel.id, {})
+            game_state['voice_client'] = ctx.voice_client
+
+        except discord.Forbidden:
+            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
+            return await ctx.send("Bot tidak memiliki izin untuk bergabung ke voice channel Anda. Pastikan saya memiliki izin `Connect` dan `Speak`.", ephemeral=True)
+        except Exception as e:
+            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
+            return await ctx.send(f"Terjadi kesalahan saat bot bergabung ke voice channel: `{e}`", ephemeral=True)
+
+        await ctx.send("Game Werewolf akan dimulai! Bersiaplah...")
+        
+        game_task = self.bot.loop.create_task(self._werewolf_game_flow(ctx, ctx.channel.id, players_in_vc))
+        self.werewolf_game_states[ctx.channel.id]['game_task'] = game_task
+
+
+    async def _werewolf_game_flow(self, ctx, channel_id, players):
+        try:
+            await self._send_werewolf_visual(ctx.channel, "game_start")
+            # await self._play_werewolf_audio(ctx.channel, "game_start_audio_url") 
+            
+            await asyncio.sleep(7)
+            await ctx.send("Malam telah tiba... Para Werewolf beraksi!")
+            await self._send_werewolf_visual(ctx.channel, "night_phase")
+            # await self._play_werewolf_audio(ctx.channel, "night_phase_audio_url")
+
+            await asyncio.sleep(15)
+            await ctx.send("Pagi telah tiba! Siapa yang menjadi korban malam ini?")
+            await self._send_werewolf_visual(ctx.channel, "night_resolution")
+            
+            await asyncio.sleep(3)
+            await ctx.send("Mari kita diskusikan!")
+            await self._send_werewolf_visual(ctx.channel, "day_phase")
+            # await self._play_werewolf_audio(ctx.channel, "day_phase_audio_url")
+            
+            await asyncio.sleep(10)
+            await ctx.send("Waktunya voting!")
+            # await self._play_werewolf_audio(ctx.channel, "vote_phase_audio_url")
+
+            await asyncio.sleep(5)
+            await ctx.send("Game Werewolf berakhir. Selamat kepada para pemenang!")
+            # await self._play_werewolf_audio(ctx.channel, "game_end_audio_url")
+            
+        except asyncio.CancelledError:
+            print(f"[{datetime.now()}] Werewolf game flow for channel {channel_id} was cancelled.")
+            await ctx.send("Game Werewolf dihentikan lebih awal.")
+        except Exception as e:
+            print(f"[{datetime.now()}] Error in Werewolf game flow for channel {channel_id}: {e}")
+            await ctx.send(f"Terjadi kesalahan fatal pada game Werewolf: `{e}`. Game dihentikan.")
+        finally:
+            self.end_game_cleanup(channel_id, game_type='werewolf')
+
+    # --- Fungsi Visual & Audio Werewolf (Dipertahankan) ---
     async def _send_werewolf_visual(self, channel: discord.TextChannel, phase: str):
         global_config = self.global_werewolf_config.get('default_config', {})
         image_urls = global_config.get('image_urls', {})
@@ -617,7 +642,6 @@ class UltimateGameArena(commands.Cog):
                 await channel.send("ℹ️ URL gambar untuk fase ini belum diatur.")
 
 
-    # --- Fungsi untuk Memutar Audio Werewolf (MP3/WebM) ---
     async def _play_werewolf_audio(self, text_channel: discord.TextChannel, audio_type: str):
         game_state = self.werewolf_game_states.get(text_channel.id)
         if not game_state or not game_state.get('voice_client'):
@@ -667,161 +691,331 @@ class UltimateGameArena(commands.Cog):
         else:
             await ctx.send("Tidak ada audio Werewolf yang sedang diputar.")
 
-
-    # --- Contoh Perintah untuk Memulai Werewolf (placeholder) ---
-    @commands.command(name="startwerewolf", help="Mulai game Werewolf (contoh, perlu integrasi lebih lanjut).")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def start_werewolf_game_example(self, ctx):
-        if await self._check_mimic_attack(ctx): return # Cek mimic attack
-        if not await self.start_game_check(ctx): return
-        
-        self.werewolf_game_states[ctx.channel.id] = {
-            'host': ctx.author,
-            'players': [ctx.author],
-            'voice_client': None,
-            'game_task': None
-        }
-        
-        if not ctx.author.voice or not ctx.author.voice.channel:
-            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
-            return await ctx.send("Untuk bermain Werewolf, kamu dan pemain lain harus berada di **voice channel** yang sama!", ephemeral=True)
-
-        vc_channel = ctx.author.voice.channel
-        game_players = [m for m in vc_channel.members if not m.bot]
-        # Ini akan mengambil semua user non-bot di VC sebagai pemain
-        self.werewolf_game_states[ctx.channel.id]['players'] = game_players
-
-        players_in_vc = [m for m in vc_channel.members if not m.bot and m in game_players]
-        
-        if len(players_in_vc) < 3:
-            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
-            return await ctx.send("Jumlah pemain di voice channel terlalu sedikit untuk memulai game Werewolf. Minimal 3 pemain aktif!", ephemeral=True)
-
-        # if not self.music_cog: # Asumsi Music cog opsional, tidak wajib untuk memulai game
-        #     self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
-        #     return await ctx.send("Cog musik bot tidak aktif. Tidak bisa memulai Werewolf dengan fitur audio.", ephemeral=True)
-        
-        try:
-            if not ctx.voice_client or ctx.voice_client.channel != vc_channel:
-                await vc_channel.connect()
-                await ctx.send(f"Bot bergabung ke voice channel: **{vc_channel.name}** untuk Werewolf.", delete_after=10)
-            
-            game_state = self.werewolf_game_states.setdefault(ctx.channel.id, {})
-            game_state['voice_client'] = ctx.voice_client
-
-        except discord.Forbidden:
-            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
-            return await ctx.send("Bot tidak memiliki izin untuk bergabung ke voice channel Anda. Pastikan saya memiliki izin `Connect` dan `Speak`.", ephemeral=True)
-        except Exception as e:
-            self.end_game_cleanup(ctx.channel.id, game_type='werewolf')
-            return await ctx.send(f"Terjadi kesalahan saat bot bergabung ke voice channel: `{e}`", ephemeral=True)
-
-        await ctx.send("Game Werewolf akan dimulai! Bersiaplah...")
-        
-        game_task = self.bot.loop.create_task(self._werewolf_game_flow(ctx, ctx.channel.id, players_in_vc))
-        self.werewolf_game_states[ctx.channel.id]['game_task'] = game_task
-
-
-    async def _werewolf_game_flow(self, ctx, channel_id, players):
-        try:
-            await self._send_werewolf_visual(ctx.channel, "game_start")
-            # await self._play_werewolf_audio(ctx.channel, "game_start_audio_url") # Komentar karena Music cog opsional
-            
-            await asyncio.sleep(7)
-            await ctx.send("Malam telah tiba... Para Werewolf beraksi!")
-            await self._send_werewolf_visual(ctx.channel, "night_phase")
-            # await self._play_werewolf_audio(ctx.channel, "night_phase_audio_url")
-
-            await asyncio.sleep(15)
-            await ctx.send("Pagi telah tiba! Siapa yang menjadi korban malam ini?")
-            await self._send_werewolf_visual(ctx.channel, "night_resolution")
-            
-            await asyncio.sleep(3)
-            await ctx.send("Mari kita diskusikan!")
-            await self._send_werewolf_visual(ctx.channel, "day_phase")
-            # await self._play_werewolf_audio(ctx.channel, "day_phase_audio_url")
-            
-            await asyncio.sleep(10)
-            await ctx.send("Waktunya voting!")
-            # await self._play_werewolf_audio(ctx.channel, "vote_phase_audio_url")
-
-            await asyncio.sleep(5)
-            await ctx.send("Game Werewolf berakhir. Selamat kepada para pemenang!")
-            # await self._play_werewolf_audio(ctx.channel, "game_end_audio_url")
-            
-        except asyncio.CancelledError:
-            print(f"[{datetime.now()}] Werewolf game flow for channel {channel_id} was cancelled.")
-            await ctx.send("Game Werewolf dihentikan lebih awal.")
-        except Exception as e:
-            print(f"[{datetime.now()}] Error in Werewolf game flow for channel {channel_id}: {e}")
-            await ctx.send(f"Terjadi kesalahan fatal pada game Werewolf: `{e}`. Game dihentikan.")
-        finally:
-            self.end_game_cleanup(channel_id, game_type='werewolf')
-
-
-    # --- GAME 1: DESKRIPSIKAN & TEBAK ---
-    @commands.command(name="deskripsi", help="Mulai game Gartic Phone versi teks.")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def deskripsi(self, ctx):
+    # --- GAME 1: SIAPAKAH AKU? ---
+    @commands.command(name="siapakahaku", help="Mulai sesi tebak-tebakan 'Siapakah Aku?' dengan 10 soal.")
+    @commands.cooldown(1, 60, commands.BucketType.channel)
+    async def siapakahaku(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
         
-        vc = ctx.author.voice.channel if ctx.author.voice else None
-        if not vc or len(vc.members) < 2:
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
-            return await ctx.send("Game ini butuh minimal 2 orang di voice channel yang sama.", ephemeral=True)
-
-        players = [m for m in vc.members if not m.bot]
-        if len(players) < 2:
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
-            return await ctx.send("Kurang pemain nih, ajak temanmu!", ephemeral=True)
-
-        deskriptor = random.choice(players)
+        mimic_effect_active = await self._check_mimic_effect(ctx) # Cek efek mimic
         
-        if not self.deskripsi_data or not isinstance(self.deskripsi_data, list):
-            await ctx.send("Data untuk game deskripsi tidak ditemukan atau formatnya salah.", ephemeral=True)
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
+        if not ctx.guild.me.guild_permissions.moderate_members:
+            await ctx.send("⚠️ **Peringatan Izin:** Saya tidak memiliki izin `Moderate Members` untuk memberikan timeout jika ada yang spam jawaban.")
+        
+        if len(self.siapakah_aku_data) < 10:
+            await ctx.send("Tidak cukup soal di database untuk memulai sesi (butuh minimal 10).", ephemeral=True)
+            self.end_game_cleanup(ctx.channel.id)
+            return
+            
+        questions = random.sample(self.siapakah_aku_data, 10) # 10 Pertanyaan per sesi
+        leaderboard = {} # Melacak skor pemain di sesi ini
+        
+        game_start_embed = discord.Embed(
+            title="🕵️‍♂️ Sesi Kuis 'Siapakah Aku?' Dimulai!",
+            description="Akan ada **10 soal** berturut-turut. Petunjuk akan muncul setiap **10 detik**.",
+            color=0x1abc9c
+        )
+        await ctx.send(embed=game_start_embed)
+        await asyncio.sleep(5)
+
+        for i, item in enumerate(questions):
+            word = item['name'].lower()
+            clues = item['clues']
+            attempts = {} # Melacak percobaan salah per pengguna untuk soal ini
+            timed_out_users_this_round = set() # Melacak pengguna yang di-timeout hanya untuk ronde ini
+            winner = None
+            round_over = False
+
+            embed = discord.Embed(
+                title=f"SOAL #{i+1} dari 10",
+                description=f"Kategori: **{item['category']}**",
+                color=0x1abc9c
+            )
+            embed.set_footer(text="Anda punya 5x kesempatan menjawab salah per soal! Jika lebih, Anda di-timeout.")
+            msg = await ctx.send(embed=embed)
+
+            for clue_index, clue in enumerate(clues):
+                if round_over: break # Keluar dari loop petunjuk jika ada pemenang
+
+                # Menggunakan set_field_at untuk update jika ada, add_field jika baru
+                if clue_index < len(embed.fields):
+                    embed.set_field_at(
+                        index=clue_index,
+                        name=f"Petunjuk #{clue_index + 1}", 
+                        value=f"_{clue}_", 
+                        inline=False
+                    )
+                else:
+                    embed.add_field(
+                        name=f"Petunjuk #{clue_index + 1}", 
+                        value=f"_{clue}_", 
+                        inline=False
+                    )
+                await msg.edit(embed=embed)
+
+                try:
+                    async def listen_for_answer():
+                        nonlocal winner, round_over
+                        while True:
+                            message = await self.bot.wait_for(
+                                "message", 
+                                check=lambda m: m.channel == ctx.channel and not m.author.bot # Jawaban LANGSUNG
+                            )
+                            if message.author.id in timed_out_users_this_round: 
+                                continue 
+
+                            if message.content.lower() == word:
+                                winner = message.author
+                                round_over = True
+                                return
+                            # Logika untuk jawaban 'mimic'
+                            elif mimic_effect_active and message.content.lower() == "mimic":
+                                winner = message.author
+                                round_over = True
+                                await ctx.send(f"🎉 **KAMU BERHASIL MENANGKAP MIMIC!** {message.author.mention} menebak 'Mimic' dengan tepat! Hadiah tersembunyi untukmu!")
+                                # Hadiah 3x lipat
+                                await self.give_rewards_with_bonus_check(message.author, ctx.guild.id, ctx.channel, custom_rsw=self.reward['rsw']*3, custom_exp=self.reward['exp']*3) 
+                                return
+                            else:
+                                await message.add_reaction("❌")
+                                user_attempts = attempts.get(message.author.id, 0) + 1
+                                attempts[message.author.id] = user_attempts
+                                
+                                # Batas kesempatan 5x (dari backup)
+                                if user_attempts >= 5: 
+                                    timed_out_users_this_round.add(message.author.id)
+                                    try:
+                                        await message.author.timeout(timedelta(seconds=60), reason="Melebihi batas percobaan menjawab di game 'Siapakah Aku?'")
+                                        await ctx.send(f"🚨 {message.author.mention}, Anda kehabisan kesempatan menjawab di ronde ini & di-timeout sementara (60 detik).", delete_after=10)
+                                    except discord.Forbidden:
+                                        await ctx.send(f"🚨 {message.author.mention}, Anda kehabisan kesempatan menjawab di ronde ini.", delete_after=10)
+                                    except Exception as e:
+                                        print(f"Error giving timeout to {message.author}: {e}")
+                                        await ctx.send(f"Gagal memberi timeout {message.author.mention}. {e}", delete_after=10)
+                    
+                    await asyncio.wait_for(listen_for_answer(), timeout=10.0)
+
+                except asyncio.TimeoutError:
+                    if clue_index == len(clues) - 1:
+                        await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{item['name']}**.")
+                    else:
+                        continue
+
+            # Update leaderboard dan berikan hadiah (jika belum menang karena mimic)
+            if winner and winner.name not in [lb_name for lb_name, _ in leaderboard.items()]:
+                await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
+                leaderboard[winner.name] = leaderboard.get(winner.name, 0) + 1
+            # Kasus jika sudah menang karena 'Mimic' dan namanya sudah ada di leaderboard, tidak perlu ditambahkan lagi
+            elif winner and winner.name in [lb_name for lb_name, _ in leaderboard.items()] and winner.name != "Mimic_Caught":
+                pass
+
+
+            for user_id in timed_out_users_this_round:
+                member = ctx.guild.get_member(user_id)
+                if member:
+                    try:
+                        # Pembersihan timeout hanya jika tidak ada hukuman kuis monster aktif dari DuniaHidup
+                        if self.dunia_cog and self.dunia_cog.quiz_punishment_active:
+                            pass 
+                        else:
+                            await member.timeout(None, reason="Ronde game 'Siapakah Aku?' telah berakhir.")
+                    except discord.Forbidden: 
+                        print(f"Bot tidak memiliki izin untuk mengakhiri timeout {member.name}.")
+                    except Exception as e:
+                        print(f"Error removing timeout for {member.name}: {e}")
+
+            if i < len(questions) - 1:
+                await ctx.send(f"Soal berikutnya dalam **5 detik**...", delete_after=4.5)
+                await asyncio.sleep(5)
+        
+        if leaderboard:
+            sorted_leaderboard = sorted(leaderboard.items(), key=lambda item: item[1], reverse=True)
+            leaderboard_text = "\n".join([f"{rank}. {name}: **{score}** poin" for rank, (name, score) in enumerate(sorted_leaderboard, 1)])
+            final_embed = discord.Embed(title="🏆 Papan Skor Akhir 'Siapakah Aku?'", description=leaderboard_text, color=0xffd700)
+            await ctx.send(embed=final_embed)
+        else:
+            await ctx.send("Sesi game berakhir tanpa ada pemenang.")
+            
+        self.end_game_cleanup(ctx.channel.id, game_type='siapakahaku')
+    
+    # --- GAME 2: PERNAH GAK PERNAH ---
+    @commands.command(name="pernahgak", help="Mulai sesi 'Pernah Gak Pernah' dengan 10 pernyataan.")
+    @commands.cooldown(1, 60, commands.BucketType.channel)
+    async def pernahgak(self, ctx):
+        if await self._check_mimic_attack(ctx): return
+        if not ctx.author.voice or not ctx.author.voice.channel:
+            return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", ephemeral=True)
+        vc = ctx.author.voice.channel
+        members = [m for m in vc.members if not m.bot]
+        if len(members) < 2:
+            return await ctx.send("Game ini butuh minimal 2 orang di voice channel.", ephemeral=True)
+        if not await self.start_game_check(ctx): return
+        
+        if len(self.pernah_gak_pernah_data) < 10:
+            await ctx.send("Tidak cukup pernyataan di database untuk memulai sesi (butuh minimal 10).", ephemeral=True)
+            self.end_game_cleanup(ctx.channel.id)
             return
 
-        item = random.choice(self.deskripsi_data)
-        word = item['word']
-
-        try:
-            await deskriptor.send(f"✍️ Kamu adalah **Deskriptor**! Kata rahasiamu adalah: **{word}**. Deskripsikan kata ini tanpa menyebutkannya langsung!")
-        except discord.Forbidden:
-            self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
-            return await ctx.send(f"Gagal memulai karena tidak bisa mengirim DM ke {deskriptor.mention}. Pastikan DM-nya terbuka.", ephemeral=True)
-
-        embed = discord.Embed(title="💡 Deskripsikan & Tebak!", color=0x3498db)
-        embed.description = f"{deskriptor.mention} telah menerima kata rahasia! Dia akan mendeskripsikannya sekarang. Yang lain, siap-siap menebak!"
-        embed.set_footer(text="Penebak tercepat dan Deskriptor akan mendapat hadiah!")
-        await ctx.send(embed=embed)
-
-        def check(m):
-            return m.channel == ctx.channel and not m.author.bot and m.author != deskriptor and m.content.lower() == word.lower()
-
-        try:
-            winner_msg = await self.bot.wait_for('message', timeout=180.0, check=check)
-            winner = winner_msg.author
-            
-            await ctx.send(f"🎉 **Tepat Sekali!** {winner.mention} berhasil menebak **{word}**!")
-            await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
-            await self.give_rewards_with_bonus_check(deskriptor, ctx.guild.id, ctx.channel)
-            await ctx.send(f"Selamat untuk {winner.mention} dan {deskriptor.mention}, kalian berdua mendapat hadiah!")
-
-        except asyncio.TimeoutError:
-            await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{word}**.")
+        statements = random.sample(self.pernah_gak_pernah_data, 10) # 10 Pernyataan per sesi
+        overall_rewarded_users = set() # Melacak user yang sudah dapat hadiah di sesi ini
         
-        self.end_game_cleanup(ctx.channel.id, game_type='deskripsi')
+        game_start_embed = discord.Embed(
+            title="🤔 Sesi 'Pernah Gak Pernah' Dimulai!",
+            description="Akan ada **10 pernyataan** berturut-turut. Berikan reaksimu!",
+            color=0xf1c40f
+        )
+        await ctx.send(embed=game_start_embed)
+        await asyncio.sleep(3)
 
-    # --- GAME 2: PERANG OTAK (Placeholder) ---
+        for i, statement in enumerate(statements):
+            embed = discord.Embed(
+                title=f"PERNYATAAN #{i+1} dari 10",
+                description=f"## _{statement}_",
+                color=0xf1c40f
+            )
+            embed.set_footer(text="Jawab dengan jujur menggunakan reaksi di bawah! Waktu 20 detik.")
+            msg = await ctx.send(embed=embed)
+            await msg.add_reaction("✅"); await msg.add_reaction("❌")
+            await asyncio.sleep(20) # Waktu untuk bereaksi
+
+            try:
+                cached_msg = await ctx.channel.fetch_message(msg.id)
+                pernah_count, gak_pernah_count = 0, 0
+                round_rewarded_users = set() # User yang dapat hadiah di ronde ini
+
+                for reaction in cached_msg.reactions:
+                    if str(reaction.emoji) == "✅":
+                        async for user in reaction.users():
+                            if not user.bot and user.id in [m.id for m in members] and user.id not in round_rewarded_users:
+                                pernah_count = reaction.count - 1 # Menghitung setelah bot mereaksi
+                                await self.give_rewards_with_bonus_check(user, ctx.guild.id, ctx.channel)
+                                round_rewarded_users.add(user.id)
+                    elif str(reaction.emoji) == "❌":
+                        async for user in reaction.users():
+                            if not user.bot and user.id in [m.id for m in members] and user.id not in round_rewarded_users:
+                                gak_pernah_count = reaction.count - 1 # Menghitung setelah bot mereaksi
+                                await self.give_rewards_with_bonus_check(user, ctx.guild.id, ctx.channel)
+                                round_rewarded_users.add(user.id)
+                
+                overall_rewarded_users.update(round_rewarded_users) # Tambahkan ke set total
+
+                result_embed = discord.Embed(title=f"Hasil Pernyataan #{i+1}", color=0xf1c40f)
+                result_embed.description = (
+                    f"Untuk pernyataan:\n**_{statement}_**\n\n"
+                    f"✅ **{pernah_count} orang** mengaku pernah.\n"
+                    f"❌ **{gak_pernah_count} orang** mengaku tidak pernah."
+                )
+                await ctx.send(embed=result_embed)
+                if round_rewarded_users:
+                    await ctx.send(f"Pemain yang berpartisipasi di ronde ini ({len(round_rewarded_users)} orang) telah mendapatkan hadiah.")
+                else:
+                    await ctx.send("Tidak ada yang berpartisipasi di ronde ini.")
+
+            except discord.NotFound:
+                await ctx.send("Pesan pernyataan tidak ditemukan untuk ronde ini.")
+            except Exception as e:
+                print(f"Error di pernahgak, ronde {i+1}: {e}")
+                await ctx.send(f"Terjadi kesalahan di ronde ini: `{e}`")
+
+            if i < len(statements) - 1:
+                await ctx.send(f"Pernyataan berikutnya dalam **5 detik**...", delete_after=4.5)
+                await asyncio.sleep(5)
+        
+        await ctx.send(f"🎉 **Sesi 'Pernah Gak Pernah' berakhir!** Total {len(overall_rewarded_users)} pemain telah mendapatkan hadiah.")
+        self.end_game_cleanup(ctx.channel.id, game_type='pernahgak')
+
+    # --- GAME 3: HITUNG CEPAT ---
+    @commands.command(name="hitungcepat", help="Mulai sesi 'Hitung Cepat' dengan 10 soal matematika.")
+    @commands.cooldown(1, 15, commands.BucketType.channel)
+    async def hitungcepat(self, ctx):
+        if await self._check_mimic_attack(ctx): return
+        if not await self.start_game_check(ctx): return
+        
+        mimic_effect_active = await self._check_mimic_effect(ctx) # Cek efek mimic
+        
+        if not self.hitung_cepat_data or len(self.hitung_cepat_data) < 10:
+            await ctx.send("Data untuk game Hitung Cepat tidak cukup atau formatnya salah (butuh minimal 10 soal).", ephemeral=True)
+            self.end_game_cleanup(ctx.channel.id, game_type='hitungcepat')
+            return
+
+        questions = random.sample(self.hitung_cepat_data, 10) # 10 Soal per sesi
+        leaderboard = {} # Melacak skor pemain di sesi ini
+        
+        game_start_embed = discord.Embed(
+            title="🧮 Sesi 'Hitung Cepat' Dimulai!",
+            description="Akan ada **10 soal matematika** berturut-turut. Jawablah secepat mungkin!",
+            color=0xe74c3c
+        )
+        await ctx.send(embed=game_start_embed)
+        await asyncio.sleep(5)
+
+        for i, item in enumerate(questions):
+            problem, answer = item['problem'], str(item['answer'])
+            winner = None
+            
+            embed = discord.Embed(title=f"SOAL #{i+1} dari 10", description=f"Selesaikan soal ini!\n\n## `{problem} = ?`", color=0xe74c3c)
+            msg = await ctx.send(embed=embed)
+
+            try:
+                async def listen_for_math_answer():
+                    nonlocal winner
+                    while True:
+                        message = await self.bot.wait_for("message", check=lambda m: m.channel == ctx.channel and not m.author.bot) # Jawaban LANGSUNG
+                        if message.content.strip() == answer: 
+                            winner = message.author
+                            return message
+                        # Logika untuk jawaban 'mimic'
+                        elif mimic_effect_active and message.content.lower() == "mimic":
+                            winner = message.author
+                            await ctx.send(f"🎉 **KAMU BERHASIL MENANGKAP MIMIC!** {message.author.mention} menebak 'Mimic' dengan tepat! Hadiah tersembunyi untukmu!")
+                            # Hadiah 3x lipat
+                            await self.give_rewards_with_bonus_check(message.author, ctx.guild.id, ctx.channel, custom_rsw=self.reward['rsw']*3, custom_exp=self.reward['exp']*3) 
+                            return message # Anggap ini kemenangan ronde, meskipun bukan jawaban soal
+                        else:
+                            # Hanya beri reaksi X jika jawabannya terlihat seperti angka (untuk menghindari spam karakter)
+                            if message.content.strip().replace('-', '').replace('.', '').isdigit(): 
+                                await message.add_reaction("❌")
+                
+                winner_msg = await asyncio.wait_for(listen_for_math_answer(), timeout=30.0) # Waktu menjawab 30 detik
+                winner = winner_msg.author
+                
+                # Berikan hadiah normal jika jawaban asli yang benar, karena 'mimic' sudah ditangani di atas
+                if winner_msg.content.strip().lower() == answer:
+                    await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
+                    await ctx.send(f"⚡ **Luar Biasa Cepat!** {winner.mention} menjawab **{answer}** dengan benar dan mendapat hadiah!")
+                # else: Jika jawaban mimic, hadiah sudah diberikan di atas, tidak perlu pesan lagi
+                
+                leaderboard[winner.name] = leaderboard.get(winner.name, 0) + 1 # Tambahkan ke leaderboard
+
+            except asyncio.TimeoutError:
+                await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{answer}**.")
+            except Exception as e:
+                print(f"Error di hitungcepat, soal {i+1}: {e}")
+                await ctx.send(f"Terjadi kesalahan di soal ini: `{e}`")
+
+            if i < len(questions) - 1:
+                await ctx.send(f"Soal berikutnya dalam **5 detik**...", delete_after=4.5)
+                await asyncio.sleep(5)
+        
+        if leaderboard:
+            sorted_leaderboard = sorted(leaderboard.items(), key=lambda item: item[1], reverse=True)
+            leaderboard_text = "\n".join([f"{rank}. {name}: **{score}** poin" for rank, (name, score) in enumerate(sorted_leaderboard, 1)])
+            final_embed = discord.Embed(title="🏆 Papan Skor Akhir 'Hitung Cepat'!", description=leaderboard_text, color=0xffd700)
+            await ctx.send(embed=final_embed)
+        else:
+            await ctx.send("Sesi game berakhir tanpa ada pemenang.")
+
+        self.end_game_cleanup(ctx.channel.id, game_type='hitungcepat')
+
+    # --- GAME 4: PERANG OTAK (Placeholder) ---
     @commands.command(name="perangotak", help="Mulai game Family Feud.")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
+    @commands.cooldown(1, 60, commands.BucketType.channel)
     async def perangotak(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
         
-        # mimice_effect_active = await self._check_mimic_effect(ctx) # Tidak perlu pesan di sini, DuniaHidup yang urus
+        # mimic_effect_active = await self._check_mimic_effect(ctx) # Cek efek mimic, tanpa pesan di sini
         
         await ctx.send("Fitur **Perang Otak** sedang dalam pengembangan! Nantikan update selanjutnya. 🚧", ephemeral=True)
         # Jika mimic_effect_active, logika game di sini akan disesuaikan
@@ -832,9 +1026,9 @@ class UltimateGameArena(commands.Cog):
 
         self.end_game_cleanup(ctx.channel.id, game_type='perangotak')
 
-    # --- GAME 3: CERITA BERSAMBUNG ---
+    # --- GAME 5: CERITA BERSAMBUNG ---
     @commands.command(name="cerita", help="Mulai game membuat cerita bersama.")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
+    @commands.cooldown(1, 60, commands.BucketType.channel)
     async def cerita(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -880,9 +1074,9 @@ class UltimateGameArena(commands.Cog):
         
         self.end_game_cleanup(ctx.channel.id, game_type='cerita')
         
-    # --- GAME 4: TIC-TAC-TOE ---
+    # --- GAME 6: TIC-TAC-TOE ---
     @commands.command(name="tictactoe", help="Tantang temanmu bermain Tic-Tac-Toe.")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
+    @commands.cooldown(1, 10, commands.BucketType.channel)
     async def tictactoe(self, ctx, opponent: discord.Member):
         if await self._check_mimic_attack(ctx): return
         if opponent.bot or opponent == ctx.author:
@@ -895,232 +1089,54 @@ class UltimateGameArena(commands.Cog):
         embed.add_field(name=f"Player 2 (O)", value=opponent.mention, inline=True)
         await ctx.send(content=f"{opponent.mention}, kamu ditantang oleh {ctx.author.mention}!", embed=embed, view=view)
 
-    # --- GAME 5: SIAPAKAH AKU? ---
-    @commands.command(name="siapakahaku", help="Mulai sesi 10 soal tebak-tebakan kompetitif.")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def siapakahaku(self, ctx):
-        if await self._check_mimic_attack(ctx): return
-        if not await self.start_game_check(ctx): return
+    # --- GAME 7: TEKA-TEKI HARIAN ---
+    @tasks.loop(time=time(hour=5, minute=0, tzinfo=pytz.timezone('Asia/Jakarta'))) # Menggunakan pytz
+    async def post_daily_puzzle(self):
+        await self.bot.wait_until_ready()
+        now = datetime.now(pytz.timezone('Asia/Jakarta')) # Menggunakan pytz
+        target_time = now.replace(hour=5, minute=0, second=0, microsecond=0)
         
-        mimic_effect_active = await self._check_mimic_effect(ctx) # Cek efek mimic
+        if now > target_time:
+            target_time += timedelta(days=1)
         
-        if not ctx.guild.me.guild_permissions.moderate_members:
-            await ctx.send("⚠️ **Peringatan Izin:** Saya tidak memiliki izin `Moderate Members` untuk memberikan timeout jika ada yang spam jawaban.")
+        time_until_post = (target_time - now).total_seconds()
         
-        if len(self.siapakah_aku_data) < 10:
-            await ctx.send("Tidak cukup soal di database untuk memulai sesi (butuh minimal 10).", ephemeral=True)
-            self.end_game_cleanup(ctx.channel.id)
+        if time_until_post > 0:
+            await asyncio.sleep(time_until_post)
+
+        if not self.tekateki_harian_data: 
+            print(f"[{datetime.now()}] Peringatan: Data teka-teki harian tidak ditemukan atau kosong.")
             return
+        
+        self.daily_puzzle = random.choice(self.tekateki_harian_data)
+        self.daily_puzzle_solvers.clear()
+        
+        channel = self.bot.get_channel(self.daily_puzzle_channel_id)
+        if channel:
+            embed = discord.Embed(title="🤔 Teka-Teki Harian!", description=f"**Teka-teki untuk hari ini:**\n\n> {self.daily_puzzle['riddle']}", color=0x99aab5)
+            embed.set_footer(text="Gunakan !jawab <jawabanmu> untuk menebak!")
+            await channel.send(embed=embed)
+
+    @post_daily_puzzle.before_loop
+    async def before_daily_puzzle(self):
+        await self.bot.wait_until_ready()
+
+    @commands.command(name="jawab", help="Jawab teka-teki harian.")
+    async def jawab(self, ctx, *, answer: str):
+        if not self.daily_puzzle: return await ctx.send("Belum ada teka-teki untuk hari ini. Sabar ya!")
+        if ctx.author.id in self.daily_puzzle_solvers: return await ctx.send("Kamu sudah menjawab dengan benar hari ini!", ephemeral=True)
             
-        questions = random.sample(self.siapakah_aku_data, 10)
-        leaderboard = {}
-        
-        game_start_embed = discord.Embed(
-            title="🕵️‍♂️ Sesi Kuis 'Siapakah Aku?' Dimulai!",
-            description="Akan ada **10 soal** berturut-turut. Petunjuk akan muncul setiap **10 detik**.",
-            color=0x1abc9c
-        )
-        await ctx.send(embed=game_start_embed)
-        await asyncio.sleep(5)
-
-        for i, item in enumerate(questions):
-            word = item['name'].lower()
-            clues = item['clues']
-            attempts = {}
-            timed_out_users_this_round = set()
-            winner = None
-            round_over = False
-
-            embed = discord.Embed(
-                title=f"SOAL #{i+1} dari 10",
-                description=f"Kategori: **{item['category']}**",
-                color=0x1abc9c
-            )
-            embed.set_footer(text="Anda punya 2x kesempatan menjawab salah per soal! Jika lebih, Anda di-timeout.")
-            msg = await ctx.send(embed=embed)
-
-            for clue_index, clue in enumerate(clues):
-                if round_over: break
-
-                embed.set_field_at(
-                    index=clue_index,
-                    name=f"Petunjuk #{clue_index + 1}", 
-                    value=f"_{clue}_", 
-                    inline=False
-                ) if clue_index < len(embed.fields) else embed.add_field(
-                    name=f"Petunjuk #{clue_index + 1}", 
-                    value=f"_{clue}_", 
-                    inline=False
-                )
-                await msg.edit(embed=embed)
-
-                try:
-                    async def listen_for_answer():
-                        nonlocal winner, round_over
-                        while True:
-                            message = await self.bot.wait_for(
-                                "message", 
-                                check=lambda m: m.channel == ctx.channel and not m.author.bot # TIDAK ADA !jawab
-                            )
-                            if message.author.id in timed_out_users_this_round: 
-                                continue 
-
-                            if message.content.lower() == word:
-                                winner = message.author
-                                round_over = True
-                                return
-                            # Logika untuk jawaban 'mimic'
-                            elif mimic_effect_active and message.content.lower() == "mimic":
-                                winner = message.author
-                                round_over = True
-                                await ctx.send(f"🎉 **KAMU BERHASIL MENANGKAP MIMIC!** {message.author.mention} menebak 'Mimic' dengan tepat! Hadiah tersembunyi untukmu!")
-                                await self.give_rewards_with_bonus_check(message.author, ctx.guild.id, ctx.channel, custom_rsw=self.reward['rsw']*3, custom_exp=self.reward['exp']*3) # Hadiah 3x lipat
-                                return
-                            else:
-                                await message.add_reaction("❌")
-                                user_attempts = attempts.get(message.author.id, 0) + 1
-                                attempts[message.author.id] = user_attempts
-                                
-                                if user_attempts >= 2:
-                                    timed_out_users_this_round.add(message.author.id)
-                                    try:
-                                        await message.author.timeout(timedelta(seconds=60), reason="Melebihi batas percobaan menjawab di game 'Siapakah Aku?'")
-                                        await ctx.send(f"🚨 {message.author.mention}, Anda kehabisan kesempatan menjawab di ronde ini & di-timeout sementara (60 detik).", delete_after=10)
-                                    except discord.Forbidden:
-                                        await ctx.send(f"🚨 {message.author.mention}, Anda kehabisan kesempatan menjawab di ronde ini.", delete_after=10)
-                                    except Exception as e:
-                                        print(f"Error giving timeout to {message.author}: {e}")
-                                        await ctx.send(f"Gagal memberi timeout {message.author.mention}. {e}", delete_after=10)
-                    
-                    await asyncio.wait_for(listen_for_answer(), timeout=10.0)
-
-                except asyncio.TimeoutError:
-                    if clue_index == len(clues) - 1:
-                        await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{item['name']}**.")
-                    else:
-                        continue
-
-            if winner and winner.name not in [lb_name for lb_name, _ in leaderboard.items()]:
-                await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
-                leaderboard[winner.name] = leaderboard.get(winner.name, 0) + 1
-            elif winner and winner.name in [lb_name for lb_name, _ in leaderboard.items()] and winner.name != "Mimic_Caught": # Hanya tambahkan ke leaderboard jika belum dan bukan dari catch mimic
-                pass
-
-
-            for user_id in timed_out_users_this_round:
-                member = ctx.guild.get_member(user_id)
-                if member:
-                    try:
-                        if self.dunia_cog and self.dunia_cog.quiz_punishment_active:
-                            pass
-                        else:
-                            await member.timeout(None, reason="Ronde game 'Siapakah Aku?' telah berakhir.")
-                    except discord.Forbidden: 
-                        print(f"Bot tidak memiliki izin untuk mengakhiri timeout {member.name}.")
-                    except Exception as e:
-                        print(f"Error removing timeout for {member.name}: {e}")
-
-            if i < len(questions) - 1:
-                await ctx.send(f"Soal berikutnya dalam **5 detik**...", delete_after=4.5)
-                await asyncio.sleep(5)
-        
-        if leaderboard:
-            sorted_leaderboard = sorted(leaderboard.items(), key=lambda item: item[1], reverse=True)
-            leaderboard_text = "\n".join([f"{rank}. {name}: **{score}** poin" for rank, (name, score) in enumerate(sorted_leaderboard, 1)])
-            final_embed = discord.Embed(title="🏆 Papan Skor Akhir 'Siapakah Aku?'", description=leaderboard_text, color=0xffd700)
-            await ctx.send(embed=final_embed)
+        if answer.lower() == self.daily_puzzle['answer'].lower():
+            self.daily_puzzle_solvers.add(ctx.author.id)
+            await self.give_rewards_with_bonus_check(ctx.author, ctx.guild.id, ctx.channel)
+            await ctx.message.add_reaction("✅")
+            await ctx.send(f"🎉 Selamat {ctx.author.mention}! Jawabanmu benar!")
         else:
-            await ctx.send("Sesi game berakhir tanpa ada pemenang.")
-            
-        self.end_game_cleanup(ctx.channel.id, game_type='siapakahaku')
-    
-    # --- GAME 6: PERNAH GAK PERNAH ---
-    @commands.command(name="pernahgak", help="Mulai game 'Pernah Gak Pernah'.")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def pernahgak(self, ctx):
-        if await self._check_mimic_attack(ctx): return
-        if not ctx.author.voice or not ctx.author.voice.channel:
-            return await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", ephemeral=True)
-        vc = ctx.author.voice.channel
-        members = [m for m in vc.members if not m.bot]
-        if len(members) < 2:
-            return await ctx.send("Game ini butuh minimal 2 orang di voice channel.", ephemeral=True)
-        if not await self.start_game_check(ctx): return
-        
-        statement = random.choice(self.pernah_gak_pernah_data)
-        embed = discord.Embed(title="🤔 Pernah Gak Pernah...", description=f"## _{statement}_", color=0xf1c40f)
-        embed.set_footer(text="Jawab dengan jujur menggunakan reaksi di bawah! Semua peserta dapat hadiah.")
-        msg = await ctx.send(embed=embed)
-        await msg.add_reaction("✅"); await msg.add_reaction("❌")
-        await asyncio.sleep(20)
-        try:
-            cached_msg = await ctx.channel.fetch_message(msg.id)
-            pernah_count, gak_pernah_count, rewarded_users = 0, 0, set()
-            for reaction in cached_msg.reactions:
-                if str(reaction.emoji) in ["✅", "❌"]:
-                    if str(reaction.emoji) == "✅": pernah_count = reaction.count - 1
-                    if str(reaction.emoji) == "❌": gak_pernah_count = reaction.count - 1
-                    async for user in reaction.users():
-                        if not user.bot and user.id not in rewarded_users:
-                            await self.give_rewards_with_bonus_check(user, ctx.guild.id, ctx.channel)
-                            rewarded_users.add(user.id)
-            result_embed = discord.Embed(title="Hasil 'Pernah Gak Pernah'", color=0xf1c40f)
-            result_embed.description = f"Untuk pernyataan:\n**_{statement}_**\n\n✅ **{pernah_count} orang** mengaku pernah.\n❌ **{gak_pernah_count} orang** mengaku tidak pernah."
-            await ctx.send(embed=result_embed)
-            if rewarded_users: await ctx.send(f"Terima kasih sudah berpartisipasi! {len(rewarded_users)} pemain telah mendapatkan hadiah.")
-        except discord.NotFound: await ctx.send("Pesan game tidak ditemukan.")
-        self.end_game_cleanup(ctx.channel.id)
-
-    # --- GAME 7: HITUNG CEPAT ---
-    @commands.command(name="hitungcepat", help="Selesaikan soal matematika secepat mungkin!")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def hitungcepat(self, ctx):
-        if await self._check_mimic_attack(ctx): return
-        if not await self.start_game_check(ctx): return
-        
-        mimic_effect_active = await self._check_mimic_effect(ctx) # Cek efek mimic
-        
-        if not self.hitung_cepat_data or not isinstance(self.hitung_cepat_data, list):
-            await ctx.send("Data untuk game Hitung Cepat tidak ditemukan atau formatnya salah.", ephemeral=True)
-            self.end_game_cleanup(ctx.channel.id, game_type='hitungcepat')
-            return
-
-        item = random.choice(self.hitung_cepat_data)
-        problem, answer = item['problem'], str(item['answer'])
-        embed = discord.Embed(title="🧮 Hitung Cepat!", description=f"Selesaikan soal matematika ini secepat mungkin!\n\n## `{problem} = ?`", color=0xe74c3c)
-        await ctx.send(embed=embed)
-        try:
-            async def listen_for_math_answer():
-                while True:
-                    message = await self.bot.wait_for("message", check=lambda m: m.channel == ctx.channel and not m.author.bot) # TIDAK ADA !jawab
-                    if message.content.strip() == answer: return message
-                    # Logika untuk jawaban 'mimic'
-                    elif mimic_effect_active and message.content.lower() == "mimic":
-                        await ctx.send(f"🎉 **KAMU BERHASIL MENANGKAP MIMIC!** {message.author.mention} menebak 'Mimic' dengan tepat! Hadiah tersembunyi untukmu!")
-                        await self.give_rewards_with_bonus_check(message.author, ctx.guild.id, ctx.channel, custom_rsw=self.reward['rsw']*3, custom_exp=self.reward['exp']*3) # Hadiah 3x lipat
-                        return message # Anggap ini kemenangan ronde, meskipun bukan jawaban soal
-                    else:
-                        if message.content.strip().replace('-', '').replace('.', '').isdigit(): 
-                            await message.add_reaction("❌")
-            winner_msg = await asyncio.wait_for(listen_for_math_answer(), timeout=30.0)
-            winner = winner_msg.author
-            # Hanya berikan hadiah normal jika jawaban asli yang benar, karena 'mimic' sudah ditangani di atas
-            if winner_msg.content.strip().lower() == answer:
-                await self.give_rewards_with_bonus_check(winner, ctx.guild.id, ctx.channel)
-                await ctx.send(f"⚡ **Luar Biasa Cepat!** {winner.mention} menjawab **{answer}** dengan benar dan mendapat hadiah!")
-            # else: # Jika jawaban mimic, hadiah sudah diberikan di atas, tidak perlu pesan lagi
-            #     pass
-        except asyncio.TimeoutError:
-            await ctx.send(f"Waktu habis! Jawaban yang benar adalah **{answer}**.")
-        except Exception as e:
-            print(f"Error di hitungcepat: {e}")
-            await ctx.send(f"Terjadi kesalahan pada game Hitung Cepat: `{e}`")
-        finally:
-            self.end_game_cleanup(ctx.channel.id)
+            await ctx.message.add_reaction("❌")
 
     # --- GAME 8: TARUHAN BALAP KUDA ---
     @commands.command(name="balapankuda", help="Mulai taruhan balap kuda.")
-    @commands.cooldown(1, 5, commands.BucketType.channel)
+    @commands.cooldown(1, 120, commands.BucketType.channel)
     async def balapankuda(self, ctx):
         if await self._check_mimic_attack(ctx): return
         if not await self.start_game_check(ctx): return
@@ -1257,7 +1273,7 @@ class UltimateGameArena(commands.Cog):
 
     # --- GAME 9: RODA TAKDIR GILA! ---
     @commands.command(name="putarroda", aliases=['putar'], help="Putar Roda Takdir Gila untuk takdir tak terduga!")
-    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def putarroda(self, ctx):
         if await self._check_mimic_attack(ctx): return
         
@@ -1334,10 +1350,15 @@ class UltimateGameArena(commands.Cog):
 
         await spin_message.edit(embed=result_embed)
         
-        await self.game_cog._apply_wheel_consequence(interaction.guild, channel, user, outcome)
+        # Panggil _apply_wheel_consequence dari self.dunia_cog
+        if self.dunia_cog:
+            await self.dunia_cog._apply_wheel_consequence(guild, channel, user, outcome)
+        else:
+            await channel.send("⚠️ Error: DuniaHidup cog tidak ditemukan, efek roda takdir tidak dapat diterapkan.")
 
 
     def _get_default_wheel_segments(self):
+        """Mendapatkan segmen default untuk Roda Takdir Gila."""
         return [
             {'type': 'jackpot_rsw', 'description': "JACKPOT! Kamu mendapatkan RSWN!", 'color': (255,215,0), 'weight': 15, 'amount': 500},
             {'type': 'jackpot_rsw_big', 'description': "MEGA JACKPOT! Kamu mendapatkan RSWN BESAR!", 'color': (255,165,0), 'weight': 3, 'amount': 1000},
@@ -1356,6 +1377,7 @@ class UltimateGameArena(commands.Cog):
         ]
 
     def _get_wheel_outcome(self, segments):
+        """Memilih hasil putaran roda berdasarkan bobot."""
         total_weight = sum(s['weight'] for s in segments)
         rand_num = random.uniform(0, total_weight)
         
@@ -1366,12 +1388,13 @@ class UltimateGameArena(commands.Cog):
                 if segment['type'] == 'jackpot_rsw_big':
                     return {'type': 'jackpot_rsw', 'description': "MEGA JACKPOT! Kamu mendapatkan **1000 RSWN**!", 'color': (255,165,0), 'amount': 1000}
                 return segment.copy() 
-        return random.choice(segments).copy()
+        return random.choice(segments).copy() # Fallback (seharusnya tidak terjadi)
 
 
     # --- SPYFALL (MATA-MATA) GAME LOGIC ---
     @commands.command(name="matamata", help="Mulai game Mata-Mata. Temukan siapa mata-matanya!")
     # COOLDOWN DIHAPUS agar bisa langsung main lagi
+    # commands.cooldown(1, 300, commands.BucketType.channel) <-- BARIS INI DIHAPUS
     async def matamata(self, ctx):
         if await self._check_mimic_attack(ctx): return # Cek mimic attack
         # start_game_check masih diperlukan untuk mencegah game tumpang tindih di channel yang sama
@@ -1390,15 +1413,15 @@ class UltimateGameArena(commands.Cog):
         
         location = random.choice(self.mata_mata_locations)
         
-        # Logika pemilihan mata-mata:
-        # 1. Coba ambil dari pemain yang BUKAN last_spy_id
+        # --- Logika Pemilihan Mata-Mata yang Diperbarui (Sesuai Permintaan Anda) ---
         eligible_spies = [m for m in members if m.id != self.last_spy_id]
-        if eligible_spies:
+        
+        if eligible_spies: # Jika ada pemain yang BUKAN mata-mata terakhir, pilih dari mereka
             spy = random.choice(eligible_spies)
-        else:
-            # Jika semua pemain di sesi saat ini adalah last_spy_id (misal hanya 1 pemain yang selalu main)
-            # atau tidak ada pilihan lain, maka last_spy_id harus dipilih lagi.
+        else: # Jika semua pemain di sesi saat ini adalah last_spy_id (atau hanya sedikit pemain)
+              # atau tidak ada pilihan lain, maka last_spy_id harus dipilih lagi.
             spy = random.choice(members)
+        # --- Akhir Logika Pemilihan Mata-Mata yang Diperbarui ---
         
         self.spyfall_game_states[ctx.channel.id] = {
             'spy': spy,
@@ -1406,7 +1429,7 @@ class UltimateGameArena(commands.Cog):
             'players': members,
             'discussion_start_time': datetime.now(), 
             'vote_in_progress': False,
-            'game_task': None
+            'game_task': None # Menambahkan inisialisasi game_task
         }
 
         failed_dms = []
@@ -1434,23 +1457,26 @@ class UltimateGameArena(commands.Cog):
         game_start_message = await ctx.send(embed=embed)
         self.spyfall_game_states[ctx.channel.id]['game_start_message_id'] = game_start_message.id
 
+        # Menggunakan asyncio.Task untuk mengelola alur game
         game_task = self.bot.loop.create_task(self._spyfall_game_flow(ctx, ctx.channel.id, spy, location, members))
         self.spyfall_game_states[ctx.channel.id]['game_task'] = game_task
 
 
     async def _spyfall_game_flow(self, ctx, channel_id, spy, location, players):
+        """Alur utama game Mata-Mata."""
         try:
-            await asyncio.sleep(300)
+            await asyncio.sleep(300) # Waktu diskusi 5 menit
             
+            # Cek jika game masih aktif (belum diakhiri oleh !tuduh atau !ungkap_lokasi)
             if channel_id not in self.spyfall_game_states:
-                return 
+                return # Game sudah berakhir oleh command lain
 
             await ctx.send(f"⏰ **Waktu diskusi 5 menit habis!** Sekarang adalah fase penuduhan akhir. "
                            f"Pemain biasa bisa menggunakan `!tuduh @nama_pemain` untuk memulai voting.\n"
                            f"Mata-mata bisa menggunakan `!ungkap_lokasi <lokasi>` untuk mencoba menebak lokasi.\n\n"
                            f"Jika mata-mata berhasil menebak lokasi dengan benar dan belum dituduh, mata-mata menang! Jika tidak ada yang menuduh atau mata-mata tidak menebak lokasi dalam waktu 2 menit, maka **mata-mata menang secara otomatis.**")
             
-            await asyncio.sleep(120)
+            await asyncio.sleep(120) # Waktu tambahan untuk penuduhan/pengungkapan lokasi
             
             if channel_id in self.spyfall_game_states:
                 await ctx.send(f"Waktu penuduhan habis! Mata-mata ({spy.mention}) menang karena tidak ada yang berhasil menuduh atau mata-mata tidak mengungkapkan lokasi! Lokasi sebenarnya adalah **{location}**.")
@@ -1500,35 +1526,52 @@ class UltimateGameArena(commands.Cog):
         await vote_msg.add_reaction("✅")
         await vote_msg.add_reaction("❌")
         
-        await asyncio.sleep(30)
+        await asyncio.sleep(30) # Waktu untuk voting
         
+        # Cek apakah game state masih ada, jika tidak berarti sudah diakhiri oleh ungkap_lokasi atau timeout
         if ctx.channel.id not in self.spyfall_game_states:
-            print(f"[{datetime.now()}] Spyfall game state not found during vote tally for channel {ctx.channel.id}.")
+            print(f"[{datetime.now()}] Spyfall game state not found during vote tally for channel {ctx.channel.id}. (Already ended by other means)")
             return 
 
-        game = self.spyfall_game_states[ctx.channel.id]
-        game['vote_in_progress'] = False
+        game = self.spyfall_game_states[ctx.channel.id] # Refresh game state karena mungkin ada perubahan
+        game['vote_in_progress'] = False # Akhiri status voting
+        game_task = game.get('game_task')
+        if game_task and not game_task.done():
+            game_task.cancel() # Batalkan alur game utama jika voting berhasil/gagal
 
         try:
             cached_vote_msg = await ctx.channel.fetch_message(vote_msg.id)
             yes_votes = 0
             no_votes = 0
-            actual_voters = set() 
+            actual_voters = set() # Untuk melacak siapa saja yang sudah vote
 
             for reaction in cached_vote_msg.reactions:
                 if str(reaction.emoji) == "✅":
                     async for user_reaction in reaction.users():
-                        if not user_reaction.bot and user_reaction in players and user_reaction.id not in actual_voters:
+                        # Hanya hitung vote dari pemain yang valid dan belum vote
+                        if not user_reaction.bot and user_reaction.id in [p.id for p in players] and user_reaction.id not in actual_voters:
                             yes_votes += 1
                             actual_voters.add(user_reaction.id)
                 elif str(reaction.emoji) == "❌":
                     async for user_reaction in reaction.users():
-                        if not user_reaction.bot and user_reaction in players and user_reaction.id not in actual_voters:
+                        if not user_reaction.bot and user_reaction.id in [p.id for p in players] and user_reaction.id not in actual_voters:
                             no_votes += 1
                             actual_voters.add(user_reaction.id)
             
-            majority_needed = len(players) / 2 
+            # Hitung jumlah pemain yang bisa vote (kecuali yang menuduh dan yang dituduh, jika mereka berbeda)
+            # Total pemain yang valid untuk voting = semua pemain - (penuduh) - (yang dituduh jika beda dari penuduh)
+            total_eligible_voters_in_game = len(players)
+            
+            # Jika yang menuduh adalah bagian dari pemain yang bisa vote, kurangi 1
+            if ctx.author in players:
+                 total_eligible_voters_in_game -= 1 
+            # Jika yang dituduh adalah bagian dari pemain dan berbeda dari penuduh, kurangi 1
+            if member in players and member != ctx.author:
+                 total_eligible_voters_in_game -= 1
 
+            # Mayoritas sederhana (lebih dari setengah dari yang bisa vote)
+            majority_needed = total_eligible_voters_in_game / 2.0
+            
             if yes_votes > no_votes and yes_votes > majority_needed: 
                 await ctx.send(f"✅ **Voting Berhasil!** Mayoritas setuju {member.mention} adalah mata-mata.")
                 if member.id == spy.id:
@@ -1546,9 +1589,11 @@ class UltimateGameArena(commands.Cog):
                 self.end_game_cleanup(ctx.channel.id, game_type='spyfall')
             else:
                 await ctx.send(f"❌ **Voting Gagal.** Tidak cukup suara untuk menuduh {member.mention}. Permainan dilanjutkan!")
+                # Game tidak berakhir, voting in_progress sudah False
         
         except discord.NotFound:
             await ctx.send("Pesan voting tidak ditemukan.")
+            game['vote_in_progress'] = False 
         except Exception as e:
             print(f"[{datetime.now()}] Error during Spyfall voting for channel {ctx.channel.id}: {e}")
             await ctx.send(f"Terjadi kesalahan saat memproses voting: `{e}`. Permainan dilanjutkan.")
@@ -1568,8 +1613,10 @@ class UltimateGameArena(commands.Cog):
         if game['vote_in_progress']:
             return await ctx.send("Saat ini sedang ada voting. Tunggu sampai selesai.", ephemeral=True)
 
-        if ctx.channel.id not in self.spyfall_game_states:
-            return
+        # Cek jika game_task sedang berjalan, batalkan
+        game_task = game.get('game_task')
+        if game_task and not game_task.done():
+            game_task.cancel() # Ini akan memicu asyncio.CancelledError di _spyfall_game_flow
 
         if guessed_location.lower() == location.lower():
             await ctx.send(f"🎉 **Mata-Mata Ungkap Lokasi Dengan Benar!** {spy.mention} berhasil menebak lokasi rahasia yaitu **{location}**! Mata-mata menang!")
@@ -1585,21 +1632,24 @@ class UltimateGameArena(commands.Cog):
         self.end_game_cleanup(ctx.channel.id, game_type='spyfall')
 
     # --- TEKA-TEKI HARIAN ---
-    @tasks.loop(time=time(hour=5, minute=0, tzinfo=pytz.timezone('Asia/Jakarta')))
+    @tasks.loop(time=time(hour=5, minute=0, tzinfo=pytz.timezone('Asia/Jakarta'))) # Menggunakan pytz
     async def post_daily_puzzle(self):
         await self.bot.wait_until_ready()
-        now = datetime.now(pytz.timezone('Asia/Jakarta'))
+        now = datetime.now(pytz.timezone('Asia/Jakarta')) # Menggunakan pytz
         target_time = now.replace(hour=5, minute=0, second=0, microsecond=0)
+        
         if now > target_time:
             target_time += timedelta(days=1)
+        
         time_until_post = (target_time - now).total_seconds()
+        
         if time_until_post > 0:
             await asyncio.sleep(time_until_post)
 
-        if not self.tekateki_harian_data or not isinstance(self.tekateki_harian_data, list):
-            print(f"[{datetime.now()}] Peringatan: Data teka-teki harian tidak ditemukan atau formatnya salah.")
+        if not self.tekateki_harian_data: 
+            print(f"[{datetime.now()}] Peringatan: Data teka-teki harian tidak ditemukan atau kosong.")
             return
-
+        
         self.daily_puzzle = random.choice(self.tekateki_harian_data)
         self.daily_puzzle_solvers.clear()
         
@@ -1615,16 +1665,14 @@ class UltimateGameArena(commands.Cog):
 
     @commands.command(name="jawab", help="Jawab teka-teki harian.")
     async def jawab(self, ctx, *, answer: str):
-        if not self.daily_puzzle:
-            return await ctx.send("Belum ada teka-teki untuk hari ini. Sabar ya!", ephemeral=True)
-        if ctx.author.id in self.daily_puzzle_solvers:
-            return await ctx.send("Kamu sudah menjawab dengan benar hari ini!", ephemeral=True)
+        if not self.daily_puzzle: return await ctx.send("Belum ada teka-teki untuk hari ini. Sabar ya!")
+        if ctx.author.id in self.daily_puzzle_solvers: return await ctx.send("Kamu sudah menjawab dengan benar hari ini!", ephemeral=True)
             
         if answer.lower() == self.daily_puzzle['answer'].lower():
             self.daily_puzzle_solvers.add(ctx.author.id)
             await self.give_rewards_with_bonus_check(ctx.author, ctx.guild.id, ctx.channel)
             await ctx.message.add_reaction("✅")
-            await ctx.send(f"🎉 Selamat {ctx.author.mention}! Jawabanmu benar dan kamu mendapatkan hadiah!")
+            await ctx.send(f"🎉 Selamat {ctx.author.mention}! Jawabanmu benar!")
         else:
             await ctx.message.add_reaction("❌")
 
