@@ -41,6 +41,24 @@
             "team": "Werewolf",
             "color": "#B22222",
             "icon": "👑🐺"
+        },
+        "Penjaga Malam": {
+            "description": "Setiap malam, bisa memilih satu pemain untuk melindunginya dari lynching di siang hari.",
+            "team": "Warga",
+            "color": "#4682B4",
+            "icon": "🛡️"
+        },
+        "Ksatria Suci": {
+            "description": "Memiliki pedang suci yang bisa membunuh Werewolf sekali dalam game.",
+            "team": "Warga",
+            "color": "#FFD700",
+            "icon": "⚔️"
+        },
+        "Mata-Mata Werewolf": {
+            "description": "Berpihak pada Werewolf, tapi terlihat sebagai Warga bagi Peramal. Sangat licik.",
+            "team": "Werewolf",
+            "color": "#696969",
+            "icon": "🕵️"
         }
     }
 }
