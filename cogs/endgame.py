@@ -9,7 +9,7 @@ import string
 import pytz # Import pytz untuk zona waktu
 import sys # Untuk stderr
 
-# --- Helper Functions (Diulang agar cog ini mandiri) ---
+# --- Helper Functions ---
 def load_json_from_root(file_path, default_value=None):
     """
     Memuat data JSON dari file yang berada di root direktori proyek bot.
@@ -37,6 +37,16 @@ def save_json_to_root(data, file_path):
         json.dump(data, f, indent=4)
 
 # --- Discord UI Components for Werewolf Role Setup ---
+class URLInput(discord.ui.TextInput):
+    def __init__(self, label, custom_id, placeholder, default_value=""):
+        super().__init__(
+            label=label,
+            placeholder=placeholder,
+            custom_id=custom_id,
+            style=discord.TextStyle.short,
+            default=default_value,
+            required=False
+        )
 
 # New Modal for quantity input
 class RoleQuantityModal(discord.ui.Modal):
@@ -104,6 +114,91 @@ class RoleQuantityModal(discord.ui.Modal):
             await interaction.followup.send(f"Terjadi kesalahan: {e}", ephemeral=True)
 
 
+class WerewolfMediaSetupModal(discord.ui.Modal):
+    def __init__(self, game_cog, current_global_config, message_to_update_id, channel_id):
+        super().__init__(title="Atur Media Werewolf (Global)")
+        self.game_cog = game_cog
+        self.current_global_config = current_global_config
+        self.message_to_update_id = message_to_update_id
+        self.channel_id = channel_id
+
+        current_image_urls = current_global_config.get('image_urls', {})
+        current_audio_urls = current_global_config.get('audio_urls', {})
+
+        self.add_item(URLInput("Game Start Image URL (GIF)", "url_game_start_img", "URL untuk awal game (GIF/PNG/JPG)", current_image_urls.get('game_start_image_url', '')))
+        self.add_item(URLInput("Night Phase Image URL (GIF)", "url_night_phase_img", "URL untuk fase malam (GIF/PNG/JPG)", current_image_urls.get('night_phase_image_url', '')))
+        self.add_item(URLInput("Day Phase Image URL (GIF)", "url_day_phase_img", "URL untuk fase siang (GIF/PNG/JPG)", current_image_urls.get('day_phase_image_url', '')))
+        self.add_item(URLInput("Night Resolution Image URL (GIF)", "url_night_res_img", "URL untuk resolusi malam (korban) (GIF/PNG/JPG)", current_image_urls.get('night_resolution_image_url', '')))
+
+        self.add_item(URLInput("Game Start Audio URL (MP3/WebM)", "url_game_start_audio", "URL audio untuk awal game", current_audio_urls.get('game_start_audio_url', '')))
+        self.add_item(URLInput("Night Phase Audio URL (MP3/WebM)", "url_night_phase_audio", "URL audio untuk fase malam", current_audio_urls.get('night_phase_audio_url', '')))
+        self.add_item(URLInput("Day Phase Audio URL (MP3/WebM)", "url_day_phase_audio", "URL audio untuk fase siang", current_audio_urls.get('day_phase_audio_url', '')))
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        global_config_ref = self.game_cog.global_werewolf_config.setdefault('default_config', {})
+
+        global_config_ref['image_urls'] = {
+            'game_start_image_url': self.children[0].value or None,
+            'night_phase_image_url': self.children[1].value or None,
+            'day_phase_image_url': self.children[2].value or None,
+            'night_resolution_image_url': self.children[3].value or None,
+        }
+
+        global_config_ref['audio_urls'] = {
+            'game_start_audio_url': self.children[4].value or None,
+            'night_phase_audio_url': self.children[5].value or None,
+            'day_phase_audio_url': self.children[6].value or None,
+        }
+
+        save_json_to_root(self.game_cog.global_werewolf_config, 'data/global_werewolf_config.json')
+        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Media Werewolf global disimpan oleh {interaction.user.display_name}.")
+
+        try:
+            channel = self.game_cog.bot.get_channel(self.channel_id)
+            if channel:
+                message = await channel.fetch_message(self.message_to_update_id)
+                # Recreate the view to update its internal state and buttons/embed
+                # Use the actual total_players from the current setup message or game state
+                total_players_for_view = self.game_cog.werewolf_game_states.get(self.channel_id, {}).get('total_players')
+                if not total_players_for_view:
+                    # Fallback to current setup's total players if game not started
+                    # This might require parsing the embed or storing total_players in active_werewolf_setup_messages
+                    # For simplicity, if game not started, use the total_players from setup command
+                    setup_message_id = self.game_cog.active_werewolf_setup_messages.get(self.channel_id)
+                    if setup_message_id: # Use the ID stored
+                        try:
+                            # Try to extract from embed description of the existing message
+                            # This is a bit fragile, better to pass total_players explicitly
+                            description = message.embeds[0].description
+                            total_players_line = next((line for line in description.split('\n') if "Total Pemain:" in line), None)
+                            if total_players_line:
+                                # Extract number between **
+                                try:
+                                    total_players_for_view = int(total_players_line.split('**')[1])
+                                except (ValueError, IndexError):
+                                    total_players_for_view = self.game_cog.global_werewolf_config.get('default_config', {}).get('min_players', 3)
+                            else:
+                                total_players_for_view = self.game_cog.global_werewolf_config.get('default_config', {}).get('min_players', 3)
+                        except Exception:
+                            total_players_for_view = self.game_cog.global_werewolf_config.get('default_config', {}).get('min_players', 3)
+                    else:
+                        total_players_for_view = self.game_cog.global_werewolf_config.get('default_config', {}).get('min_players', 3)
+
+
+                view = WerewolfRoleSetupView(self.game_cog, self.channel_id,
+                                            total_players_for_view,
+                                            self.game_cog.global_werewolf_config.get('default_config', {}))
+                await message.edit(embed=view.create_embed(), view=view)
+                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan setup Werewolf di channel {channel.name} diperbarui setelah media modal submit.")
+        except discord.NotFound:
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan setup Werewolf tidak ditemukan untuk update setelah media modal submit.")
+        except Exception as e:
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Error update pesan setup Werewolf setelah media modal submit: {e}")
+
+        await interaction.followup.send("URL gambar dan audio global berhasil disimpan!", ephemeral=True)
+
+
 class WerewolfRoleSetupView(discord.ui.View):
     def __init__(self, game_cog, channel_id, total_players, current_config):
         super().__init__(timeout=300)
@@ -120,12 +215,15 @@ class WerewolfRoleSetupView(discord.ui.View):
 
         self._add_role_buttons()
 
-        self.add_item(discord.ui.Button(label="Atur Media Game (Global)", style=discord.ButtonStyle.secondary, custom_id="setup_media", row=4))
-        self.add_item(discord.ui.Button(label="Selesai Mengatur", style=discord.ButtonStyle.success, custom_id="finish_role_setup", row=4))
+        # BARIS INI DIHAPUS UNTUK MENGHINDARI DUPLIKASI custom_id
+        # Karena tombol 'setup_media' dan 'finish_role_setup'
+        # sudah ditambahkan secara otomatis oleh decorator @discord.ui.button
+        # self.add_item(discord.ui.Button(label="Atur Media Game (Global)", style=discord.ButtonStyle.secondary, custom_id="setup_media", row=4))
+        # self.add_item(discord.ui.Button(label="Selesai Mengatur", style=discord.ButtonStyle.success, custom_id="finish_role_setup", row=4))
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] WerewolfRoleSetupView diinisialisasi untuk channel {channel_id}.")
 
     def _add_role_buttons(self):
-        # Clear existing dynamic buttons/selects
+        # Clear existing dynamic buttons (only those starting with "set_role_")
         for item in list(self.children):
             if isinstance(item, discord.ui.Button) and item.custom_id.startswith("set_role_"):
                 self.remove_item(item)
@@ -133,16 +231,27 @@ class WerewolfRoleSetupView(discord.ui.View):
         roles_to_display = [role for role in self.available_roles.keys() if role != "Warga Polos"]
         roles_to_display.sort(key=lambda r: self.game_cog.werewolf_roles_data['roles'][r].get('order', 99))
 
-        # Add buttons for each role
+        # Add buttons for each role, managing rows
+        current_row = 0
+        buttons_in_row = 0
         for i, role_name in enumerate(roles_to_display):
             current_value = self.current_roles_config.get(role_name, 0)
+            # Ensure the row does not exceed Discord's limit (0-4)
+            # Standard buttons go up to row=4, so dynamic ones should be <= 3
+            # Or consider using multiple views if you have too many roles
             button = discord.ui.Button(
                 label=f"{role_name} ({current_value})",
                 style=discord.ButtonStyle.primary,
-                custom_id=f"set_role_{role_name}"
+                custom_id=f"set_role_{role_name}",
+                row=current_row # Assign current row dynamically
             )
             button.callback = self._role_button_callback
             self.add_item(button)
+
+            buttons_in_row += 1
+            if buttons_in_row >= 5: # Max 5 buttons per row
+                current_row += 1
+                buttons_in_row = 0
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Role buttons Werewolf ditambahkan.")
 
     async def _role_button_callback(self, interaction: discord.Interaction):
@@ -235,12 +344,6 @@ class WerewolfRoleSetupView(discord.ui.View):
 
         return embed
 
-    # No need for update_message as modal's on_submit will re-render
-    # async def update_message(self, message):
-    #     print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] update_message WerewolfRoleSetupView untuk channel {self.channel_id}.")
-    #     self._add_role_buttons() # Re-add buttons to reflect updated quantities
-    #     await message.edit(embed=self.create_embed(), view=self)
-
 
     @discord.ui.button(label="Atur Media Game (Global)", style=discord.ButtonStyle.secondary, custom_id="setup_media", row=4)
     async def setup_media_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -253,11 +356,8 @@ class WerewolfRoleSetupView(discord.ui.View):
 
         # Pass the message ID to the modal so it can update the original message
         message_to_update_id = interaction.message.id
-        
+
         # When opening the media setup modal, also ensure the main view's embed updates
-        # after the modal is closed and settings saved.
-        # This part requires the modal to trigger an update on the original message.
-        # Modified WerewolfMediaSetupModal to accept and use message_to_update_id, channel_id
         modal = WerewolfMediaSetupModal(self.game_cog, self.game_cog.global_werewolf_config.get('default_config', {}),
                                         message_to_update_id, self.channel_id)
         await interaction.response.send_modal(modal)
@@ -283,9 +383,7 @@ class WerewolfRoleSetupView(discord.ui.View):
             return
 
         # No need to save again here as RoleQuantityModal already saves it
-        # self.game_cog.global_werewolf_config.setdefault('default_config', {})['roles'] = self.current_roles_config
-        # save_json_to_root(self.game_cog.global_werewolf_config, 'data/global_werewolf_config.json')
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Konfigurasi peran global Werewolf sudah disimpang.") # Changed print message
+        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Konfigurasi peran global Werewolf sudah disimpan (oleh modal).")
 
         for item in self.children:
             item.disabled = True
@@ -299,67 +397,6 @@ class WerewolfRoleSetupView(discord.ui.View):
         self.stop()
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pengaturan Werewolf selesai, view dihentikan.")
 
-
-# Modified WerewolfMediaSetupModal to accept message_to_update_id and channel_id
-class WerewolfMediaSetupModal(discord.ui.Modal):
-    def __init__(self, game_cog, current_global_config, message_to_update_id, channel_id):
-        super().__init__(title="Atur Media Werewolf (Global)")
-        self.game_cog = game_cog
-        self.current_global_config = current_global_config
-        self.message_to_update_id = message_to_update_id
-        self.channel_id = channel_id
-
-        current_image_urls = current_global_config.get('image_urls', {})
-        current_audio_urls = current_global_config.get('audio_urls', {})
-
-        self.add_item(URLInput("Game Start Image URL (GIF)", "url_game_start_img", "URL untuk awal game (GIF/PNG/JPG)", current_image_urls.get('game_start_image_url', '')))
-        self.add_item(URLInput("Night Phase Image URL (GIF)", "url_night_phase_img", "URL untuk fase malam (GIF/PNG/JPG)", current_image_urls.get('night_phase_image_url', '')))
-        self.add_item(URLInput("Day Phase Image URL (GIF)", "url_day_phase_img", "URL untuk fase siang (GIF/PNG/JPG)", current_image_urls.get('day_phase_image_url', '')))
-        self.add_item(URLInput("Night Resolution Image URL (GIF)", "url_night_res_img", "URL untuk resolusi malam (korban) (GIF/PNG/JPG)", current_image_urls.get('night_resolution_image_url', '')))
-
-        self.add_item(URLInput("Game Start Audio URL (MP3/WebM)", "url_game_start_audio", "URL audio untuk awal game", current_audio_urls.get('game_start_audio_url', '')))
-        self.add_item(URLInput("Night Phase Audio URL (MP3/WebM)", "url_night_phase_audio", "URL audio untuk fase malam", current_audio_urls.get('night_phase_audio_url', '')))
-        self.add_item(URLInput("Day Phase Audio URL (MP3/WebM)", "url_day_phase_audio", "URL audio untuk fase siang", current_audio_urls.get('day_phase_audio_url', '')))
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        global_config_ref = self.game_cog.global_werewolf_config.setdefault('default_config', {})
-
-        global_config_ref['image_urls'] = {
-            'game_start_image_url': self.children[0].value or None,
-            'night_phase_image_url': self.children[1].value or None,
-            'day_phase_image_url': self.children[2].value or None,
-            'night_resolution_image_url': self.children[3].value or None,
-        }
-
-        global_config_ref['audio_urls'] = {
-            'game_start_audio_url': self.children[4].value or None,
-            'night_phase_audio_url': self.children[5].value or None,
-            'day_phase_audio_url': self.children[6].value or None,
-        }
-
-        save_json_to_root(self.game_cog.global_werewolf_config, 'data/global_werewolf_config.json')
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Media Werewolf global disimpan oleh {interaction.user.display_name}.")
-
-        try:
-            channel = self.game_cog.bot.get_channel(self.channel_id)
-            if channel:
-                message = await channel.fetch_message(self.message_to_update_id)
-                # Recreate the view to update its internal state and buttons/embed
-                view = WerewolfRoleSetupView(self.game_cog, self.channel_id,
-                                            self.game_cog.werewolf_game_states.get(self.channel_id, {}).get('total_players', 0),
-                                            self.game_cog.global_werewolf_config.get('default_config', {}))
-                await message.edit(embed=view.create_embed(), view=view)
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan setup Werewolf di channel {channel.name} diperbarui setelah media modal submit.")
-        except discord.NotFound:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan setup Werewolf tidak ditemukan untuk update setelah media modal submit.")
-        except Exception as e:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Error update pesan setup Werewolf setelah media modal submit: {e}")
-
-        await interaction.followup.send("URL gambar dan audio global berhasil disimpan!", ephemeral=True)
-
-# (Rest of your GamesGlobalEvents cog code remains the same or updated with the new classes)
-# ... [Your existing GamesGlobalEvents class and its methods] ...
 
 class GamesGlobalEvents(commands.Cog):
     def __init__(self, bot):
@@ -426,11 +463,11 @@ class GamesGlobalEvents(commands.Cog):
             'data/werewolf_roles.json',
             default_value={
                 "roles": {
-                    "Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu bunuh malam ini?", "dm_command": "!bunuh warga", "can_target_self": False, "emoji": "🐺", "order": 1, "night_action_order": 2},
-                    "Dokter": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi malam ini?", "dm_command": "!lindungi warga", "can_target_self": True, "emoji": "⚕️", "order": 2, "night_action_order": 1},
-                    "Peramal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu cek perannya malam ini?", "dm_command": "!cek warga", "can_target_self": True, "emoji": "🔮", "order": 3, "night_action_order": 3},
-                    "Pengawal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu jaga dari hukuman mati siang nanti?", "dm_command": "!jaga warga", "can_target_self": True, "emoji": "🛡️", "order": 4, "night_action_order": 4},
-                    "Warga Polos": {"team": "Village", "action_prompt": None, "dm_command": None, "can_target_self": False, "emoji": "🧑‍🌾", "order": 5, "night_action_order": None}
+                    "Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu bunuh malam ini?", "dm_command": "!bunuh warga", "can_target_self": false, "emoji": "🐺", "order": 1, "night_action_order": 2, "description": "Tugasmu adalah membunuh para penduduk desa setiap malam hingga jumlahmu sama atau lebih banyak dari mereka.", "goal": "Musnahkan semua penduduk desa!"},
+                    "Dokter": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi malam ini?", "dm_command": "!lindungi warga", "can_target_self": true, "emoji": "⚕️", "order": 2, "night_action_order": 1, "description": "Kamu bisa melindungi satu orang setiap malam agar tidak dibunuh oleh Werewolf.", "goal": "Lindungi penduduk desa dan singkirkan Werewolf!"},
+                    "Peramal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu cek perannya malam ini?", "dm_command": "!cek warga", "can_target_self": true, "emoji": "🔮", "order": 3, "night_action_order": 3, "description": "Setiap malam, kamu bisa memilih satu pemain untuk mengetahui apakah dia Werewolf atau bukan.", "goal": "Temukan Werewolf dan bantu penduduk desa menggantung mereka!"},
+                    "Pengawal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu jaga dari hukuman mati siang nanti?", "dm_command": "!jaga warga", "can_target_self": true, "emoji": "🛡️", "order": 4, "night_action_order": 4, "description": "Kamu bisa melindungi satu pemain dari hukuman gantung di siang hari.", "goal": "Lindungi warga dari keputusan gantung yang salah."},
+                    "Warga Polos": {"team": "Village", "action_prompt": None, "dm_command": None, "can_target_self": false, "emoji": "🧑‍🌾", "order": 5, "night_action_order": None, "description": "Kamu adalah penduduk desa biasa. Tujuanmu adalah menemukan Werewolf dan menggantung mereka.", "goal": "Gantung semua Werewolf!"}
                 }
             }
         )
@@ -1596,6 +1633,24 @@ class GamesGlobalEvents(commands.Cog):
 
         print(f"[{datetime.now()}] [DEBUG WW] Game berakhir di channel {game_state['main_channel'].name}. Pemenang: {winner}.")
 
+        # --- Tambahkan Bagian Donasi di Sini ---
+        donasi_embed = discord.Embed(
+            title="✨ Suka dengan permainannya? Dukung kami! ✨",
+            description=(
+                "Pengembangan bot ini membutuhkan waktu dan usaha. "
+                "Setiap dukungan kecil dari Anda sangat berarti untuk menjaga bot ini tetap aktif "
+                "dan menghadirkan fitur-fitur baru yang lebih seru!\n\n"
+                "Terima kasih telah bermain!"
+            ),
+            color=discord.Color.gold()
+        )
+        donasi_view = discord.ui.View()
+        donasi_view.add_item(discord.ui.Button(label="Bagi Bagi (DANA/Gopay/OVO)", style=discord.ButtonStyle.url, url="https://bagibagi.co/Rh7155"))
+        donasi_view.add_item(discord.ui.Button(label="Saweria (All Payment Method)", style=discord.ButtonStyle.url, url="https://saweria.co/RH7155"))
+
+        await main_channel.send(embed=donasi_embed, view=donasi_view)
+        print(f"[{datetime.now()}] [DEBUG WW] Pesan donasi dikirim di akhir game Werewolf.")
+
 
     async def _send_werewolf_visual(self, channel: discord.TextChannel, phase: str):
         print(f"[{datetime.now()}] [DEBUG WW] Mengirim visual Werewolf untuk fase: {phase} di channel {channel.name}.")
@@ -1903,6 +1958,24 @@ class GamesGlobalEvents(commands.Cog):
         save_json_to_root(bank_data, 'data/bank_data.json')
         save_json_to_root(self.wheel_of_fate_data, 'data/wheel_of_mad_fate.json')
 
+        # --- Tambahkan Bagian Donasi di Sini ---
+        donasi_embed = discord.Embed(
+            title="✨ Senang dengan Takdir Gila Hari Ini? Dukung kami! ✨",
+            description=(
+                "Pengembangan bot ini membutuhkan waktu dan usaha. "
+                "Setiap dukungan kecil dari Anda sangat berarti untuk menjaga bot ini tetap aktif "
+                "dan menghadirkan fitur-fitur baru yang lebih seru!\n\n"
+                "Terima kasih telah bermain!"
+            ),
+            color=discord.Color.gold()
+        )
+        donasi_view = discord.ui.View()
+        donasi_view.add_item(discord.ui.Button(label="Bagi Bagi (DANA/Gopay/OVO)", style=discord.ButtonStyle.url, url="https://bagibagi.co/Rh7155"))
+        donasi_view.add_item(discord.ui.Button(label="Saweria (All Payment Method)", style=discord.ButtonStyle.url, url="https://saweria.co/RH7155"))
+
+        await ctx.send(embed=donasi_embed, view=donasi_view)
+        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan donasi dikirim di akhir game Roda Takdir Gila (fallback).")
+
 
     def _get_default_wheel_segments(self):
         """Mendapatkan segmen default untuk Roda Takdir Gila."""
@@ -2196,91 +2269,23 @@ class GamesGlobalEvents(commands.Cog):
         await ctx.send(embed=result_embed)
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Hasil balapan dikirim.")
 
+        # --- Tambahkan Bagian Donasi di Sini ---
+        donasi_embed = discord.Embed(
+            title="✨ Suka dengan Balapan Kudanya? Dukung kami! ✨",
+            description=(
+                "Pengembangan bot ini membutuhkan waktu dan usaha. "
+                "Setiap dukungan kecil dari Anda sangat berarti untuk menjaga bot ini tetap aktif "
+                "dan menghadirkan fitur-fitur baru yang lebih seru!\n\n"
+                "Terima kasih telah bermain!"
+            ),
+            color=discord.Color.gold()
+        )
+        donasi_view = discord.ui.View()
+        donasi_view.add_item(discord.ui.Button(label="Bagi Bagi (DANA/Gopay/OVO)", style=discord.ButtonStyle.url, url="https://bagibagi.co/Rh7155"))
+        donasi_view.add_item(discord.ui.Button(label="Saweria (All Payment Method)", style=discord.ButtonStyle.url, url="https://saweria.co/RH7155"))
 
-    @commands.command(name="taruhan", help="Pasang taruhanmu di Balapan Kuda! `!taruhan <jumlah> <nomor_kuda>`")
-    @commands.cooldown(1, 3, commands.BucketType.user)
-    async def place_horse_bet(self, ctx, amount: int, horse_id: int):
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Command !taruhan dipanggil oleh {ctx.author.display_name} di channel: {ctx.channel.name} ({ctx.channel.id}) dengan jumlah {amount} untuk kuda {horse_id}.")
-        channel_id = ctx.channel.id
-        race_state = self.horse_racing_states.get(channel_id)
-
-        if not race_state or race_state['status'] != 'betting':
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Tidak ada balapan aktif atau fase bukan taruhan.")
-            return await ctx.send("Tidak ada sesi taruhan balapan kuda yang aktif di channel ini.", ephemeral=True)
-
-        if amount <= 0:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Jumlah taruhan tidak valid ({amount}).")
-            return await ctx.send("Jumlah taruhan harus lebih dari 0.", ephemeral=True)
-
-        if amount > 5000: # Batas taruhan
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Jumlah taruhan terlalu besar ({amount}).")
-            return await ctx.send("Jumlah taruhan maksimal adalah 5000 RSWN.", ephemeral=True)
-
-        selected_horse = next((h for h in race_state['horses'] if h['id'] == horse_id), None)
-        if not selected_horse:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Kuda tidak ditemukan ({horse_id}).")
-            return await ctx.send(f"Kuda #{horse_id} tidak ditemukan. Pilih nomor kuda yang valid dari daftar.", ephemeral=True)
-
-        user_id_str = str(ctx.author.id)
-        bank_data = load_json_from_root('data/bank_data.json', default_value={})
-        current_balance = bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance']
-
-        if current_balance < amount:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: {ctx.author.display_name} saldo tidak cukup ({current_balance} < {amount}).")
-            return await ctx.send(f"Saldo RSWNmu tidak cukup untuk taruhan ini. Kamu punya: **{current_balance} RSWN**.", ephemeral=True)
-
-        # Jika sudah pernah bertaruh, timpa taruhan sebelumnya
-        if user_id_str in race_state['bets']:
-            old_bet = race_state['bets'][user_id_str]
-            bank_data[user_id_str]['balance'] += old_bet['amount'] # Kembalikan taruhan lama
-            await ctx.send(f"Taruhanmu sebelumnya sebesar {old_bet['amount']} RSWN pada Kuda #{old_bet['horse_id']} dikembalikan. ", ephemeral=True)
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Taruhan lama {ctx.author.display_name} dikembalikan.")
-
-        bank_data[user_id_str]['balance'] -= amount
-        save_json_to_root(bank_data, 'data/bank_data.json')
-
-        race_state['bets'][user_id_str] = {'amount': amount, 'horse_id': horse_id}
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Taruhan {amount} RSWN pada Kuda #{horse_id} oleh {ctx.author.display_name} berhasil.")
-        await ctx.send(f"✅ Taruhanmu sebesar **{amount} RSWN** pada **{selected_horse['emoji']} {selected_horse['name']}** (#**{horse_id}**) berhasil dipasang!", ephemeral=True)
-
-        # Update embed taruhan jika pesan masih ada
-        if race_state['race_message']:
-            betting_embed = race_state['race_message'].embeds[0]
-            # Temukan field "Kuda yang Berkompetisi" dan perbarui
-            for i, field in enumerate(betting_embed.fields):
-                if field.name == "Kuda yang Berkompetisi":
-                    betting_embed.set_field_at(
-                        index=i,
-                        name="Kuda yang Berkompetisi",
-                        value=self._get_horse_list_text(race_state['horses'], race_state['odds']),
-                        inline=False
-                    )
-                    break
-            # Tambahkan atau perbarui field "Taruhan Saat Ini"
-            current_bets_field_value = self._get_current_bets_text(race_state['bets'], race_state['horses'])
-            found_bets_field = False
-            for i, field in enumerate(betting_embed.fields):
-                if field.name == "Taruhan Saat Ini":
-                    betting_embed.set_field_at(
-                        index=i,
-                        name="Taruhan Saat Ini",
-                        value=current_bets_field_value,
-                        inline=False
-                    )
-                    found_bets_field = True
-                    break
-            if not found_bets_field:
-                # Insert at a specific index to keep order
-                betting_embed.insert_field_at(index=1, name="Taruhan Saat Ini", value=current_bets_field_value, inline=False)
-
-
-            try:
-                await race_state['race_message'].edit(embed=betting_embed)
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Pesan taruhan diupdate.")
-            except discord.NotFound:
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan taruhan tidak ditemukan saat update.")
-            except Exception as e:
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Error updating betting message: {e}")
+        await ctx.send(embed=donasi_embed, view=donasi_view)
+        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan donasi dikirim di akhir game Balapan Kuda.")
 
     def _get_current_bets_text(self, bets, horses):
         if not bets:
@@ -2291,12 +2296,8 @@ class GamesGlobalEvents(commands.Cog):
             horse_id = bet_info['horse_id']
             amount = bet_info['amount']
             bet_summary.setdefault(horse_id, {'total_amount': 0, 'bettors': []})
+            bet_summary[horse_id]['bettors'].append(f"<@{user_id_str}> ({amount} RSWN)") # Use mention for users
             bet_summary[horse_id]['total_amount'] += amount
-
-            user_obj = self.bot.get_user(int(user_id_str))
-            user_display_name = user_obj.display_name if user_obj else f"User_{user_id_str[:4]}"
-
-            bet_summary[horse_id]['bettors'].append(f"{user_display_name} ({amount} RSWN)")
 
         text = ""
         sorted_horses = sorted(horses, key=lambda h: h['id'])
