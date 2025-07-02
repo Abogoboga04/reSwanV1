@@ -190,7 +190,8 @@ async def load_cogs():
         "cogs.quotes",
         "cogs.newgame",
         "cogs.multigame",
-        "cogs.dunia"
+        "cogs.dunia", 
+        "cogs.endgame"
     ]
     for extension in initial_extensions:
         try:
