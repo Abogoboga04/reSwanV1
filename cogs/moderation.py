@@ -7,6 +7,7 @@ import asyncio
 from typing import Optional
 from datetime import datetime, timedelta
 import time
+import aiohttp # Import aiohttp untuk request async ke URL
 
 # =======================================================================================
 # UTILITY FUNCTIONS - Fungsi bantuan
@@ -243,7 +244,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             try:
                 await payload.member.add_roles(role, reason="Reaction Role")
             except discord.Forbidden:
-                print(f"Bot lacks permissions to assign reaction role {role.name} in {guild.name}.")
+                print(f"Bot lacks permissions to assign auto-role {role.name} in {guild.name}.")
 
 
     @commands.Cog.listener()
@@ -614,6 +615,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 super().__init__(timeout=300)
                 self.cog, self.author, self.target_channel = cog_instance, author, target_channel
                 self.guild_id, self.channel_id = target_channel.guild.id, target_channel.id
+                self.message = None # To store the message this view is attached to
                 self.update_buttons()
 
             def update_buttons(self):
@@ -674,8 +676,13 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
 
             async def set_auto_delete(self, interaction: discord.Interaction):
                 class AutoDeleteModal(discord.ui.Modal, title="Atur Hapus Otomatis"):
-                    def __init__(self, current_delay):
+                    def __init__(self, current_delay, parent_view_instance):
                         super().__init__()
+                        self.cog = parent_view_instance.cog # Pass cog instance to modal
+                        self.guild_id = parent_view_instance.guild_id
+                        self.channel_id = parent_view_instance.channel_id
+                        self.parent_view = parent_view_instance # Store reference to parent view
+
                         self.delay_input = discord.ui.TextInput(
                             label="Durasi (detik, 0 untuk nonaktif)",
                             placeholder="Contoh: 30 (maks 3600)",
@@ -694,13 +701,15 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                             rules = self.cog.get_channel_rules(self.guild_id, self.channel_id)
                             rules["auto_delete_seconds"] = delay
                             self.cog.save_settings()
-                            self.update_buttons()
-                            await modal_interaction.response.edit_message(view=self)
+                            
+                            # Update the buttons on the original message after modal submission
+                            self.parent_view.update_buttons()
+                            await modal_interaction.response.edit_message(view=self.parent_view) # Edit the original message
                             
                             await self.cog.log_action(
-                                self.target_channel.guild, 
+                                self.parent_view.target_channel.guild, 
                                 "⏳ Hapus Otomatis Diubah", 
-                                {"Channel": self.target_channel.mention, "Durasi": f"{delay} detik" if delay > 0 else "Dinonaktifkan", "Moderator": modal_interaction.user.mention}, 
+                                {"Channel": self.parent_view.target_channel.mention, "Durasi": f"{delay} detik" if delay > 0 else "Dinonaktifkan", "Moderator": modal_interaction.user.mention}, 
                                 self.cog.color_info
                             )
                         except ValueError:
@@ -710,7 +719,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 
                 rules = self.cog.get_channel_rules(self.guild_id, self.channel_id)
                 current_delay = rules.get("auto_delete_seconds", 0)
-                await interaction.response.send_modal(AutoDeleteModal(current_delay))
+                await interaction.response.send_modal(AutoDeleteModal(current_delay, self)) # Pass self (view instance)
 
         embed = self._create_embed(title=f"🔧 Aturan untuk Channel: #{target_channel.name}", description="Tekan tombol untuk mengaktifkan (hijau) atau menonaktifkan (merah) aturan untuk channel ini. Tekan tombol hapus otomatis untuk mengatur durasi (default 30s).", color=self.color_info)
         await ctx.send(embed=embed, view=ChannelRuleView(self, ctx.author, target_channel))
@@ -860,201 +869,301 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
 
 
     # =======================================================================================
-    # ANNOUNCEMENT FEATURE - DITAMBAHKAN DAN DIOPTIMALKAN
+    # ANNOUNCEMENT FEATURE - FINAL REVISION WITH GITHUB RAW URL & ALL MODAL INPUTS
     # =======================================================================================
 
     @commands.command(name="announce", aliases=["pengumuman", "broadcast"])
     @commands.has_permissions(manage_guild=True)
-    async def announce(self, ctx, channel: Optional[discord.TextChannel] = None):
+    async def announce(self, ctx, channel_identifier: str):
         """
-        Membuat pengumuman kustom dengan tampilan modern.
-        Pengguna akan mengisi detail melalui pop-up form (Modal UI).
-        Pengumuman akan dikirim ke channel yang ditentukan atau channel saat ini.
+        Membuat pengumuman kustom dengan form UI ke channel spesifik.
+        Channel tujuan dimasukkan via command (mention atau ID).
+        Detail lainnya (judul, profil kustom, gambar) diisi via modal.
+        Deskripsi diambil dari URL GitHub Raw yang telah ditentukan.
+        Format: !announce <#channel_mention_ATAU_channel_ID>
+        Contoh: !announce #general
+        Contoh: !announce 123456789012345678
         """
-        target_channel = channel or ctx.channel
+        # Hardcode the GitHub Raw URL for the announcement description
+        # PASTIKAN FILE INI ADA DI REPOSITORI GITHUB ANDA DAN DAPAT DIAKSES PUBLIK RAW!
+        GITHUB_RAW_DESCRIPTION_URL = "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/announcement.txt"
 
-        class AnnouncementModal(discord.ui.Modal, title="Buat Pengumuman Baru"):
-            # Input fields
+        # --- Parsing Channel from Command Argument ---
+        target_channel = None
+        # Try to parse as channel mention (e.g., <#1234567890>)
+        if channel_identifier.startswith('<#') and channel_identifier.endswith('>'):
+            try:
+                channel_id = int(channel_identifier[2:-1])
+                target_channel = ctx.guild.get_channel(channel_id) 
+                if not target_channel: # Try to get from bot cache if not in current guild
+                    target_channel = self.bot.get_channel(channel_id)
+            except ValueError:
+                pass # Invalid channel mention, proceed to try fetching by ID
+        
+        # If not found by mention, try to parse as raw channel ID
+        if not target_channel and channel_identifier.isdigit():
+            try:
+                channel_id = int(channel_identifier)
+                target_channel = ctx.guild.get_channel(channel_id)
+                if not target_channel:
+                    target_channel = self.bot.get_channel(channel_id) # Try global bot cache
+            except ValueError:
+                pass # Not a valid ID
+
+        if not target_channel or not isinstance(target_channel, discord.TextChannel):
+            await ctx.send(embed=self._create_embed(
+                description=f"❌ Channel '{channel_identifier}' tidak ditemukan atau bukan channel teks yang valid. Mohon gunakan mention channel (misal: `#general`) atau ID channel yang benar. Pastikan bot berada di server tersebut.",
+                color=self.color_error
+            ))
+            return
+        
+        # --- Announcement Modal Class ---
+        class AnnouncementModal(discord.ui.Modal, title=f"Buat Pengumuman untuk #{target_channel.name}"):
+            # Input fields for custom profile, username, title, and image URL
+            # Note: Max 5 TextInput components per Modal in Discord API
             announcement_title = discord.ui.TextInput(
-                label="Judul Pengumuman",
-                placeholder="Contoh: Pembaruan Server!",
+                label="Judul Pengumuman (maks 256 karakter)",
+                placeholder="Contoh: Pembaruan Server Penting!",
                 max_length=256,
                 required=True,
                 row=0
             )
-            announcement_description = discord.ui.TextInput(
-                label="Deskripsi Pengumuman (Maks 4000 karakter)",
-                placeholder="Tuliskan detail pengumumanmu di sini. Mendukung Discord Markdown.",
-                style=discord.TextStyle.paragraph,
-                max_length=4000,
+            custom_username = discord.ui.TextInput(
+                label="Username Pengirim Kustom (maks 256 karakter)",
+                placeholder="Contoh: Tim Admin / Pengumuman Resmi",
+                max_length=256,
                 required=True,
                 row=1
             )
-            sender_name = discord.ui.TextInput(
-                label="Nama Pengirim (Opsional, default: Anda)",
-                placeholder=ctx.author.display_name, # Placeholder shows current user's name
-                default=ctx.author.display_name,      # Pre-fill with current user's name
-                max_length=256,
-                required=False,
+            custom_profile_url = discord.ui.TextInput(
+                label="URL Avatar Pengirim Kustom (Opsional, http/https)",
+                placeholder="Contoh: https://example.com/avatar.png",
+                max_length=2000,
+                required=False, # Ini opsional
                 row=2
             )
-            sender_avatar_url = discord.ui.TextInput(
-                label="URL Avatar Pengirim (Opsional, default: Avatar Anda)",
-                placeholder="Contoh: https://example.com/avatar.png", # Generic placeholder
-                default=str(ctx.author.display_avatar.url),      # Pre-fill with current user's avatar
+            announcement_image_url = discord.ui.TextInput(
+                label="URL Gambar di Akhir Pengumuman (Opsional, http/https)",
+                placeholder="Contoh: https://example.com/banner.png",
                 max_length=2000,
                 required=False,
                 row=3
             )
-            announcement_image_url = discord.ui.TextInput(
-                label="URL Gambar di Akhir Pengumuman (Opsional)",
-                placeholder="Contoh: https://example.com/banner.png",
-                max_length=2000,
-                required=False,
-                row=4
-            )
 
-            def __init__(self, cog_instance, original_ctx):
+            def __init__(self, cog_instance, original_ctx, target_channel_obj, github_raw_url):
                 super().__init__()
                 self.cog = cog_instance
                 self.original_ctx = original_ctx
-                # The TextInput instances are already defined as class attributes above.
-                # When super().__init__() is called, it automatically adds these class attributes
-                # that are instances of discord.ui.InputText (or TextInput) to the modal's items.
-                # So, no need for self.add_item() here, unless you want to dynamically create them.
+                self.target_channel_obj = target_channel_obj
+                self.github_raw_url = github_raw_url
 
             async def on_submit(self, interaction: discord.Interaction):
-                await interaction.response.defer(ephemeral=False) 
+                await interaction.response.defer(ephemeral=True) 
 
-                title = self.announcement_title.value
-                description = self.announcement_description.value
-                
-                # Retrieve values from modal inputs. .strip() to remove leading/trailing whitespace.
-                # If optional fields are empty, use default values (original ctx.author's info).
-                author_name = self.sender_name.value.strip() if self.sender_name.value else self.original_ctx.author.display_name
-                author_icon = self.sender_avatar_url.value.strip() if self.sender_avatar_url.value else str(self.original_ctx.author.display_avatar.url)
+                # Retrieve values from modal inputs
+                title = self.announcement_title.value.strip()
+                username = self.custom_username.value.strip()
+                profile_url = self.custom_profile_url.value.strip()
                 image_url = self.announcement_image_url.value.strip()
-                
-                # Basic URL validation
-                if author_icon and not (author_icon.startswith("http://") or author_icon.startswith("https://")):
+
+                # --- Validate Inputs (minimal as already checked by modal/previous steps) ---
+                if not username:
                     await interaction.followup.send(embed=self.cog._create_embed(
-                        description="❌ URL Avatar Pengirim tidak valid. Harus dimulai dengan `http://` atau `https://`.", 
+                        description="❌ Username Pengirim Kustom tidak boleh kosong.", 
                         color=self.cog.color_error
                     ), ephemeral=True)
                     return
+
+                if profile_url and not (profile_url.startswith("http://") or profile_url.startswith("https://")):
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description="❌ URL Avatar Pengirim Kustom tidak valid. Harus dimulai dengan `http://` atau `https://`.", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                    return
+                
                 if image_url and not (image_url.startswith("http://") or image_url.startswith("https://")):
                     await interaction.followup.send(embed=self.cog._create_embed(
                         description="❌ URL Gambar Pengumuman tidak valid. Harus dimulai dengan `http://` atau `https://`.", 
                         color=self.cog.color_error
                     ), ephemeral=True)
                     return
-
-                # Create the announcement embed
-                announce_embed = discord.Embed(
-                    title=title,
-                    description=description,
-                    color=self.cog.color_announce,
-                    timestamp=datetime.utcnow() # Use UTC for consistency
-                )
-                announce_embed.set_author(name=author_name, icon_url=author_icon)
-                if image_url:
-                    announce_embed.set_image(url=image_url)
                 
-                # Footer tetap dengan informasi bot atau server
-                announce_embed.set_footer(text=f"Pengumuman dari {self.original_ctx.guild.name}", icon_url=self.original_ctx.guild.icon.url if self.original_ctx.guild.icon else None)
-
+                # --- Fetch Description from GitHub Raw URL ---
+                full_description = ""
                 try:
-                    # Check bot's permissions in the target channel before sending
-                    perms = target_channel.permissions_for(target_channel.guild.me)
-                    if not perms.send_messages or not perms.embed_links:
-                        await interaction.followup.send(embed=self.cog._create_embed(
-                            description=f"❌ Bot tidak memiliki izin untuk mengirim pesan atau menyematkan tautan di {target_channel.mention}. Pastikan bot memiliki izin 'Kirim Pesan' dan 'Sematkan Tautan'.", 
-                            color=self.cog.color_error
-                        ), ephemeral=True)
-                        return
-
-                    await target_channel.send(embed=announce_embed)
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(self.github_raw_url) as resp:
+                            if resp.status == 200:
+                                full_description = await resp.text()
+                            else:
+                                await interaction.followup.send(embed=self.cog._create_embed(
+                                    description=f"❌ Gagal mengambil deskripsi dari URL GitHub Raw ({self.github_raw_url}): Status HTTP {resp.status}. Pastikan URL valid dan publik.", 
+                                    color=self.cog.color_error
+                                ), ephemeral=True)
+                                return
+                except aiohttp.ClientError as e:
                     await interaction.followup.send(embed=self.cog._create_embed(
-                        description=f"✅ Pengumuman berhasil dikirim ke {target_channel.mention}!", 
+                        description=f"❌ Terjadi kesalahan jaringan saat mengambil deskripsi dari GitHub: {e}. Pastikan URL GitHub Raw benar.", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                    return
+                except Exception as e:
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description=f"❌ Terjadi kesalahan tidak terduga saat mengambil deskripsi: {e}", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                    return
+
+                # --- Create and Send Embeds ---
+                # Discord Embed description limit is 4096 characters.
+                # We need to split the full_description into chunks.
+                description_chunks = [full_description[i:i+4096] for i in range(0, len(full_description), 4096)]
+
+                if not description_chunks or not full_description.strip(): # If description is empty after fetching or only whitespace
+                     await interaction.followup.send(embed=self.cog._create_embed(
+                        description="❌ Deskripsi pengumuman dari URL GitHub Raw kosong atau hanya berisi spasi. Pastikan file teks memiliki konten.", 
+                        color=self.cog.color_error
+                    ), ephemeral=True)
+                     return
+
+                sent_first_embed = False
+                for i, chunk in enumerate(description_chunks):
+                    # Skip empty chunks that might result from splitting (e.g., if total length is multiple of 4096)
+                    if not chunk.strip():
+                        continue
+
+                    embed = discord.Embed(
+                        description=chunk,
+                        color=self.cog.color_announce,
+                        timestamp=datetime.utcnow() if i == 0 else discord.Embed.Empty # Timestamp only on first embed
+                    )
+                    
+                    if i == 0: # Only set title, author, and main image on the first embed
+                        embed.title = title
+                        # Set author only if profile_url is provided, otherwise Discord defaults to bot's avatar
+                        embed.set_author(name=username, icon_url=profile_url if profile_url else discord.Embed.Empty)
+                        if image_url:
+                            embed.set_image(url=image_url)
+                        embed.set_footer(text=f"Pengumuman dari {self.original_ctx.guild.name}", icon_url=self.original_ctx.guild.icon.url if self.original_ctx.guild.icon else None)
+                    else:
+                        # For subsequent embeds, set a continuation footer (optional, or empty)
+                        embed.set_footer(text=f"Lanjutan Pengumuman ({i+1}/{len(description_chunks)})")
+
+                    try:
+                        # Check bot's permissions in the target channel before sending
+                        perms = self.target_channel_obj.permissions_for(self.target_channel_obj.guild.me)
+                        if not perms.send_messages or not perms.embed_links:
+                            if not sent_first_embed: # Only send this error once if it's the first embed
+                                await interaction.followup.send(embed=self.cog._create_embed(
+                                    description=f"❌ Bot tidak memiliki izin untuk mengirim pesan atau menyematkan tautan di {self.target_channel_obj.mention}. Pastikan bot memiliki izin 'Kirim Pesan' dan 'Sematkan Tautan'.", 
+                                    color=self.cog.color_error
+                                ), ephemeral=True)
+                            return # Stop sending further embeds
+                        
+                        await self.target_channel_obj.send(embed=embed)
+                        sent_first_embed = True
+                    except discord.Forbidden:
+                        if not sent_first_embed: # Only error if we failed on the first part
+                            await interaction.followup.send(embed=self.cog._create_embed(
+                                description=f"❌ Bot tidak memiliki izin untuk mengirim pesan di {self.target_channel_obj.mention}. Pastikan bot memiliki izin 'Send Messages' dan 'Embed Links'.", 
+                                color=self.cog.color_error
+                            ), ephemeral=True)
+                        return # Stop
+                    except Exception as e:
+                        print(f"Error saat mengirim embed pengumuman ke channel {self.target_channel_obj.id}: {e}")
+                        if not sent_first_embed:
+                             await interaction.followup.send(embed=self.cog._create_embed(
+                                description=f"❌ Terjadi kesalahan saat mengirim pengumuman: {e}", 
+                                color=self.cog.color_error
+                            ), ephemeral=True)
+                        return # Stop
+                
+                # Final confirmation after all embeds are sent
+                if sent_first_embed: # Only send confirmation if at least one embed was sent successfully
+                    await interaction.followup.send(embed=self.cog._create_embed(
+                        description=f"✅ Pengumuman berhasil dikirim ke <#{self.target_channel_obj.id}>!", 
                         color=self.cog.color_success
                     ), ephemeral=True)
                     # Log the announcement creation
                     await self.cog.log_action(
-                        self.original_ctx.guild, 
+                        self.original_ctx.guild, # Log in the guild where the command was initiated
                         "📢 Pengumuman Baru Dibuat", 
                         {
-                            "Pengirim": self.original_ctx.author.mention, 
-                            "Channel Target": target_channel.mention, 
+                            "Pengirim (Eksekutor)": self.original_ctx.author.mention, 
+                            "Pengirim (Tampilan)": f"{username} ({profile_url if profile_url else 'Default'})",
+                            "Channel Target": f"<#{self.target_channel_obj.id}>", # Log with mention format
                             "Judul": title, 
-                            "Deskripsi (Awal)": description[:1024] + "..." if len(description) > 1024 else description
+                            "Deskripsi Sumber": GITHUB_RAW_DESCRIPTION_URL,
+                            "Panjang Deskripsi": f"{len(full_description)} karakter"
                         }, 
                         self.cog.color_announce
                     )
-                except discord.Forbidden:
-                    await interaction.followup.send(embed=self.cog._create_embed(
-                        description=f"❌ Bot tidak memiliki izin untuk mengirim pesan di {target_channel.mention}. Pastikan bot memiliki izin 'Send Messages' dan 'Embed Links'.", 
-                        color=self.cog.color_error
-                    ), ephemeral=True)
-                except Exception as e:
-                    print(f"Error saat mengirim pengumuman di channel {target_channel.id}: {e}")
-                    await interaction.followup.send(embed=self.cog._create_embed(
-                        description=f"❌ Terjadi kesalahan saat mengirim pengumuman: {e}", 
-                        color=self.cog.color_error
-                    ), ephemeral=True)
 
             async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
                 print(f"Error in AnnouncementModal (on_error): {error}")
-                await interaction.followup.send(embed=self.cog._create_embed(
-                    description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}",
-                    color=self.cog.color_error
-                ), ephemeral=True)
-
-        class AnnounceButtonView(discord.ui.View):
-            def __init__(self, cog_instance, original_ctx, target_channel):
-                super().__init__(timeout=60)
-                self.cog = cog_instance
-                self.original_ctx = original_ctx
-                self.target_channel = target_channel
-
-            @discord.ui.button(label="Buat Pengumuman", style=discord.ButtonStyle.primary, emoji="📣")
-            async def open_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
-                if interaction.user != self.original_ctx.author:
-                    return await interaction.response.send_message("Hanya orang yang memulai perintah yang dapat membuat pengumuman.", ephemeral=True)
-                if not interaction.user.guild_permissions.manage_guild:
-                    return await interaction.response.send_message("Anda tidak memiliki izin `Manage Server`.", ephemeral=True)
-                
-                modal = AnnouncementModal(self.cog, self.original_ctx)
-                try:
-                    await interaction.response.send_modal(modal)
-                except discord.Forbidden:
-                    await interaction.followup.send(embed=self.cog._create_embed(
-                        description=f"❌ Bot tidak memiliki izin untuk mengirim modal. Ini bisa terjadi jika bot tidak bisa mengirim DM ke Anda atau ada masalah izin.",
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(embed=self.cog._create_embed(
+                        description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}",
                         color=self.cog.color_error
                     ), ephemeral=True)
-                except Exception as e:
-                    print(f"Error saat menampilkan modal pengumuman: {e}")
+                else:
                     await interaction.followup.send(embed=self.cog._create_embed(
-                        description=f"❌ Terjadi kesalahan saat menampilkan formulir: {e}",
+                        description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}",
                         color=self.cog.color_error
                     ), ephemeral=True)
 
-
-            async def on_timeout(self) -> None:
-                for item in self.children:
-                    item.disabled = True
-                try:
-                    await self.original_ctx.edit_original_response(view=self)
-                except discord.NotFound:
-                    pass
-
-        # Send the initial message with the button
+        # Initial message with the button
         await ctx.send(embed=self._create_embed(
             title="🔔 Siap Membuat Pengumuman?", 
-            description=f"Tekan tombol di bawah untuk membuka formulir pengumuman yang akan dikirim ke channel {target_channel.mention}. Anda memiliki **60 detik**.", 
+            description=f"Anda akan membuat pengumuman di channel {target_channel.mention}. Tekan tombol di bawah untuk mengisi detail lainnya. Deskripsi pengumuman akan diambil otomatis dari file teks di GitHub (`{GITHUB_RAW_DESCRIPTION_URL}`). Anda memiliki **60 detik** untuk mengisi formulir.", 
             color=self.color_info), 
-            view=AnnounceButtonView(self, ctx, target_channel)
+            view=AnnounceButtonView(self.bot, self.cog, ctx, target_channel, GITHUB_RAW_DESCRIPTION_URL) # Pass bot, cog, ctx, target_channel, and URL
         )
+
+# View untuk tombol pemicu modal
+class AnnounceButtonView(discord.ui.View):
+    def __init__(self, bot_instance, cog_instance, original_ctx, target_channel_obj, github_raw_url):
+        super().__init__(timeout=60)
+        self.bot = bot_instance
+        self.cog = cog_instance
+        self.original_ctx = original_ctx
+        self.target_channel_obj = target_channel_obj
+        self.github_raw_url = github_raw_url
+
+    @discord.ui.button(label="Buka Formulir Pengumuman", style=discord.ButtonStyle.primary, emoji="📣")
+    async def open_announcement_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Ensure only the user who initiated the command can interact
+        if interaction.user.id != self.original_ctx.author.id:
+            return await interaction.response.send_message("Hanya orang yang memulai perintah yang dapat membuat pengumuman ini.", ephemeral=True)
+        
+        # Check permissions again just in case (though command already checks)
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("Anda tidak memiliki izin `Manage Server` untuk membuat pengumuman.", ephemeral=True)
+        
+        modal = AnnouncementModal(self.cog, self.original_ctx, self.target_channel_obj, self.github_raw_url)
+        try:
+            await interaction.response.send_modal(modal)
+        except discord.Forbidden:
+            await interaction.followup.send(embed=self.cog._create_embed(
+                description=f"❌ Bot tidak memiliki izin untuk mengirim modal (pop-up form). Ini mungkin karena bot tidak bisa mengirim DM ke Anda atau ada masalah izin di server.",
+                color=self.cog.color_error
+            ), ephemeral=True)
+        except Exception as e:
+            print(f"Error saat menampilkan modal pengumuman: {e}")
+            await interaction.followup.send(embed=self.cog._create_embed(
+                description=f"❌ Terjadi kesalahan saat menampilkan formulir: {e}",
+                color=self.cog.color_error
+            ), ephemeral=True)
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        try:
+            # Edit the original message to reflect the disabled buttons
+            await self.original_ctx.edit_original_response(view=self)
+        except discord.NotFound:
+            pass # Original message might have been deleted, ignore
+
 
 async def setup(bot):
     await bot.add_cog(ServerAdminCog(bot))
-
