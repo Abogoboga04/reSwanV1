@@ -1039,7 +1039,7 @@ class DuniaHidup(commands.Cog):
         embed = discord.Embed(title="💊 MERACIK RAMUAN KESEMBUHAN, ATAU KEMATIAN?...", description="Kamu membuka Kotak Obat Misterius, merasakan energi aneh mengalir saat kau mengocoknya...", color=discord.Color.light_grey())
         embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/gif.gif") 
         msg = await ctx.send(embed=embed)
-        await asyncio.sleep(3)
+        await asyncio.sleep(8)
 
         choices = [med['name'] for med in self.medicines_data.get('medicines', [])] # Ambil dari list 'medicines'
         weights = [med['chance'] for med in self.medicines_data.get('medicines', [])]
