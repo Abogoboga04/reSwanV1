@@ -7,6 +7,7 @@ import os
 from datetime import datetime, timedelta, time
 import string
 import pytz # Import pytz untuk zona waktu
+import sys # Import sys untuk mencetak error ke stderr
 
 # --- Helper Functions (Diulang agar cog ini mandiri) ---
 def load_json_from_root(file_path, default_value=None):
@@ -809,15 +810,15 @@ class DuniaHidup(commands.Cog):
             # DAN BELUM SAKIT DAN TIDAK DALAM COOLDOWN KEBAL
             is_active = 'last_active' in user_exp_data and isinstance(user_exp_data.get('last_active'), str) and datetime.utcnow() - datetime.fromisoformat(user_exp_data['last_active']) < timedelta(days=3)
             
-            is_immune = False
+            is_immune_from_cooldown = False
             user_sickness_data = self.sick_users_cooldown.get(user_id_str)
             if user_sickness_data and 'cooldown_immunity_end_time' in user_sickness_data:
                 if datetime.utcnow() < datetime.fromisoformat(user_sickness_data['cooldown_immunity_end_time']):
-                    is_immune = True
+                    is_immune_from_cooldown = True
                     print(f"[{datetime.now()}] [DEBUG DUNIA] {member.display_name} kebal wabah hingga {user_sickness_data['cooldown_immunity_end_time']}.")
 
-
-            if member and not member.bot and sick_role not in member.roles and is_active and not is_immune:
+            # Pastikan user belum sakit dan tidak kebal dari cooldown sebelumnya
+            if member and not member.bot and sick_role not in member.roles and is_active and not is_immune_from_cooldown:
                 exp = user_exp_data.get('exp', 0)
                 balance = bank_data.get(user_id_str, {}).get('balance', 0)
                 total_score = exp + balance
@@ -829,15 +830,16 @@ class DuniaHidup(commands.Cog):
         infected_count = 0
         
         # Ambil user dari 30 teratas untuk dipertimbangkan terinfeksi (jika ada cukup user)
-        # Jika kurang dari 30 eligible, ambil semua yang eligible
         top_eligible_users = users_eligible_for_infection[:30] 
-        
+        print(f"[{datetime.now()}] [DEBUG DUNIA] start_sickness_plague: Top 30 eligible users: {len(top_eligible_users)}.")
+
         # Durasi sakit
         duration = custom_duration if custom_duration else self.sickness_duration_normal_minutes
 
         # Logika Infeksi
         if is_quiz_punishment: # Wabah dari hukuman kuis
             num_to_infect = min(len(top_eligible_users), random.randint(5, 12)) # Random 5-12 dari top 30
+            print(f"[{datetime.now()}] [DEBUG DUNIA] Quiz Punishment Wabah: Akan menginfeksi {num_to_infect} user.")
             
             if num_to_infect == 0:
                 print(f"[{datetime.now()}] [DEBUG DUNIA] Quiz Punishment Wabah: Tidak ada user yang diinfeksi (semua kebal/sakit/tidak eligible).")
@@ -849,7 +851,6 @@ class DuniaHidup(commands.Cog):
             for score, user_id_str, member in targets_to_infect:
                 try:
                     await member.add_roles(sick_role)
-                    # Sickness end time akan diatur di sick_users_cooldown
                     self.sick_users_cooldown[str(member.id)] = {
                         'sickness_end_time': (datetime.utcnow() + timedelta(minutes=duration)).isoformat(),
                         'has_free_medicine': True # Beri obat gratis untuk hukuman kuis
@@ -873,6 +874,7 @@ class DuniaHidup(commands.Cog):
                 return
 
             num_to_infect = min(len(top_eligible_users), random.randint(5, 7)) # Random 5-7 dari top 30
+            print(f"[{datetime.now()}] [DEBUG DUNIA] Wabah Normal: Akan menginfeksi {num_to_infect} user.")
             
             if num_to_infect == 0:
                 print(f"[{datetime.now()}] [DEBUG DUNIA] Wabah Normal: Tidak ada user yang diinfeksi (semua kebal/sakit/tidak eligible).")
@@ -930,9 +932,10 @@ class DuniaHidup(commands.Cog):
             embed.set_thumbnail(url=embed_thumbnail)
             embed.set_footer(text="Waspadalah! Penyakit ini tidak mengenal belas kasihan.")
             await channel.send(embed=embed)
+            print(f"[{datetime.now()}] [DEBUG DUNIA] Pesan wabah ({'kuis' if is_quiz_punishment else 'normal'}) dikirim. Terinfeksi: {infected_count}.")
         elif channel and infected_count == 0 and not is_quiz_punishment: # Pesan selamat dari wabah normal
              await channel.send("✅ **Penduduk Selamat!** Wabah penyakit datang menghampiri, namun entah bagaimana, semua penduduk berhasil selamat kali ini! Syukurlah...")
-             print(f"[{datetime.now()}] [DEBUG DUNIA] Wabah Normal: Semua penduduk selamat.")
+             print(f"[{datetime.now()}] [DEBUG DUNIA] Wabah Normal: Semua penduduk selamat (0 terinfeksi).")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -956,7 +959,10 @@ class DuniaHidup(commands.Cog):
                 # Cek apakah user masih dalam durasi sakit
                 if now < sickness_end_time: # Jika masih sakit
                     # Periksa cooldown pesan
-                    last_message_time = datetime.fromisoformat(user_sickness_data.get('last_message_time', datetime.utc.now().isoformat())) # Default jika tidak ada
+                    last_message_time_str = user_sickness_data.get('last_message_time')
+                    # Menggunakan datetime.min.isoformat() sebagai default awal jika belum ada pesan sebelumnya
+                    last_message_time = datetime.fromisoformat(last_message_time_str) if last_message_time_str else datetime.min
+                    
                     cooldown = timedelta(minutes=self.sickness_cooldown_messages_minutes)
                     
                     if now - last_message_time < cooldown: # Jika masih dalam cooldown pesan
@@ -976,12 +982,27 @@ class DuniaHidup(commands.Cog):
                         if not sickness_time_str: sickness_time_str.append("segera pulih")
 
                         try:
+                            # Hapus pesan user
                             await message.delete()
+                            print(f"[{datetime.now()}] [DEBUG DUNIA] Pesan {message.author.display_name} dihapus (sakit, cooldown pesan).")
+                            
+                            # Kirim peringatan di channel
+                            channel_warning_message = await message.channel.send(
+                                embed=discord.Embed(
+                                    description=f"😷 **{message.author.mention}** terlalu lemah untuk berbicara! Silakan istirahat sejenak. (Sisa cooldown pesan: **{int(time_left_cooldown.total_seconds())} detik**)",
+                                    color=discord.Color.orange()
+                                ),
+                                delete_after=5 # Hapus pesan peringatan bot setelah 5 detik
+                            )
+                            print(f"[{datetime.now()}] [DEBUG DUNIA] Peringatan channel dikirim ke {message.channel.name} untuk {message.author.display_name}.")
+
+                            # Kirim peringatan ke DM user
                             await message.author.send(
                                 f"Kamu sakit parah dan tubuhmu lemah... Kamu harus beristirahat selama **{int(time_left_cooldown.total_seconds())} detik** sebelum bisa bicara lagi. Jangan coba melawan takdirmu! (Sisa sakit: {' '.join(sickness_time_str)})",
                                 delete_after=60
                             )
-                            print(f"[{datetime.now()}] [DEBUG DUNIA] {message.author.display_name} pesan dihapus (sakit, cooldown pesan).")
+                            print(f"[{datetime.now()}] [DEBUG DUNIA] DM peringatan dikirim ke {message.author.display_name}.")
+
                         except (discord.Forbidden, discord.NotFound): 
                             print(f"[{datetime.now()}] [DEBUG DUNIA] Gagal hapus pesan atau DM ke {message.author.display_name} (sakit).")
                             pass 
@@ -994,10 +1015,12 @@ class DuniaHidup(commands.Cog):
                 print(f"[{datetime.now()}] [DEBUG DUNIA] {message.author.display_name} waktu pesan terakhir diupdate.")
             else:
                 # Jika user punya role sakit tapi datanya tidak ada di sick_users_cooldown,
-                # kemungkinan ada anomali. Hapus saja rolenya karena tidak ada data durasi.
+                # kemungkinan ada anomali atau data rusak. Hapus saja rolenya karena tidak ada data durasi.
                 try:
                     await message.author.remove_roles(sick_role)
-                    del self.sick_users_cooldown[user_id_str]
+                    # Hapus juga dari sick_users_cooldown sepenuhnya jika tidak ada data sama sekali
+                    if user_id_str in self.sick_users_cooldown:
+                        del self.sick_users_cooldown[user_id_str]
                     save_json_to_root(self.sick_users_cooldown, 'data/sick_users_cooldown.json')
                     print(f"[{datetime.now()}] [DEBUG DUNIA] Role sakit {message.author.display_name} dihapus (data tidak konsisten).")
                 except Exception as e:
@@ -1039,7 +1062,7 @@ class DuniaHidup(commands.Cog):
         embed = discord.Embed(title="💊 MERACIK RAMUAN KESEMBUHAN, ATAU KEMATIAN?...", description="Kamu membuka Kotak Obat Misterius, merasakan energi aneh mengalir saat kau mengocoknya...", color=discord.Color.light_grey())
         embed.set_thumbnail(url="https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/gif.gif") 
         msg = await ctx.send(embed=embed)
-        await asyncio.sleep(8)
+        await asyncio.sleep(8) # Durasi GIF racik obat 8 detik
 
         choices = [med['name'] for med in self.medicines_data.get('medicines', [])] # Ambil dari list 'medicines'
         weights = [med['chance'] for med in self.medicines_data.get('medicines', [])]
@@ -1136,7 +1159,7 @@ class DuniaHidup(commands.Cog):
         sick_role = ctx.guild.get_role(self.sick_role_id)
         if not sick_role:
             print(f"[{datetime.now()}] [DEBUG DUNIA] !daftar_sakit: Role 'Sakit' tidak ditemukan.")
-            return await ctx.send("⚠️ Error: Role 'Sakit' tidak ditemukan di server ini.", ephemeral=True)
+            return await ctx.send("⚠️ Error: Role 'Sakit' tidak ditemukan di server ini. Pastikan ID role sudah benar.", ephemeral=True)
 
         now = datetime.utcnow()
         sick_list = []
