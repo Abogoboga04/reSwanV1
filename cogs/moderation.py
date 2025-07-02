@@ -82,6 +82,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         self.color_welcome = 0x9B59B6
         self.color_announce = 0x7289DA # Warna baru untuk announcement
         
+        # Menggunakan load_data secara langsung
         self.settings = load_data(self.settings_file)
         self.filters = load_data(self.filters_file)
         self.warnings = load_data(self.warnings_file)
@@ -97,11 +98,13 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 "log_channel_id": None, "reaction_roles": {},
                 "channel_rules": {}
             }
-            self.save_settings()
+            # Memanggil save_data secara langsung
+            save_data(self.settings_file, self.settings) 
             print(f"[{datetime.now()}] [DEBUG ADMIN] Pengaturan default dibuat untuk guild {guild_id}.")
         elif "channel_rules" not in self.settings[guild_id_str]:
             self.settings[guild_id_str]["channel_rules"] = {}
-            self.save_settings()
+            # Memanggil save_data secara langsung
+            save_data(self.settings_file, self.settings) 
             print(f"[{datetime.now()}] [DEBUG ADMIN] Aturan channel ditambahkan untuk guild {guild_id}.")
         return self.settings[guild_id_str]
 
@@ -113,21 +116,24 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 "disallow_bots": False, "disallow_media": False, "disallow_prefix": False,
                 "disallow_url": False, "auto_delete_seconds": 0
             }
-            self.save_settings()
+            # Memanggil save_data secara langsung
+            save_data(self.settings_file, self.settings) 
             print(f"[{datetime.now()}] [DEBUG ADMIN] Aturan default dibuat untuk channel {channel_id} di guild {guild_id}.")
         return guild_settings["channel_rules"][channel_id_str]
-
+        
     def get_guild_filters(self, guild_id: int):
         guild_id_str = str(guild_id)
         if guild_id_str not in self.filters:
             self.filters[guild_id_str] = { "bad_words": [], "link_patterns": [] }
-            self.save_filters()
+            # Memanggil save_data secara langsung
+            save_data(self.filters_file, self.filters) 
             print(f"[{datetime.now()}] [DEBUG ADMIN] Filter default dibuat untuk guild {guild_id}.")
         return self.filters[guild_id_str]
         
-    def save_settings(self): self.save_data(self.settings_file, self.settings)
-    def save_filters(self): self.save_data(self.filters_file, self.filters)
-    def save_warnings(self): self.save_data(self.warnings_file, self.warnings)
+    # Menggunakan save_data secara langsung
+    def save_settings(self): save_data(self.settings_file, self.settings)
+    def save_filters(self): save_data(self.filters_file, self.filters)
+    def save_warnings(self): save_data(self.warnings_file, self.warnings)
 
     # --- Helper Methods for UI & Logging ---
     def _create_embed(self, title: str = "", description: str = "", color: int = 0, author_name: str = "", author_icon_url: str = ""):
@@ -156,7 +162,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        print(f"[{datetime.now()}] [DEBUG ADMIN] on_command_error dipicu untuk command '{ctx.command}' oleh {ctx.author.display_name}. Error type: {type(error).__name__}.")
+        print(f"[{datetime.now()}] [DEBUG ADMIN] on_command_error dipicu untuk command '{ctx.command}': {type(error).__name__}.")
         if isinstance(error, commands.MissingPermissions):
             embed = self._create_embed(description=f"❌ Anda tidak memiliki izin `{', '.join(error.missing_permissions)}` untuk menjalankan perintah ini.", color=self.color_error)
             await ctx.send(embed=embed, delete_after=15)
@@ -175,7 +181,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             print(f"[{datetime.now()}] [DEBUG ADMIN] Error: BadArgument. Pesan dikirim.")
         else:
             print(f"[{datetime.now()}] [DEBUG ADMIN] Error tak terduga pada perintah '{ctx.command}': {error}", file=sys.stderr)
-            # Ini adalah fallback jika ada error yang tidak tertangkap oleh handler spesifik
             # Baris raise error ini ada di main.py, bukan di sini, untuk mencetak traceback penuh
             # await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan tak terduga: {error}", color=self.color_error), ephemeral=True)
 
@@ -243,11 +248,23 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             return
         
         # Perbaiki agar tidak memblokir perintah bot
-        if rules.get("disallow_prefix") and message.content.startswith(self.bot.command_prefix): # Hanya cek prefix bot yang sedang dipakai
-            # Kita hanya ingin menghapus pesan yang BUKAN perintah yang valid
-            # Jika itu perintah yang valid, biarkan bot.process_commands yang menanganinya
-            ctx = await self.bot.get_context(message)
-            if ctx.command is None: # Jika pesan diawali prefix tapi bukan command yang valid
+        # Menggunakan bot.get_context() untuk memverifikasi apakah ini command yang valid
+        if message.content and message.content.startswith(self.bot.command_prefix): 
+            # Dapatkan semua prefix yang digunakan bot
+            command_prefixes = await self.bot.get_prefix(message)
+            if not isinstance(command_prefixes, list): # Pastikan command_prefixes adalah list
+                command_prefixes = [command_prefixes]
+
+            is_actual_command = False
+            for prefix in command_prefixes:
+                if message.content.startswith(prefix):
+                    # Coba dapatkan command dari pesan
+                    command_name = message.content[len(prefix):].split(' ')[0]
+                    if self.bot.get_command(command_name):
+                        is_actual_command = True
+                        break
+            
+            if rules.get("disallow_prefix") and not is_actual_command: # Jika disallow_prefix aktif DAN ini BUKAN command yang valid
                 await message.delete()
                 await message.channel.send(embed=self._create_embed(description=f"❗ {message.author.mention}, dilarang menggunakan perintah bot di channel ini.", color=self.color_warning), delete_after=10)
                 await self.log_action(message.guild, "❗ Perintah Bot Dihapus", log_fields, self.color_warning)
@@ -321,10 +338,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         if payload.guild_id is None: return
         guild = self.bot.get_guild(payload.guild_id)
-        if not guild: return
-        
-        member = guild.get_member(payload.user_id) # Perlu fetch member karena payload.member bisa None
-        if not member or member.bot: return
+        if not guild or not (member := guild.get_member(payload.user_id)) or member.bot: return
         print(f"[{datetime.now()}] [DEBUG ADMIN] on_raw_reaction_remove dipicu oleh {member.display_name} di guild {payload.guild_id}.")
 
         guild_settings = self.get_guild_settings(payload.guild_id)
@@ -546,9 +560,12 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     @commands.has_permissions(moderate_members=True)
     async def timeout(self, ctx, member: discord.Member, duration: str, *, reason: Optional[str] = "Tidak ada alasan."):
         print(f"[{datetime.now()}] [DEBUG ADMIN] Command !timeout dipanggil oleh {ctx.author.display_name} untuk {member.display_name} selama {duration}.")
-        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada anggota dengan role setara atau lebih tinggi.", color=self.color_error)); return
-        if member.id == ctx.guild.owner.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada pemilik server.", color=self.color_error)); return
-        if member.id == self.bot.user.id: await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada bot ini sendiri.", color=self.color_error)); return
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner: 
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada anggota dengan role setara atau lebih tinggi.", color=self.color_error)); return
+        if member.id == ctx.guild.owner.id: 
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada pemilik server.", color=self.color_error)); return
+        if member.id == self.bot.user.id: 
+            await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada bot ini sendiri.", color=self.color_error)); return
 
         delta = parse_duration(duration)
         if not delta: await ctx.send(embed=self._create_embed(description="❌ Format durasi tidak valid. Gunakan `s` (detik), `m` (menit), `h` (jam), `d` (hari). Contoh: `10m`.", color=self.color_error)); return
@@ -1124,7 +1141,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         """
         print(f"[{datetime.now()}] [DEBUG ADMIN] Command !announce dipanggil oleh {ctx.author.display_name} untuk channel: '{channel_identifier}'.")
         # Hardcode the GitHub Raw URL for the announcement description
-        GITHUB_RAW_DESCRIPTION_URL = "https://raw.githubusercontent.com/Abogoboga04/OpenAI/refs/heads/main/announcement.txt" # URL yang Anda berikan
+        GITHUB_RAW_DESCRIPTION_URL = "https://raw.githubusercontent.com/Abogoboga04/OpenAI/refs/heads/main/announcement.txt" 
         print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Menggunakan GitHub Raw URL: {GITHUB_RAW_DESCRIPTION_URL}.")
 
         # --- Parsing Channel from Command Argument ---
@@ -1134,12 +1151,12 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             try:
                 channel_id = int(channel_identifier[2:-1])
                 target_channel = ctx.guild.get_channel(channel_id) 
-                if not target_channel: # Coba dapatkan dari bot cache jika tidak ada di guild saat ini
+                if not target_channel: 
                     target_channel = self.bot.get_channel(channel_id)
                 print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Channel diidentifikasi via mention sebagai ID: {channel_id}.")
             except ValueError:
                 print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Gagal parsing mention channel. Mencoba ID mentah.")
-                pass # Invalid channel mention, proceed to try fetching by ID
+                pass 
         
         # Jika tidak ditemukan oleh mention, coba parse sebagai ID channel mentah
         if not target_channel and channel_identifier.isdigit():
@@ -1147,11 +1164,11 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 channel_id = int(channel_identifier)
                 target_channel = ctx.guild.get_channel(channel_id)
                 if not target_channel:
-                    target_channel = self.bot.get_channel(channel_id) # Coba cache bot global
+                    target_channel = self.bot.get_channel(channel_id) 
                 print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Channel diidentifikasi via ID: {channel_id}.")
             except ValueError:
                 print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Gagal parsing ID channel mentah.")
-                pass # Not a valid ID
+                pass 
 
         if not target_channel or not isinstance(target_channel, discord.TextChannel):
             print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Channel target '{channel_identifier}' tidak ditemukan atau bukan channel teks yang valid.")
@@ -1333,9 +1350,8 @@ class AnnounceButtonView(discord.ui.View):
             return await interaction.response.send_message("Hanya orang yang memulai perintah yang dapat membuat pengumuman ini.", ephemeral=True)
         
         # Check permissions again just in case (though command already checks)
-        # Note: `interaction.user.guild_permissions` hanya bekerja jika interaksi terjadi di guild.
-        # Untuk kasus modal, ini harusnya selalu di guild, tapi `original_ctx.author.guild_permissions` lebih aman
-        if not self.original_ctx.author.guild_permissions.manage_guild: # Cek izin dari pemanggil asli
+        # Menggunakan original_ctx.author.guild_permissions yang lebih aman
+        if not self.original_ctx.author.guild_permissions.manage_guild: 
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pemanggil asli kekurangan izin 'Manage Server', blokir.")
             return await interaction.response.send_message("Anda tidak memiliki izin `Manage Server` untuk membuat pengumuman.", ephemeral=True)
         
@@ -1356,20 +1372,13 @@ class AnnounceButtonView(discord.ui.View):
             item.disabled = True
         try:
             # Edit the original message to reflect the disabled buttons
-            # await self.original_ctx.edit_original_response(view=self) # original_ctx tidak punya edit_original_response
-            # Jika pesan aslinya adalah respons dari command (bukan interaksi), maka itu adalah ctx.message
-            # Jika ini view dari respons interaction, maka interaction.message
-            # Cara paling aman adalah menyimpannya di __init__ jika memungkinkan.
-            # Untuk saat ini, kita biarkan saja atau tambahkan try-except
-            if self.message: # jika Anda menyimpannya seperti: self.message = await original_ctx.send(...)
-                await self.message.edit(view=self)
-            else: # Jika view dibuat dari interaction.response.send_message(view=...)
-                # Ini akan menyebabkan error jika pesan sudah ephemeral/sudah direspon
-                # Lebih aman tidak edit jika sudah timeout.
-                pass 
+            # Menggunakan interaction.message yang merupakan pesan yang berisi view ini
+            # Asumsi pesan ini adalah pesan respons dari ctx.send()
+            await self.message.edit(view=self) # Jika self.message disimpan di __init__
+            print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pesan view dinonaktifkan.")
         except discord.NotFound:
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pesan view tidak ditemukan saat timeout.")
-            pass # Original message might have been deleted, ignore
+            pass 
         except Exception as e:
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: ERROR saat menonaktifkan tombol pada timeout: {e}.", file=sys.stderr)
 
