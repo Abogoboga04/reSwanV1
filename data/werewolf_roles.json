@@ -4,61 +4,121 @@
             "description": "Berburu warga di malam hari. Tujuannya adalah mengeliminasi semua warga.",
             "team": "Werewolf",
             "color": "#800000",
-            "icon": "🐺"
+            "icon": "🐺",
+            "action_prompt": "Siapa yang ingin kamu bunuh malam ini? Kirim `!bunuh warga <nomor_pemain>`.",
+            "dm_command": "!bunuh warga",
+            "can_target_self": false,
+            "order": 1,
+            "night_action_order": 2,
+            "goal": "Musnahkan semua penduduk desa!"
         },
         "Warga Polos": {
             "description": "Warga biasa tanpa kemampuan khusus. Tujuannya adalah menemukan dan menggantung Werewolf.",
-            "team": "Warga",
+            "team": "Village",
             "color": "#008000",
-            "icon": "👨‍🌾"
+            "icon": "👨‍🌾",
+            "action_prompt": null,
+            "dm_command": null,
+            "can_target_self": false,
+            "order": 99,
+            "night_action_order": null,
+            "goal": "Temukan Werewolf dan bantu penduduk desa menggantung mereka!"
         },
         "Dokter": {
             "description": "Setiap malam, bisa melindungi satu pemain dari serangan Werewolf.",
-            "team": "Warga",
+            "team": "Village",
             "color": "#FFC0CB",
-            "icon": "👩‍⚕️"
+            "icon": "👩‍⚕️",
+            "action_prompt": "Siapa yang ingin kamu lindungi malam ini? Kirim `!lindungi warga <nomor_pemain>`.",
+            "dm_command": "!lindungi warga",
+            "can_target_self": true,
+            "order": 3,
+            "night_action_order": 1,
+            "goal": "Lindungi penduduk desa dan singkirkan Werewolf!"
         },
         "Peramal": {
             "description": "Setiap malam, bisa memilih satu pemain untuk mengetahui perannya.",
-            "team": "Warga",
+            "team": "Village",
             "color": "#8A2BE2",
-            "icon": "🔮"
+            "icon": "🔮",
+            "action_prompt": "Siapa yang ingin kamu cek perannya malam ini? Kirim `!cek warga <nomor_pemain>`.",
+            "dm_command": "!cek warga",
+            "can_target_self": true,
+            "order": 4,
+            "night_action_order": 3,
+            "goal": "Temukan Werewolf dan bantu penduduk desa menggantung mereka!"
         },
         "Pemburu": {
             "description": "Jika mati digantung atau dibunuh Werewolf, bisa menembak satu pemain lain.",
-            "team": "Warga",
+            "team": "Village",
             "color": "#FF8C00",
-            "icon": "🏹"
+            "icon": "🏹",
+            "action_prompt": "Kamu telah mati! Siapa yang ingin kamu tembak sebagai pembalasan? Kirim `!tembak warga <nomor_pemain>`.",
+            "dm_command": "!tembak warga",
+            "can_target_self": false,
+            "order": 6,
+            "night_action_order": null,
+            "goal": "Lindungi penduduk desa, dan jika mati, balas dendam dengan menembak Werewolf!"
         },
         "Penyihir": {
             "description": "Memiliki satu ramuan pembunuh dan satu ramuan penyelamat. Hanya bisa digunakan sekali seumur hidup.",
-            "team": "Warga",
+            "team": "Village",
             "color": "#800080",
-            "icon": "🧙‍♀️"
+            "icon": "🧙‍♀️",
+            "action_prompt": "Pilih aksimu malam ini: `!hidupkan warga <nomor_pemain>` atau `!racun warga <nomor_pemain>`.",
+            "dm_command": "!hidupkan warga / !racun warga",
+            "can_target_self": true,
+            "order": 5,
+            "night_action_order": 5,
+            "goal": "Manfaatkan ramuanmu dengan bijak untuk membantu penduduk desa menang!"
         },
         "Alpha Werewolf": {
             "description": "Werewolf pemimpin. Jika dia satu-satunya Werewolf yang tersisa, kemampuannya meningkat.",
             "team": "Werewolf",
             "color": "#B22222",
-            "icon": "👑🐺"
+            "icon": "👑🐺",
+            "action_prompt": "Sebagai Alpha, kamu memimpin kawanan. Siapa yang ingin kamu bunuh malam ini? Kirim `!bunuh warga <nomor_pemain>`.",
+            "dm_command": "!bunuh warga",
+            "can_target_self": false,
+            "order": 0,
+            "night_action_order": 2,
+            "goal": "Pimpin kawanan Werewolf menuju dominasi total!"
         },
         "Penjaga Malam": {
-            "description": "Setiap malam, bisa memilih satu pemain untuk melindunginya dari lynching di siang hari.",
-            "team": "Warga",
+            "description": "Setiap malam, bisa memilih satu pemain untuk melindunginya dari lynching di siang hari. Tidak bisa menjaga orang yang sama dua kali berturut-turut.",
+            "team": "Village",
             "color": "#4682B4",
-            "icon": "🛡️"
+            "icon": "🛡️",
+            "action_prompt": "Siapa yang ingin kamu jaga dari hukuman gantung siang nanti? Kirim `!jaga warga <nomor_pemain>`.",
+            "dm_command": "!jaga warga",
+            "can_target_self": true,
+            "order": 7,
+            "night_action_order": 4,
+            "goal": "Pastikan penduduk desa aman dari teror siang Werewolf."
         },
         "Ksatria Suci": {
             "description": "Memiliki pedang suci yang bisa membunuh Werewolf sekali dalam game.",
-            "team": "Warga",
+            "team": "Village",
             "color": "#FFD700",
-            "icon": "⚔️"
+            "icon": "⚔️",
+            "action_prompt": "Apakah kamu ingin menggunakan pedang suci untuk membunuh Werewolf? Kirim `!tusuk warga <nomor_pemain>`.",
+            "dm_command": "!tusuk warga",
+            "can_target_self": false,
+            "order": 8,
+            "night_action_order": null,
+            "goal": "Lindungi yang tidak bersalah dan singkap kegelapan dengan kekuatan suci."
         },
         "Mata-Mata Werewolf": {
             "description": "Berpihak pada Werewolf, tapi terlihat sebagai Warga bagi Peramal. Sangat licik.",
             "team": "Werewolf",
             "color": "#696969",
-            "icon": "🕵️"
+            "icon": "🕵️",
+            "action_prompt": "Siapa yang ingin kamu mata-matai malam ini? Kirim `!mata-mata warga <nomor_pemain>`.",
+            "dm_command": "!mata-mata warga",
+            "can_target_self": false,
+            "order": 9,
+            "night_action_order": 7,
+            "goal": "Kumpulkan informasi untuk Werewolf dan bantu mereka menipu desa."
         }
     }
 }
