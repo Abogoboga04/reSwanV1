@@ -7,43 +7,23 @@ import os
 from datetime import datetime, time, timedelta
 import string
 import pytz # Import pytz untuk zona waktu
+import sys # Untuk stderr
 
-# Impor Music cog (pastikan file music.py ada di folder yang sama dengan games_global_events.py, yaitu 'cogs')
-# from .music import Music 
-
-# --- Helper Functions (Diulang agar cog ini mandiri) ---
+# --- Helper Functions ---
 def load_json_from_root(file_path, default_value=None):
-    """
-    Memuat data JSON dari file yang berada di root direktori proyek bot.
-    Menambahkan `default_value` yang lebih fleksibel.
-    """
+    """Memuat data JSON dari file yang berada di root direktori proyek bot."""
     try:
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         full_path = os.path.join(base_dir, file_path)
-        os.makedirs(os.path.dirname(full_path), exist_ok=True) # Pastikan direktori 'data/' ada
+        os.makedirs(os.path.dirname(full_path), exist_ok=True) # Pastikan direktori ada
         with open(full_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
         print(f"[{datetime.now()}] [DEBUG HELPER] Peringatan: File {full_path} tidak ditemukan. Menggunakan nilai default.")
-        if default_value is not None:
-            return default_value
-        if 'bank_data.json' in file_path or 'level_data.json' in file_path or 'sick_users_cooldown.json' in file_path or 'protected_users' in file_path or 'inventory.json' in file_path: 
-            return {}
-        # Untuk monsters, anomalies, medicines, default adalah list kosong jika file tidak ditemukan
-        elif 'monsters.json' in file_path: return {"monsters": [], "monster_quiz": []}
-        elif 'world_anomalies.json' in file_path: return {"anomalies": []}
-        elif 'medicines.json' in file_path: return {"medicines": []}
-        return [] 
+        return default_value if default_value is not None else {} 
     except json.JSONDecodeError:
         print(f"[{datetime.now()}] [DEBUG HELPER] Peringatan: File {full_path} rusak (JSON tidak valid). Menggunakan nilai default.")
-        if default_value is not None:
-            return default_value
-        if 'bank_data.json' in file_path or 'level_data.json' in file_path or 'sick_users_cooldown.json' in file_path or 'protected_users' in file_path or 'inventory.json' in file_path: 
-            return {}
-        elif 'monsters.json' in file_path: return {"monsters": [], "monster_quiz": []}
-        elif 'world_anomalies.json' in file_path: return {"anomalies": []}
-        elif 'medicines.json' in file_path: return {"medicines": []}
-        return [] 
+        return default_value if default_value is not None else {}
 
 def save_json_to_root(data, file_path):
     """Menyimpan data ke file JSON di root direktori proyek."""
@@ -98,9 +78,6 @@ class WerewolfMediaSetupModal(discord.ui.Modal):
         self.add_item(URLInput("Game Start Audio URL (MP3/WebM)", "url_game_start_audio", "URL audio untuk awal game", current_audio_urls.get('game_start_audio_url', '')))
         self.add_item(URLInput("Night Phase Audio URL (MP3/WebM)", "url_night_phase_audio", "URL audio untuk fase malam", current_audio_urls.get('night_phase_audio_url', '')))
         self.add_item(URLInput("Day Phase Audio URL (MP3/WebM)", "url_day_phase_audio", "URL audio untuk fase siang", current_audio_urls.get('day_phase_audio_url', '')))
-        # Menghapus input untuk vote_phase_audio_url dan game_end_audio_url
-        # self.add_item(URLInput("Vote Phase Audio URL (MP3/WebM)", "url_vote_phase_audio", "URL audio untuk fase voting", current_audio_urls.get('vote_phase_audio_url', '')))
-        # self.add_item(URLInput("Game End Audio URL (MP3/WebM)", "url_game_end_audio", "URL audio untuk akhir game", current_audio_urls.get('game_end_audio_url', '')))
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -111,18 +88,12 @@ class WerewolfMediaSetupModal(discord.ui.Modal):
             'night_phase_image_url': self.children[1].value or None,
             'day_phase_image_url': self.children[2].value or None,
             'night_resolution_image_url': self.children[3].value or None,
-            # Menghapus werewolf_win_image_url dan villager_win_image_url
-            # 'werewolf_win_image_url': self.children[4].value or None,
-            # 'villager_win_image_url': self.children[5].value or None
         }
 
         global_config_ref['audio_urls'] = {
-            'game_start_audio_url': self.children[4].value or None, # Index disesuaikan
-            'night_phase_audio_url': self.children[5].value or None, # Index disesuaikan
-            'day_phase_audio_url': self.children[6].value or None, # Index disesuaikan
-            # Menghapus vote_phase_audio_url dan game_end_audio_url
-            # 'vote_phase_audio_url': self.children[7].value or None,
-            # 'game_end_audio_url': self.children[8].value or None
+            'game_start_audio_url': self.children[4].value or None,
+            'night_phase_audio_url': self.children[5].value or None,
+            'day_phase_audio_url': self.children[6].value or None,
         }
         
         save_json_to_root(self.game_cog.global_werewolf_config, 'data/global_werewolf_config.json')
@@ -151,7 +122,8 @@ class WerewolfRoleSetupView(discord.ui.View):
         self.game_cog = game_cog
         self.channel_id = channel_id
         self.total_players = total_players
-        self.selected_roles = current_config.get('roles', {}).copy()
+        # Pastikan selected_roles selalu berupa dictionary
+        self.selected_roles = current_config.get('roles', {}).copy() 
         
         global_media_config = game_cog.global_werewolf_config.get('default_config', {})
         self.image_urls = global_media_config.get('image_urls', {}).copy() 
@@ -171,6 +143,9 @@ class WerewolfRoleSetupView(discord.ui.View):
         
         roles_to_display = [role for role in self.available_roles.keys() if role != "Warga Polos"]
         
+        # Sort roles for consistent display
+        roles_to_display.sort(key=lambda r: self.game_cog.werewolf_roles_data['roles'][r].get('order', 99))
+
         for i, role_name in enumerate(roles_to_display):
             current_value = self.selected_roles.get(role_name, 0)
             self.add_item(RoleSelect(role_name, current_value, self.total_players))
@@ -188,14 +163,14 @@ class WerewolfRoleSetupView(discord.ui.View):
             warnings.append("⛔ Tidak ada Werewolf! Game mungkin tidak valid atau membosankan.")
         if werewolf_count > 0 and werewolf_count >= (self.total_players / 2):
             warnings.append("⛔ Jumlah Werewolf terlalu banyak (>= 50% pemain)! Game mungkin tidak seimbang.")
-        if villager_count < 1 and self.total_players > werewolf_count:
-            warnings.append("⚠️ Tidak ada Warga Polos murni tersisa! Game tidak valid.")
+        if villager_count < 0: # Bisa negatif jika special roles > total_players
+            warnings.append("⚠️ Jumlah Warga Polos murni negatif! Pastikan total peran khusus tidak melebihi total pemain.")
         if self.total_players < 3: 
             warnings.append("⚠️ Jumlah pemain terlalu sedikit untuk distribusi peran yang bermakna.")
         
         return villager_count, warnings
 
-    def create_embed(self): # Dibuat fungsi terpisah agar bisa dipanggil dari modal on_submit
+    def create_embed(self): 
         villager_count, warnings = self.calculate_balance()
         
         embed = discord.Embed(
@@ -205,12 +180,16 @@ class WerewolfRoleSetupView(discord.ui.View):
         )
         
         roles_text = ""
-        for role_name in self.available_roles.keys():
+        # Get roles sorted by 'order' from werewolf_roles_data
+        sorted_role_names = sorted(self.available_roles.keys(), 
+                                   key=lambda r: self.available_roles[r].get('order', 99))
+
+        for role_name in sorted_role_names:
             if role_name == "Warga Polos":
                 continue
             count = self.selected_roles.get(role_name, 0)
             roles_text += f"- **{role_name}**: `{count}`\n"
-        roles_text += f"- **Warga Polos**: `{villager_count}` (Otomatis Dihitung)\n\n"
+        roles_text += f"- **Warga Polos**: `{max(0, villager_count)}` (Otomatis Dihitung)\n\n"
         
         if warnings:
             roles_text += "\n" + "\n".join(warnings)
@@ -225,21 +204,15 @@ class WerewolfRoleSetupView(discord.ui.View):
         if self.image_urls.get('night_phase_image_url'): image_summary += "✅ Night Image\n"
         if self.image_urls.get('day_phase_image_url'): image_summary += "✅ Day Image\n"
         if self.image_urls.get('night_resolution_image_url'): image_summary += "✅ Night Resolution Image\n"
-        # Menghapus display untuk werewolf_win_image_url dan villager_win_image_url
-        # if self.image_urls.get('werewolf_win_image_url'): image_summary += "✅ Werewolf Win Image\n"
-        # if self.image_urls.get('villager_win_image_url'): image_summary += "✅ Villager Win Image\n"
         if image_summary:
-            embed.add_field(name="Status Gambar/GIF (Global)", value=image_summary, inline=False)
+            embed.add_field(name="Status Gambar/GIF (Global)", value=image_summary, inline=True)
 
         audio_summary = ""
         if self.audio_urls.get('game_start_audio_url'): audio_summary += "🎵 Game Start Audio\n"
         if self.audio_urls.get('night_phase_audio_url'): audio_summary += "🎵 Night Audio\n"
         if self.audio_urls.get('day_phase_audio_url'): audio_summary += "🎵 Day Audio\n"
-        # Menghapus display untuk vote_phase_audio_url dan game_end_audio_url
-        # if self.audio_urls.get('vote_phase_audio_url'): audio_summary += "🎵 Vote Audio\n"
-        # if self.audio_urls.get('game_end_audio_url'): audio_summary += "🎵 Game End Audio\n"
         if audio_summary:
-            embed.add_field(name="Status Audio (Global - MP3/WebM)", value=audio_summary, inline=False)
+            embed.add_field(name="Status Audio (Global - MP3/WebM)", value=audio_summary, inline=True)
         
         return embed
 
@@ -253,10 +226,10 @@ class WerewolfRoleSetupView(discord.ui.View):
     async def setup_media_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Tombol 'Atur Media Game' diklik oleh {interaction.user.display_name}.")
         game_state = self.game_cog.werewolf_game_states.get(interaction.channel.id)
-        # Hanya host game yang sedang aktif di channel ini yang bisa memanggil setup
-        if not game_state or interaction.user.id != game_state['host'].id:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Bukan host atau game tidak aktif, blokir pengaturan media.")
-            return await interaction.response.send_message("Hanya host game Werewolf yang aktif di channel ini yang bisa mengatur media global.", ephemeral=True)
+        # Hanya host game yang sedang aktif di channel ini ATAU admin server yang bisa memanggil setup
+        if not ((game_state and interaction.user.id == game_state['host'].id) or interaction.user.guild_permissions.manage_channels):
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Bukan host atau Admin, blokir pengaturan media.")
+            return await interaction.response.send_message("Hanya host game Werewolf yang aktif di channel ini atau admin server yang bisa mengatur media global.", ephemeral=True)
         
         await interaction.response.send_modal(WerewolfMediaSetupModal(self.game_cog, self.game_cog.global_werewolf_config.get('default_config', {})))
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Modal WerewolfMediaSetupModal dikirim.")
@@ -266,14 +239,14 @@ class WerewolfRoleSetupView(discord.ui.View):
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Tombol 'Selesai Mengatur' diklik oleh {interaction.user.display_name}.")
         game_state = self.game_cog.werewolf_game_states.get(interaction.channel.id)
         if not game_state or interaction.user.id != game_state['host'].id:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Bukan host atau game tidak aktif, blokir selesai pengaturan.")
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Bukan host, blokir selesai pengaturan.")
             return await interaction.response.send_message("Hanya host yang bisa menyelesaikan pengaturan peran.", ephemeral=True)
 
         await interaction.response.defer()
         
         villager_count, warnings = self.calculate_balance()
-        if warnings and (any("⚠️" in w for w in warnings) or any("⛔" in w for w in warnings)):
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Peringatan komposisi peran: {warnings}.")
+        if warnings and any("⛔" in w for w in warnings): # Hanya blokir jika ada peringatan kritis (⛔)
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Peringatan kritis komposisi peran: {warnings}.")
             await interaction.followup.send("Ada masalah kritis dengan komposisi peran yang dipilih. Mohon perbaiki sebelum melanjutkan.", ephemeral=True)
             return
 
@@ -301,7 +274,21 @@ class GamesGlobalEvents(commands.Cog):
         
         # --- Game States ---
         self.werewolf_join_queues = {} # {guild_id: {channel_id: [players]}}
-        self.werewolf_game_states = {} # {channel_id: {'players': [members], 'roles': {member.id: role}, 'phase': 'day'/'night', 'day_num': 1, 'active_players': set(), 'killed_this_night': None, 'voted_out_today': None, 'host': member, 'role_actions_pending': {}, 'timers': {}, 'vote_message': None, 'players_who_voted': set(), 'last_role_setup_message': None, 'voice_client': None, 'game_task': None, 'total_players': int}} 
+        self.werewolf_game_states = {} 
+        # {channel_id: {
+        # 'host': member, 'players': [members], 'roles': {member.id: role_name}, 'living_players': set(member.id),
+        # 'main_channel': discord.TextChannel, 'voice_channel': discord.VoiceChannel, 'voice_client': None,
+        # 'phase': 'day'/'night'/'voting'/'game_over', 'day_num': 1, 
+        # 'killed_this_night': None, 'voted_out_today': None, 
+        # 'role_actions_pending': {}, # {role_name: {member_id: target_id or None}} 
+        # 'role_actions_votes': {}, # {role_name: {target_id: [voter_ids]}} for WW group vote
+        # 'timers': {}, 
+        # 'vote_message': None, 'players_who_voted': set(), 
+        # 'last_role_setup_message': None, 'game_task': None, 
+        # 'player_map': {}, # {player_number: member_object} for DM commands
+        # 'reverse_player_map': {}, # {member_id: player_number} for convenience
+        # 'werewolf_dm_thread': None # For Werewolf group chat
+        # }} 
         self.active_werewolf_setup_messages = {} # {channel_id: message_id} to keep track of active setup messages
 
         # Wheel of Mad Fate States
@@ -318,30 +305,45 @@ class GamesGlobalEvents(commands.Cog):
             'data/global_werewolf_config.json', 
             default_value={
                 "default_config": {
-                    "roles": {}, 
+                    "roles": { # Default roles and counts for a balanced small game (e.g., 5-7 players)
+                        "Werewolf": 1,
+                        "Dokter": 1,
+                        "Peramal": 1,
+                        "Pengawal": 0 # Guard is optional for simpler games
+                    }, 
                     "image_urls": {
-                        "game_start_image_url": None, "night_phase_image_url": None,
-                        "day_phase_image_url": None, "night_resolution_image_url": None
-                        # Menghapus werewolf_win_image_url dan villager_win_image_url dari default
-                        # "werewolf_win_image_url": None,
-                        # "villager_win_image_url": None
+                        "game_start_image_url": "https://i.imgur.com/Gj3H2a4.gif", 
+                        "night_phase_image_url": "https://i.imgur.com/vH1B6jA.gif",
+                        "day_phase_image_url": "https://i.imgur.com/oWbWb2v.gif", 
+                        "night_resolution_image_url": "https://i.imgur.com/Yh3zY0A.gif"
                     }, 
                     "audio_urls": {
-                        "game_start_audio_url": None, "night_phase_audio_url": None,
+                        "game_start_audio_url": None, 
+                        "night_phase_audio_url": None,
                         "day_phase_audio_url": None
-                        # Menghapus vote_phase_audio_url dan game_end_audio_url dari default
-                        # "vote_phase_audio_url": None,
-                        # "game_end_audio_url": None
-                    }
+                    },
+                    "night_duration_seconds": 90, # Durasi malam untuk aksi DM
+                    "day_discussion_duration_seconds": 180, # Durasi diskusi siang
+                    "voting_duration_seconds": 60 # Durasi voting siang
                 }
             }
         )
-        self.werewolf_roles_data = load_json_from_root('data/werewolf_roles.json', default_value={"roles": {}})
-
+        self.werewolf_roles_data = load_json_from_root(
+            'data/werewolf_roles.json', 
+            default_value={
+                "roles": {
+                    "Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu bunuh malam ini?", "dm_command": "!bunuh warga", "can_target_self": False, "emoji": "🐺", "order": 1, "night_action_order": 2},
+                    "Dokter": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi malam ini?", "dm_command": "!lindungi warga", "can_target_self": True, "emoji": "⚕️", "order": 2, "night_action_order": 1},
+                    "Peramal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu cek perannya malam ini?", "dm_command": "!cek warga", "can_target_self": True, "emoji": "🔮", "order": 3, "night_action_order": 3},
+                    "Pengawal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu jaga dari hukuman mati siang nanti?", "dm_command": "!jaga warga", "can_target_self": True, "emoji": "🛡️", "order": 4, "night_action_order": 4},
+                    "Warga Polos": {"team": "Village", "action_prompt": None, "dm_command": None, "can_target_self": False, "emoji": "🧑‍🌾", "order": 5, "night_action_order": None}
+                }
+            }
+        )
         
         # --- Interaksi Cog Lain ---
-        self.dunia_cog = None # Akan diisi di on_ready listener dari DuniaHidup.py
-        self.music_cog = None # Akan diisi di on_ready listener dari music.py
+        self.dunia_cog = None 
+        self.music_cog = None 
 
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Cog GamesGlobalEvents diinisialisasi.")
 
@@ -362,7 +364,6 @@ class GamesGlobalEvents(commands.Cog):
         """Dipanggil saat cog dibongkar, membatalkan semua task loop."""
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Cog GamesGlobalEvents sedang dibongkar...")
         
-        # Batalkan task game yang mungkin sedang berjalan
         for channel_id in list(self.werewolf_game_states.keys()):
             game_state = self.werewolf_game_states.get(channel_id)
             if game_state and game_state.get('voice_client'):
@@ -387,26 +388,32 @@ class GamesGlobalEvents(commands.Cog):
         return 1
 
     async def give_rewards_with_bonus_check(self, user: discord.Member, guild_id: int, channel: discord.TextChannel = None, custom_rsw: int = None, custom_exp: int = None):
-        """
-        Memberikan hadiah RSWN dan EXP kepada pengguna, dengan pengecekan bonus anomali.
-        Ini adalah fungsi helper, bukan command.
-        """
+        """Memberikan hadiah RSWN dan EXP kepada pengguna, dengan pengecekan bonus anomali."""
         anomaly_multiplier = self.get_anomaly_multiplier()
         
-        # Untuk game ini, kita akan tentukan reward dasar langsung di sini
-        # Atau bisa ambil dari config di cog ini jika ada.
-        base_rsw = custom_rsw if custom_rsw is not None else 100 # Default reward Werewolf/Wheel
-        base_exp = custom_exp if custom_exp is not None else 100 # Default reward Werewolf/Wheel
+        base_rsw = custom_rsw if custom_rsw is not None else 100 
+        base_exp = custom_exp if custom_exp is not None else 100 
 
         final_rsw = int(base_rsw * anomaly_multiplier)
         final_exp = int(base_exp * anomaly_multiplier)
         
         if self.dunia_cog and hasattr(self.dunia_cog, 'give_rewards_base'):
-            self.dunia_cog.give_rewards_base(user, guild_id, final_rsw, final_exp)
+            self.dunia_cog.give_rewards_base(user, guild_id, final_rsw, final_exp) 
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Hadiah via DuniaHidup: {user.display_name} mendapat {final_rsw} RSWN & {final_exp} EXP.")
         else:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Peringatan: DuniaHidup cog atau give_rewards_base tidak ditemukan. Hadiah tidak disimpan untuk {user.display_name}.")
-            pass 
+            # Fallback jika DuniaHidup tidak ada/fungsi tidak ditemukan
+            bank_data = load_json_from_root('data/bank_data.json', default_value={})
+            level_data = load_json_from_root('data/level_data.json', default_value={})
+
+            user_id_str = str(user.id)
+            guild_id_str = str(guild_id)
+
+            bank_data.setdefault(user_id_str, {'balance': 0})['balance'] += final_rsw
+            level_data.setdefault(guild_id_str, {}).setdefault(user_id_str, {'exp': 0})['exp'] += final_exp
+            
+            save_json_to_root(bank_data, 'data/bank_data.json')
+            save_json_to_root(level_data, 'data/level_data.json')
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Hadiah (fallback): {user.display_name} mendapat {final_rsw} RSWN & {final_exp} EXP.")
 
         if anomaly_multiplier > 1 and channel:
             await channel.send(f"✨ **BONUS ANOMALI!** {user.mention} mendapatkan hadiah yang dilipatgandakan!", delete_after=15)
@@ -419,27 +426,17 @@ class GamesGlobalEvents(commands.Cog):
             await ctx.send("Maaf, sudah ada permainan dari grup game global (Werewolf/Roda Takdir/Balapan Kuda) lain di channel ini. Tunggu selesai ya!", ephemeral=True)
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Game dari cog ini sudah aktif di channel ini, blokir.")
             return False
-        self.active_games.add(ctx.channel.id)
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Game ditambahkan ke active_games (this cog). Current: {self.active_games}")
         return True
     
     async def _check_mimic_attack(self, ctx):
         """Memeriksa apakah ada serangan mimic yang memblokir game di channel ini (dari DuniaHidup)."""
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Memeriksa _check_mimic_attack untuk channel {ctx.channel.name} ({ctx.channel.id}).")
-        if self.dunia_cog and self.dunia_cog.active_mimic_attack_channel_id == ctx.channel.id:
+        if self.dunia_cog and hasattr(self.dunia_cog, 'mimic_effect_active_channel_id') and self.dunia_cog.mimic_effect_active_channel_id == ctx.channel.id:
             await ctx.send("💥 **SERANGAN MIMIC!** Permainan tidak bisa dimulai karena mimic sedang mengamuk di channel ini!", ephemeral=True)
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] MIMIC ATTACK aktif di channel ini, blokir game.")
             return True
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] MIMIC ATTACK tidak aktif di channel ini.")
-        return False
-
-    async def _check_mimic_effect(self, ctx):
-        """Memeriksa apakah event mimic yang memengaruhi jawaban sedang aktif di channel ini (dari DuniaHidup)."""
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Memeriksa _check_mimic_effect untuk channel {ctx.channel.name} ({ctx.channel.id}).")
-        if self.dunia_cog and self.dunia_cog.mimic_effect_active_channel_id == ctx.channel.id:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] MIMIC EFFECT pada jawaban aktif di channel ini.")
-            return True
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] MIMIC EFFECT pada jawaban tidak aktif di channel ini.")
         return False
 
     def end_game_cleanup_global(self, channel_id, game_type=None):
@@ -454,8 +451,17 @@ class GamesGlobalEvents(commands.Cog):
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Disconnect voice client Werewolf di channel {channel_id}.")
             if game_state and 'game_task' in game_state and not game_state['game_task'].done():
                 game_state['game_task'].cancel()
+            
+            # Hapus pesan setup jika ada
+            if game_state.get('last_role_setup_message'):
+                try:
+                    self.bot.loop.create_task(game_state['last_role_setup_message'].delete())
+                except discord.NotFound:
+                    pass
+            
             del self.werewolf_game_states[channel_id]
-            self.active_werewolf_setup_messages.pop(channel_id, None) # Hapus referensi pesan setup
+            self.active_werewolf_setup_messages.pop(channel_id, None) 
+            self.werewolf_join_queues.pop(channel_id, None) # Clear join queue too
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Cleanup Werewolf state untuk channel {channel_id}.")
         
         if game_type == 'horse_racing' and channel_id in self.horse_racing_states:
@@ -471,162 +477,940 @@ class GamesGlobalEvents(commands.Cog):
 
 
     # --- GAME: WEREWOLF ---
+    @commands.command(name="joinwerewolf", help="Bergabung ke antrean game Werewolf.")
+    async def join_werewolf(self, ctx):
+        print(f"[{datetime.now()}] [DEBUG WW] !joinwerewolf dipanggil oleh {ctx.author.display_name} di {ctx.channel.name}.")
+        if ctx.channel.id in self.active_games:
+            return await ctx.send("Sudah ada game aktif di channel ini. Kamu tidak bisa bergabung sekarang.", ephemeral=True)
+        
+        if not ctx.guild:
+            return await ctx.send("Werewolf hanya bisa dimainkan di server Discord.", ephemeral=True)
+
+        guild_id = ctx.guild.id
+        channel_id = ctx.channel.id
+
+        # Menggunakan channel_id sebagai key langsung di werewolf_join_queues
+        if channel_id not in self.werewolf_join_queues:
+            self.werewolf_join_queues[channel_id] = []
+        
+        if ctx.author not in self.werewolf_join_queues[channel_id]:
+            self.werewolf_join_queues[channel_id].append(ctx.author)
+            current_players = len(self.werewolf_join_queues[channel_id])
+            await ctx.send(f"**{ctx.author.display_name}** telah bergabung ke antrean Werewolf! ({current_players} pemain dalam antrean)")
+            print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} bergabung antrean Werewolf di channel {channel_id}.")
+        else:
+            await ctx.send(f"Kamu sudah ada di antrean Werewolf.", ephemeral=True)
+
+    @commands.command(name="leavewerewolf", help="Keluar dari antrean game Werewolf.")
+    async def leave_werewolf(self, ctx):
+        print(f"[{datetime.now()}] [DEBUG WW] !leavewerewolf dipanggil oleh {ctx.author.display_name} di {ctx.channel.name}.")
+        channel_id = ctx.channel.id
+        if channel_id in self.werewolf_join_queues and ctx.author in self.werewolf_join_queues[channel_id]:
+            self.werewolf_join_queues[channel_id].remove(ctx.author)
+            current_players = len(self.werewolf_join_queues[channel_id])
+            await ctx.send(f"**{ctx.author.display_name}** telah keluar dari antrean Werewolf. ({current_players} pemain tersisa)")
+            print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} keluar antrean Werewolf di channel {channel_id}.")
+            if current_players == 0:
+                del self.werewolf_join_queues[channel_id]
+        else:
+            await ctx.send("Kamu tidak ada di antrean Werewolf.", ephemeral=True)
+
     @commands.command(name="setwerewolf", help="[Admin/Host] Atur peran dan media game Werewolf global.")
     async def set_werewolf_config(self, ctx):
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Command !setwerewolf dipanggil oleh {ctx.author.display_name} di channel: {ctx.channel.name} ({ctx.channel.id}).")
         
         game_state = self.werewolf_game_states.get(ctx.channel.id)
-        if not (game_state and ctx.author.id == game_state['host'].id) and not ctx.author.guild_permissions.manage_channels:
+        # Hanya host game yang sedang aktif di channel ini ATAU admin server yang bisa memanggil setup
+        if not ((game_state and ctx.author.id == game_state['host'].id) or ctx.author.guild_permissions.manage_channels):
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !setwerewolf: Bukan host atau Admin, blokir.")
             return await ctx.send("Hanya host game Werewolf yang aktif di channel ini atau admin server yang bisa mengatur konfigurasi.", ephemeral=True)
 
-        total_players_for_setup = game_state.get('total_players', 0) if game_state else 0 
+        # Jika ada antrean join, gunakan jumlah pemain dari antrean sebagai total pemain untuk setup awal
+        total_players_for_setup = len(self.werewolf_join_queues.get(ctx.channel.id, []))
+        if game_state: # If a game is already in progress, use its current player count
+            total_players_for_setup = len(game_state['living_players']) + len(game_state['dead_players'])
 
         initial_view = WerewolfRoleSetupView(self, ctx.channel.id, total_players_for_setup, self.global_werewolf_config.get('default_config', {}))
         message = await ctx.send(embed=initial_view.create_embed(), view=initial_view)
-        self.active_werewolf_setup_messages[ctx.channel.id] = message.id # Simpan ID pesan setup
+        # Simpan ID pesan setup ke dalam game state jika game sudah ada, atau ke active_werewolf_setup_messages
+        if game_state:
+            game_state['last_role_setup_message'] = message
+        self.active_werewolf_setup_messages[ctx.channel.id] = message.id 
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Menu setup Werewolf dikirim ke channel {ctx.channel.name}.")
 
 
-    @commands.command(name="startwerewolf", help="Mulai game Werewolf (simulasi alur).")
-    @commands.cooldown(1, 30, commands.BucketType.channel) 
-    async def start_werewolf_game_example(self, ctx):
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Command !startwerewolf dipanggil oleh {ctx.author.display_name} di channel: {ctx.channel.name} ({ctx.channel.id})")
+    @commands.command(name="forcestartwerewolf", help="[Host] Memulai game Werewolf dengan pemain di antrean.")
+    @commands.cooldown(1, 30, commands.BucketType.channel)
+    async def force_start_werewolf_game(self, ctx):
+        print(f"[{datetime.now()}] [DEBUG WW] !forcestartwerewolf dipanggil oleh {ctx.author.display_name} di {ctx.channel.name}.")
         if await self._check_mimic_attack(ctx): return 
         if not await self.start_game_check_global(ctx): return
+
+        channel_id = ctx.channel.id
+        guild = ctx.guild
+
+        if channel_id not in self.werewolf_join_queues or not self.werewolf_join_queues[channel_id]:
+            return await ctx.send("Tidak ada pemain di antrean untuk memulai game. Gunakan `!joinwerewolf` dulu!", ephemeral=True)
         
-        self.werewolf_game_states[ctx.channel.id] = {
-            'host': ctx.author,
-            'players': [], 
-            'voice_client': None,
-            'game_task': None,
-            'total_players': 0 
-        }
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: State game awal diinisialisasi.")
+        queued_players = self.werewolf_join_queues[channel_id]
         
+        # Ambil pemain yang benar-benar ada di VC
         if not ctx.author.voice or not ctx.author.voice.channel:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Pemanggil tidak di voice channel.")
-            self.end_game_cleanup_global(ctx.channel.id, game_type='werewolf')
-            return await ctx.send("Untuk bermain Werewolf, kamu dan pemain lain harus berada di **voice channel** yang sama!", ephemeral=True)
+            return await ctx.send("Untuk memulai Werewolf, kamu (host) harus berada di **voice channel**!", ephemeral=True)
 
         vc_channel = ctx.author.voice.channel
-        game_players = [m for m in vc_channel.members if not m.bot]
-        self.werewolf_game_states[ctx.channel.id]['players'] = game_players
-        self.werewolf_game_states[ctx.channel.id]['total_players'] = len(game_players)
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Pemain di VC ditemukan: {len(game_players)}.")
-
-        players_in_vc = [m for m in vc_channel.members if not m.bot and m in game_players]
         
-        if len(players_in_vc) < 3:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Jumlah pemain di VC kurang dari 3. ({len(players_in_vc)} pemain).")
-            self.end_game_cleanup_global(ctx.channel.id, game_type='werewolf')
-            return await ctx.send("Jumlah pemain di voice channel terlalu sedikit untuk memulai game Werewolf. Minimal 3 pemain aktif!", ephemeral=True)
-
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Pengecekan awal berhasil. Mencoba bergabung VC.")
+        # Filter pemain yang ada di VC yang sama dengan host
+        game_players_raw = [m for m in vc_channel.members if not m.bot and m in queued_players]
         
+        if len(game_players_raw) < 3: # Minimum 3 pemain untuk game ini
+            return await ctx.send(f"Jumlah pemain di voice channel ({len(game_players_raw)}) terlalu sedikit untuk memulai game Werewolf. Minimal 3 pemain aktif!", ephemeral=True)
+        
+        # Konfirmasi apakah host mau melanjutkan dengan pemain yang difilter
+        confirm_embed = discord.Embed(
+            title="Konfirmasi Mulai Game Werewolf",
+            description=(f"Akan memulai game Werewolf dengan **{len(game_players_raw)} pemain** yang saat ini berada di voice channel **{vc_channel.name}**.\n\n"
+                         "Pemain yang akan bermain:\n" + "\n".join([p.mention for p in game_players_raw])),
+            color=discord.Color.orange()
+        )
+        confirm_embed.set_footer(text="Tekan ✅ untuk konfirmasi, ❌ untuk batal. (30 detik)")
+        
+        confirmation_msg = await ctx.send(embed=confirm_embed)
+        await confirmation_msg.add_reaction("✅")
+        await confirmation_msg.add_reaction("❌")
+
+        try:
+            reaction, user = await self.bot.wait_for(
+                'reaction_add',
+                timeout=30.0,
+                check=lambda r, u: u == ctx.author and str(r.emoji) in ["✅", "❌"] and r.message.id == confirmation_msg.id
+            )
+            if str(reaction.emoji) == "❌":
+                await ctx.send("Memulai game Werewolf dibatalkan.", delete_after=10)
+                await confirmation_msg.delete()
+                self.active_games.discard(channel_id) # Pastikan dihapus jika sudah ditambahkan
+                return
+            await confirmation_msg.delete()
+        except asyncio.TimeoutError:
+            await ctx.send("Konfirmasi waktu habis, memulai game Werewolf dibatalkan.", delete_after=10)
+            await confirmation_msg.delete()
+            self.active_games.discard(channel_id)
+            return
+
+        self.active_games.add(channel_id) # Tandai channel sebagai aktif
+        
+        # Clear the join queue once game starts
+        if channel_id in self.werewolf_join_queues:
+            del self.werewolf_join_queues[channel_id]
+
+        # Connect bot to voice channel
         try:
             if not ctx.voice_client or ctx.voice_client.channel != vc_channel:
                 await vc_channel.connect()
                 await ctx.send(f"Bot bergabung ke voice channel: **{vc_channel.name}** untuk Werewolf.", delete_after=10)
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Bot berhasil bergabung ke VC.")
+                print(f"[{datetime.now()}] [DEBUG WW] Bot berhasil bergabung ke VC {vc_channel.name}.")
             
-            game_state = self.werewolf_game_states.setdefault(ctx.channel.id, {})
+            game_state = self.werewolf_game_states.setdefault(channel_id, {})
             game_state['voice_client'] = ctx.voice_client
 
         except discord.Forbidden:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Bot tidak punya izin join VC. Forbidden.")
-            self.end_game_cleanup_global(ctx.channel.id, game_type='werewolf')
+            print(f"[{datetime.now()}] [DEBUG WW] Bot tidak punya izin join VC. Forbidden.")
+            self.end_game_cleanup_global(channel_id, game_type='werewolf')
             return await ctx.send("Bot tidak memiliki izin untuk bergabung ke voice channel Anda. Pastikan saya memiliki izin `Connect` dan `Speak`.", ephemeral=True)
         except Exception as e:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Error saat bot bergabung VC: {e}.")
-            self.end_game_cleanup_global(ctx.channel.id, game_type='werewolf')
+            print(f"[{datetime.now()}] [DEBUG WW] Error saat bot bergabung VC: {e}.")
+            self.end_game_cleanup_global(channel_id, game_type='werewolf')
             return await ctx.send(f"Terjadi kesalahan saat bot bergabung ke voice channel: `{e}`", ephemeral=True)
 
         await ctx.send("Game Werewolf akan dimulai! Bersiaplah...")
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !startwerewolf: Memulai alur game Werewolf...")
+        print(f"[{datetime.now()}] [DEBUG WW] Memulai alur game Werewolf di channel {channel_id}...")
         
-        game_task = self.bot.loop.create_task(self._werewolf_game_flow(ctx, ctx.channel.id, players_in_vc))
-        self.werewolf_game_states[ctx.channel.id]['game_task'] = game_task
+        # Inisialisasi game state
+        game_state['host'] = ctx.author
+        game_state['players'] = game_players_raw # Semua pemain aktif
+        game_state['main_channel'] = ctx.channel
+        game_state['voice_channel'] = vc_channel
+        game_state['living_players'] = {p.id for p in game_players_raw} # Set ID pemain yang hidup
+        game_state['dead_players'] = set() # Set ID pemain yang mati
+        game_state['roles'] = {} # {member.id: role_name}
+        game_state['phase'] = 'starting'
+        game_state['day_num'] = 0 # Mulai dari hari 0, transisi ke malam 1
+        game_state['killed_this_night'] = None
+        game_state['voted_out_today'] = None
+        game_state['role_actions_pending'] = {} # {role_name: {member_id: target_id}}
+        game_state['role_actions_votes'] = {} # {werewolf_id: target_id} for WW voting
+        game_state['timers'] = {}
+        game_state['vote_message'] = None
+        game_state['players_who_voted'] = set()
+        game_state['player_map'] = {} # {player_number: member_object}
+        game_state['reverse_player_map'] = {} # {member_id: player_number}
+        game_state['werewolf_dm_thread'] = None # For Werewolf group chat (using discord.Thread for better management)
+
+        game_task = self.bot.loop.create_task(self._werewolf_game_flow(ctx, channel_id))
+        game_state['game_task'] = game_task
 
 
-    async def _werewolf_game_flow(self, ctx, channel_id, players):
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] _werewolf_game_flow dimulai untuk channel {channel_id}.")
+    @commands.command(name="cancelwerewolf", help="[Host/Admin] Batalkan game Werewolf yang sedang berjalan.")
+    async def cancel_werewolf_game(self, ctx):
+        print(f"[{datetime.now()}] [DEBUG WW] !cancelwerewolf dipanggil oleh {ctx.author.display_name}.")
+        channel_id = ctx.channel.id
+        game_state = self.werewolf_game_states.get(channel_id)
+
+        if not game_state:
+            return await ctx.send("Tidak ada game Werewolf yang sedang berjalan di channel ini.", ephemeral=True)
+
+        if not (ctx.author.id == game_state['host'].id or ctx.author.guild_permissions.administrator):
+            return await ctx.send("Hanya host game atau administrator yang bisa membatalkan game ini.", ephemeral=True)
+
+        await ctx.send("Game Werewolf dibatalkan secara paksa. Dunia kembali damai... untuk sementara.")
+        print(f"[{datetime.now()}] [DEBUG WW] Game Werewolf di channel {channel_id} dibatalkan secara paksa.")
+        self.end_game_cleanup_global(channel_id, game_type='werewolf')
+    
+    @commands.command(name="statuswerewolf", help="Melihat status game Werewolf saat ini.")
+    async def werewolf_status(self, ctx):
+        print(f"[{datetime.now()}] [DEBUG WW] !statuswerewolf dipanggil oleh {ctx.author.display_name}.")
+        channel_id = ctx.channel.id
+        game_state = self.werewolf_game_states.get(channel_id)
+
+        if not game_state or game_state['phase'] == 'game_over':
+            return await ctx.send("Tidak ada game Werewolf yang sedang berjalan di channel ini.", ephemeral=True)
+
+        living_players_mentions = []
+        for p_id in game_state['living_players']:
+            player = ctx.guild.get_member(p_id)
+            if player:
+                # Include player number from reverse_player_map if available
+                player_num = game_state['reverse_player_map'].get(p_id, 'N/A')
+                living_players_mentions.append(f"`{player_num}` {player.display_name} ({player.mention})")
+            else:
+                living_players_mentions.append(f"Pemain tidak ditemukan (ID: {p_id})")
+
+        dead_players_mentions = []
+        for p_id in game_state['dead_players']:
+            player = ctx.guild.get_member(p_id)
+            if player:
+                role = game_state['roles'].get(p_id, 'Unknown Role')
+                dead_players_mentions.append(f"☠️ {player.display_name} ({role})")
+            else:
+                dead_players_mentions.append(f"☠️ Pemain tidak ditemukan (ID: {p_id})")
+
+        embed = discord.Embed(
+            title="🐺 Status Game Werewolf 🐺",
+            description=f"Host: {game_state['host'].mention}\n"
+                        f"Fase Saat Ini: **{game_state['phase'].replace('_', ' ').title()}** (Hari {game_state['day_num']})",
+            color=discord.Color.purple()
+        )
+
+        embed.add_field(name="Pemain Hidup", value="\n".join(living_players_mentions) if living_players_mentions else "Tidak ada.", inline=False)
+        embed.add_field(name="Pemain Mati", value="\n".join(dead_players_mentions) if dead_players_mentions else "Tidak ada.", inline=False)
+
+        if game_state['phase'] == 'night':
+            embed.set_footer(text=f"Aksi malam akan berakhir dalam {self._get_time_remaining(game_state['timers'].get('night_end_time'))}")
+        elif game_state['phase'] == 'day':
+            embed.set_footer(text=f"Diskusi siang akan berakhir dalam {self._get_time_remaining(game_state['timers'].get('day_discussion_end_time'))}")
+        elif game_state['phase'] == 'voting':
+            embed.set_footer(text=f"Voting akan berakhir dalam {self._get_time_remaining(game_state['timers'].get('voting_end_time'))}")
+        
+        await ctx.send(embed=embed)
+        print(f"[{datetime.now()}] [DEBUG WW] Status game Werewolf dikirim ke channel {ctx.channel.name}.")
+
+    def _get_time_remaining(self, end_time_str):
+        if not end_time_str:
+            return "N/A"
+        end_time = datetime.fromisoformat(end_time_str)
+        time_left = end_time - datetime.utcnow()
+        total_seconds = int(time_left.total_seconds())
+        if total_seconds <= 0:
+            return "Waktu habis!"
+        
+        minutes, seconds = divmod(total_seconds, 60)
+        return f"{minutes} menit {seconds} detik"
+
+    async def _werewolf_game_flow(self, ctx, channel_id):
+        print(f"[{datetime.now()}] [DEBUG WW] _werewolf_game_flow dimulai untuk channel {channel_id}.")
+        game_state = self.werewolf_game_states[channel_id]
+        main_channel = game_state['main_channel']
+        global_config = self.global_werewolf_config.get('default_config', {})
+        
         try:
-            await self._send_werewolf_visual(ctx.channel, "game_start")
-            await self._play_werewolf_audio(ctx.channel, "game_start_audio_url") # Memutar audio otomatis
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf Flow: Fase Game Start selesai.")
+            # --- Inisialisasi Peran ---
+            await self._assign_roles(game_state)
             
-            await asyncio.sleep(7)
-            await ctx.send("Malam telah tiba... Para Werewolf beraksi!")
-            await self._send_werewolf_visual(ctx.channel, "night_phase")
-            await self._play_werewolf_audio(ctx.channel, "night_phase_audio_url") # Memutar audio otomatis
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf Flow: Fase Malam selesai.")
+            # --- Game Start Visual & Audio ---
+            game_state['phase'] = 'starting'
+            await self._send_werewolf_visual(main_channel, "game_start")
+            await self._play_werewolf_audio(main_channel, "game_start_audio_url") 
+            await main_channel.send(f"Selamat datang di {main_channel.guild.name} The Werewolf! Setiap pemain telah menerima peran mereka melalui DM.")
+            await asyncio.sleep(5) # Beri waktu untuk membaca DM
 
-            await asyncio.sleep(15)
-            await ctx.send("Pagi telah tiba! Siapa yang menjadi korban malam ini?")
-            await self._send_werewolf_visual(ctx.channel, "night_resolution")
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf Flow: Resolusi Malam selesai.")
-            
-            await asyncio.sleep(3)
-            await ctx.send("Mari kita diskusikan!")
-            await self._send_werewolf_visual(ctx.channel, "day_phase")
-            await self._play_werewolf_audio(ctx.channel, "day_phase_audio_url") # Memutar audio otomatis
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf Flow: Fase Siang selesai.")
-            
-            await asyncio.sleep(10)
-            await ctx.send("Waktunya voting!")
-            # vote_phase_audio_url dihapus, jadi tidak diputar otomatis
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf Flow: Fase Voting selesai.")
+            # Game Loop
+            while True:
+                # --- Pengecekan Kondisi Kemenangan ---
+                winner = self._check_win_condition(game_state)
+                if winner:
+                    await self._end_game(game_state, winner)
+                    break
 
-            await asyncio.sleep(5)
-            await ctx.send("Game Werewolf berakhir. Selamat kepada para pemenang!")
-            # game_end_audio_url dihapus, jadi tidak diputar otomatis
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf Flow: Game berakhir secara normal.")
-            
+                game_state['day_num'] += 1
+                
+                # --- Fase Malam ---
+                game_state['phase'] = 'night'
+                game_state['killed_this_night'] = None # Reset korban malam
+                game_state['role_actions_pending'] = {} # Reset aksi peran
+                game_state['role_actions_votes'] = {} # Reset voting Werewolf
+
+                await self._send_werewolf_visual(main_channel, "night_phase")
+                await self._play_werewolf_audio(main_channel, "night_phase_audio_url") 
+                await main_channel.send(f"🌙 **MALAM HARI {game_state['day_num']} TIBA!** Semua pemain tertidur. Para peran khusus, periksa DM kalian untuk beraksi!")
+                
+                # Kirim DM untuk aksi malam
+                await self._send_night_action_DMs(game_state)
+
+                # Tunggu aksi malam
+                night_end_time = datetime.utcnow() + timedelta(seconds=global_config.get("night_duration_seconds", 90))
+                game_state['timers']['night_end_time'] = night_end_time.isoformat()
+                try:
+                    await asyncio.sleep(global_config.get("night_duration_seconds", 90))
+                except asyncio.CancelledError:
+                    raise # Rethrow jika game dibatalkan
+
+                # --- Resolusi Malam ---
+                game_state['phase'] = 'night_resolution'
+                await self._process_night_actions(game_state)
+                
+                # Pengumuman korban
+                await self._send_werewolf_visual(main_channel, "night_resolution")
+                if game_state['killed_this_night']:
+                    killed_member = main_channel.guild.get_member(game_state['killed_this_night'])
+                    killed_role = game_state['roles'].get(game_state['killed_this_night'], 'Tidak Diketahui')
+                    await main_channel.send(f"☀️ **PAGI HARI {game_state['day_num']}!** Teror semalam berakhir... Warga **{killed_member.display_name}** ({killed_member.mention}) ditemukan tak bernyawa! Dia adalah seorang **{killed_role}**.")
+                    
+                    # Pindahkan ke VC 'mati' jika ada dan bot punya izin
+                    if game_state['voice_client'] and killed_member:
+                        try:
+                            # Coba pindahkan ke channel AFK (atau channel khusus mati jika ada)
+                            afk_channel = main_channel.guild.afk_channel
+                            if afk_channel:
+                                await killed_member.move_to(afk_channel)
+                            else: # Atau mute dan deafen
+                                await killed_member.edit(mute=True, deafen=True)
+                            print(f"[{datetime.now()}] [DEBUG WW] {killed_member.display_name} dipindahkan/dimute-deafen.")
+                        except discord.Forbidden:
+                            print(f"[{datetime.now()}] [DEBUG WW] Bot tidak punya izin untuk memindahkan/mute {killed_member.display_name}.")
+                        except Exception as e:
+                            print(f"[{datetime.now()}] [DEBUG WW] Error memindahkan/mute {killed_member.display_name}: {e}")
+                else:
+                    await main_channel.send(f"☀️ **PAGI HARI {game_state['day_num']}!** Malam berlalu tanpa korban... Keberuntungan masih berpihak pada penduduk!")
+                
+                await asyncio.sleep(5)
+
+                # --- Pengecekan Kondisi Kemenangan Setelah Malam ---
+                winner = self._check_win_condition(game_state)
+                if winner:
+                    await self._end_game(game_state, winner)
+                    break
+
+                # --- Fase Siang (Diskusi & Voting) ---
+                game_state['phase'] = 'day'
+                game_state['voted_out_today'] = None # Reset vote siang
+                game_state['players_who_voted'] = set() # Reset voter
+
+                await self._send_werewolf_visual(main_channel, "day_phase")
+                await self._play_werewolf_audio(main_channel, "day_phase_audio_url") 
+                await main_channel.send(f"🗣️ **DISKUSI HARI {game_state['day_num']}!** Para penduduk, diskusikan siapa yang harus digantung hari ini. Gunakan `!vote warga <nomor_warga>`")
+                
+                # Tunggu diskusi & voting
+                day_discussion_end_time = datetime.utcnow() + timedelta(seconds=global_config.get("day_discussion_duration_seconds", 180))
+                game_state['timers']['day_discussion_end_time'] = day_discussion_end_time.isoformat()
+                
+                voting_start_time = datetime.utcnow() + timedelta(seconds=global_config.get("day_discussion_duration_seconds", 180) - global_config.get("voting_duration_seconds", 60))
+                # Set up a timer to remind players to vote
+                self.bot.loop.create_task(self._voting_reminder(game_state, voting_start_time))
+
+                try:
+                    await asyncio.sleep(global_config.get("day_discussion_duration_seconds", 180))
+                except asyncio.CancelledError:
+                    raise # Rethrow jika game dibatalkan
+
+                # --- Resolusi Siang (Lynch) ---
+                game_state['phase'] = 'voting_resolution'
+                await self._process_day_vote(game_state)
+
+                # Pengumuman yang dilynch
+                if game_state['voted_out_today']:
+                    lynched_member = main_channel.guild.get_member(game_state['voted_out_today'])
+                    lynched_role = game_state['roles'].get(game_state['voted_out_today'], 'Tidak Diketahui')
+                    await main_channel.send(f"🔥 **KEPUTUSAN HARI INI!** Warga **{lynched_member.display_name}** ({lynched_member.mention}) telah digantung! Dia adalah seorang **{lynched_role}**.")
+                    
+                    if game_state['voice_client'] and lynched_member:
+                        try:
+                            afk_channel = main_channel.guild.afk_channel
+                            if afk_channel:
+                                await lynched_member.move_to(afk_channel)
+                            else:
+                                await lynched_member.edit(mute=True, deafen=True)
+                            print(f"[{datetime.now()}] [DEBUG WW] {lynched_member.display_name} dipindahkan/dimute-deafen.")
+                        except discord.Forbidden:
+                            print(f"[{datetime.now()}] [DEBUG WW] Bot tidak punya izin untuk memindahkan/mute {lynched_member.display_name}.")
+                        except Exception as e:
+                            print(f"[{datetime.now()}] [DEBUG WW] Error memindahkan/mute {lynched_member.display_name}: {e}")
+                else:
+                    await main_channel.send(f"🔥 **KEPUTUSAN HARI INI!** Tidak ada yang digantung hari ini. Para penduduk desa tidak bisa sepakat, atau tidak ada yang mencurigakan...")
+                
+                await asyncio.sleep(5)
+
         except asyncio.CancelledError:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf game flow for channel {channel_id} dibatalkan (CancelledError).")
-            await ctx.send("Game Werewolf dihentikan lebih awal.")
+            print(f"[{datetime.now()}] [DEBUG WW] Werewolf game flow for channel {channel_id} dibatalkan.")
+            await main_channel.send("Game Werewolf dihentikan.")
         except Exception as e:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Werewolf Flow: ERROR fatal di channel {channel_id}: {e}.")
-            await ctx.send(f"Terjadi kesalahan fatal pada game Werewolf: `{e}`. Game dihentikan.")
+            print(f"[{datetime.now()}] [DEBUG WW] Werewolf Flow: ERROR fatal di channel {channel_id}: {e}", file=sys.stderr)
+            await main_channel.send(f"Terjadi kesalahan fatal pada game Werewolf: `{e}`. Game dihentikan.")
         finally:
             self.end_game_cleanup_global(channel_id, game_type='werewolf')
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] _werewolf_game_flow selesai atau dibatalkan untuk channel {channel_id}.")
+            print(f"[{datetime.now()}] [DEBUG WW] _werewolf_game_flow selesai atau dibatalkan untuk channel {channel_id}.")
 
-    # --- Fungsi Visual & Audio Werewolf ---
+    async def _assign_roles(self, game_state):
+        players = list(game_state['players'])
+        random.shuffle(players)
+        
+        assigned_roles = {} # {member.id: role_name}
+        
+        # Get configured roles from global config, default if not set
+        configured_roles = self.global_werewolf_config.get('default_config', {}).get('roles', {})
+        
+        # Calculate total special roles
+        total_special_roles_count = sum(configured_roles.values())
+        villager_count = len(players) - total_special_roles_count
+        
+        # Create a list of roles to assign
+        role_pool = []
+        for role_name, count in configured_roles.items():
+            role_pool.extend([role_name] * count)
+        
+        # Add remaining as Villager
+        if villager_count > 0:
+            role_pool.extend(["Warga Polos"] * villager_count)
+        
+        random.shuffle(role_pool)
+        
+        # Assign roles
+        for i, player in enumerate(players):
+            role_name = role_pool[i]
+            assigned_roles[player.id] = role_name
+            game_state['roles'][player.id] = role_name # Store in game state
+
+            # Send DM with role info
+            role_info = self.werewolf_roles_data['roles'].get(role_name, {})
+            dm_embed = discord.Embed(
+                title=f"🐺 Peranmu dalam Werewolf: **{role_name}** {role_info.get('emoji', '')} 🐺",
+                description=role_info.get('description', 'Tidak ada deskripsi peran.'),
+                color=discord.Color.dark_grey()
+            )
+            dm_embed.add_field(name="Tujuanmu", value=role_info.get('goal', 'Tujuanmu tidak diketahui.'), inline=False)
+            
+            # Additional info for Werewolf (their pack)
+            if role_name == "Werewolf":
+                werewolves = [p for p_id, r_name in game_state['roles'].items() if r_name == "Werewolf" and p_id != player.id]
+                if werewolves:
+                    pack_list = "\n".join([f"- {game_state['main_channel'].guild.get_member(w_id).display_name}" for w_id in werewolves])
+                    dm_embed.add_field(name="Rekan Werewolfmu", value=pack_list, inline=False)
+                else:
+                    dm_embed.add_field(name="Rekan Werewolfmu", value="Kamu adalah satu-satunya Werewolf yang kesepian.", inline=False)
+            
+            try:
+                await player.send(embed=dm_embed)
+                print(f"[{datetime.now()}] [DEBUG WW] Peran {role_name} dikirim ke DM {player.display_name}.")
+            except discord.Forbidden:
+                print(f"[{datetime.now()}] [DEBUG WW] Gagal DM {player.display_name} untuk peran. DM tertutup.")
+                await game_state['main_channel'].send(f"⚠️ Gagal mengirim DM peran ke {player.mention}. Pastikan DM-mu terbuka!", delete_after=15)
+        
+        print(f"[{datetime.now()}] [DEBUG WW] Peran telah ditetapkan: {game_state['roles']}")
+
+        # Create player mapping for DM commands
+        game_state['player_map'] = {i+1: p for i, p in enumerate(players)}
+        game_state['reverse_player_map'] = {p.id: i+1 for i, p in enumerate(players)}
+
+
+    async def _send_night_action_DMs(self, game_state):
+        main_channel = game_state['main_channel']
+        living_players_list = []
+        player_num = 1
+        
+        # Rebuild player_map and reverse_player_map with only living players
+        game_state['player_map'] = {}
+        game_state['reverse_player_map'] = {}
+
+        for p_id in game_state['living_players']:
+            player = main_channel.guild.get_member(p_id)
+            if player:
+                game_state['player_map'][player_num] = player
+                game_state['reverse_player_map'][player.id] = player_num
+                living_players_list.append(f"{player_num}. {player.display_name} ({player.mention})")
+                player_num += 1
+        
+        player_list_text = "\n".join(living_players_list)
+        
+        # Send to Werewolf DM group/thread
+        werewolves = [p_id for p_id in game_state['living_players'] if game_state['roles'][p_id] == "Werewolf"]
+        if werewolves:
+            if not game_state.get('werewolf_dm_thread') or game_state['werewolf_dm_thread'] == 'disabled':
+                # Try to create a private thread for Werewolves
+                try:
+                    thread = await main_channel.create_thread(
+                        name=f"Werewolf Den - Hari {game_state['day_num']}",
+                        type=discord.ChannelType.private_thread,
+                        auto_archive_duration=60 # Auto-archive after 1 hour if inactive
+                    )
+                    game_state['werewolf_dm_thread'] = thread
+                    for ww_id in werewolves:
+                        ww_member = main_channel.guild.get_member(ww_id)
+                        if ww_member:
+                            await thread.add_user(ww_member)
+                            await thread.send(f"Selamat datang, Werewolf {ww_member.mention}! Diskusikan dan pilih target pembunuhan kalian. Kirim `!bunuh warga <nomor_warga>` di sini.\n\n**Daftar Pemain Hidup:**\n{player_list_text}")
+                    print(f"[{datetime.now()}] [DEBUG WW] Private thread Werewolf dibuat dan DM dikirim.")
+                except discord.Forbidden:
+                    print(f"[{datetime.now()}] [DEBUG WW] Bot tidak punya izin membuat private thread untuk Werewolf. Akan menggunakan DM pribadi.")
+                    game_state['werewolf_dm_thread'] = 'disabled' # Mark as disabled for this game to avoid trying again
+                    for ww_id in werewolves:
+                        ww_member = main_channel.guild.get_member(ww_id)
+                        if ww_member:
+                            dm_channel = await ww_member.create_dm()
+                            await dm_channel.send(f"**MALAM HARI {game_state['day_num']}!** Kamu adalah Werewolf. Diskusikan dengan rekanmu (jika ada) siapa yang akan dibunuh. Kemudian, kirim `!bunuh warga <nomor_warga>` di DM ini.\n\n**Daftar Pemain Hidup:**\n{player_list_text}")
+                            print(f"[{datetime.now()}] [DEBUG WW] DM aksi malam untuk Werewolf ({ww_member.display_name}) dikirim sebagai fallback.")
+                except Exception as e:
+                    print(f"[{datetime.now()}] [DEBUG WW] Error creating Werewolf thread: {e}. Falling back to DMs.", file=sys.stderr)
+                    game_state['werewolf_dm_thread'] = 'disabled'
+                    for ww_id in werewolves:
+                        ww_member = main_channel.guild.get_member(ww_id)
+                        if ww_member:
+                            dm_channel = await ww_member.create_dm()
+                            await dm_channel.send(f"**MALAM HARI {game_state['day_num']}!** Kamu adalah Werewolf. Diskusikan dengan rekanmu (jika ada) siapa yang akan dibunuh. Kemudian, kirim `!bunuh warga <nomor_warga>` di DM ini.\n\n**Daftar Pemain Hidup:**\n{player_list_text}")
+                            print(f"[{datetime.now()}] [DEBUG WW] DM aksi malam untuk Werewolf ({ww_member.display_name}) dikirim sebagai fallback.")
+            else: # If thread exists and is enabled
+                await game_state['werewolf_dm_thread'].send(f"**MALAM HARI {game_state['day_num']}!** Waktunya beraksi! Diskusikan dan pilih target. Kirim `!bunuh warga <nomor_warga>`.\n\n**Daftar Pemain Hidup:**\n{player_list_text}")
+                print(f"[{datetime.now()}] [DEBUG WW] Pesan aksi malam dikirim ke thread Werewolf.")
+
+
+        # Send to other roles via individual DMs
+        role_action_order = sorted([r_data for r_data in self.werewolf_roles_data['roles'].values() if r_data.get('night_action_order')], 
+                                   key=lambda x: x['night_action_order'])
+
+        for role_data in role_action_order:
+            role_name = next(k for k, v in self.werewolf_roles_data['roles'].items() if v == role_data) # Get role name from data
+            if role_name == "Werewolf": continue # Already handled
+
+            players_of_role = [p_id for p_id in game_state['living_players'] if game_state['roles'][p_id] == role_name]
+            
+            for player_id in players_of_role:
+                player_member = main_channel.guild.get_member(player_id)
+                if player_member:
+                    try:
+                        dm_channel = await player_member.create_dm()
+                        prompt_message = f"**MALAM HARI {game_state['day_num']}!** Kamu adalah **{role_name}**. {role_data['action_prompt']} Kirim `{role_data['dm_command']} <nomor_warga>` di DM ini.\n\n**Daftar Pemain Hidup:**\n{player_list_text}"
+                        await dm_channel.send(prompt_message)
+                        print(f"[{datetime.now()}] [DEBUG WW] DM aksi malam untuk {role_name} ({player_member.display_name}) dikirim.")
+                    except discord.Forbidden:
+                        print(f"[{datetime.now()}] [DEBUG WW] Gagal DM {player_member.display_name} untuk aksi malam. DM tertutup.")
+                        await main_channel.send(f"⚠️ Gagal mengirim DM aksi malam ke {player_member.mention}. Pastikan DM-mu terbuka!", delete_after=15)
+
+    async def _process_night_actions(self, game_state):
+        main_channel = game_state['main_channel']
+        
+        # Get pending actions
+        # For Werewolf, resolve votes if multiple WWs
+        werewolf_target_id = None
+        if "Werewolf" in game_state['role_actions_votes']:
+            ww_votes = game_state['role_actions_votes']['Werewolf']
+            if ww_votes:
+                # Count votes
+                target_counts = {}
+                for target_id in ww_votes.values():
+                    target_counts[target_id] = target_counts.get(target_id, 0) + 1
+                
+                # Find the target with most votes
+                max_votes = 0
+                potential_targets = []
+                for target_id, count in target_counts.items():
+                    if count > max_votes:
+                        max_votes = count
+                        potential_targets = [target_id]
+                    elif count == max_votes:
+                        potential_targets.append(target_id)
+                
+                werewolf_target_id = random.choice(potential_targets) # Random if tie
+
+        # Get other actions
+        doctor_target_id = game_state['role_actions_pending'].get('Dokter')
+        guard_target_id = game_state['role_actions_pending'].get('Pengawal') # Guard protects from lynch, not night kill
+        seer_target_id = game_state['role_actions_pending'].get('Peramal') # Seer's result already sent in DM
+
+        print(f"[{datetime.now()}] [DEBUG WW] Resolusi malam: WW target: {werewolf_target_id}, Doc target: {doctor_target_id}")
+
+        killed_player_id = None
+        if werewolf_target_id and werewolf_target_id != doctor_target_id:
+            killed_player_id = werewolf_target_id
+        
+        game_state['killed_this_night'] = killed_player_id
+        
+        if killed_player_id:
+            game_state['living_players'].discard(killed_player_id)
+            game_state['dead_players'].add(killed_player_id)
+            print(f"[{datetime.now()}] [DEBUG WW] {main_channel.guild.get_member(killed_player_id).display_name} dibunuh.")
+
+    @commands.command(name="bunuh", hidden=True) # Hidden from help command
+    async def werewolf_kill_cmd(self, ctx, target_type: str, target_num: int):
+        print(f"[{datetime.now()}] [DEBUG WW] !bunuh DM command dipanggil oleh {ctx.author.display_name} ({ctx.author.id}).")
+        if not isinstance(ctx.channel, discord.DMChannel):
+            return await ctx.send("Perintah ini hanya bisa digunakan di DM dengan bot.", ephemeral=True)
+        
+        # Find the game this player is in
+        game_state = None
+        for ch_id, state in self.werewolf_game_states.items():
+            if ctx.author.id in state['living_players']:
+                game_state = state
+                break
+        
+        if not game_state or game_state['phase'] != 'night':
+            return await ctx.send("Tidak ada game Werewolf yang aktif atau bukan fase malam sekarang.", ephemeral=True)
+        
+        player_role = game_state['roles'].get(ctx.author.id)
+        if player_role != "Werewolf":
+            return await ctx.send("Hanya Werewolf yang bisa menggunakan perintah ini.", ephemeral=True)
+        
+        if target_type.lower() != "warga":
+            return await ctx.send("Format yang benar: `!bunuh warga <nomor_warga>`", ephemeral=True)
+
+        target_member = game_state['player_map'].get(target_num)
+        if not target_member or target_member.id not in game_state['living_players']:
+            return await ctx.send(f"Warga {target_num} tidak valid atau sudah mati. Pilih warga yang hidup dari daftar.", ephemeral=True)
+
+        if target_member.id == ctx.author.id:
+            return await ctx.send("Werewolf tidak bisa membunuh diri sendiri!", ephemeral=True)
+
+        # For Werewolves, store individual vote for later majority processing
+        game_state['role_actions_votes'].setdefault('Werewolf', {})[ctx.author.id] = target_member.id
+        await ctx.send(f"Kamu telah memilih **{target_member.display_name}** untuk dibunuh. (Pilihanmu telah dicatat, Werewolf lain mungkin juga memilih).")
+        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (WW) memilih {target_member.display_name} ({target_member.id}).")
+
+    @commands.command(name="lindungi", hidden=True)
+    async def doctor_protect_cmd(self, ctx, target_type: str, target_num: int):
+        print(f"[{datetime.now()}] [DEBUG WW] !lindungi DM command dipanggil oleh {ctx.author.display_name} ({ctx.author.id}).")
+        if not isinstance(ctx.channel, discord.DMChannel):
+            return await ctx.send("Perintah ini hanya bisa digunakan di DM dengan bot.", ephemeral=True)
+        
+        game_state = None
+        for ch_id, state in self.werewolf_game_states.items():
+            if ctx.author.id in state['living_players']:
+                game_state = state
+                break
+        
+        if not game_state or game_state['phase'] != 'night':
+            return await ctx.send("Tidak ada game Werewolf yang aktif atau bukan fase malam sekarang.", ephemeral=True)
+        
+        player_role = game_state['roles'].get(ctx.author.id)
+        if player_role != "Dokter":
+            return await ctx.send("Hanya Dokter yang bisa menggunakan perintah ini.", ephemeral=True)
+        
+        if target_type.lower() != "warga":
+            return await ctx.send("Format yang benar: `!lindungi warga <nomor_warga>`", ephemeral=True)
+
+        target_member = game_state['player_map'].get(target_num)
+        if not target_member or target_member.id not in game_state['living_players']:
+            return await ctx.send(f"Warga {target_num} tidak valid atau sudah mati. Pilih warga yang hidup dari daftar.", ephemeral=True)
+
+        game_state['role_actions_pending']['Dokter'] = target_member.id
+        await ctx.send(f"Kamu telah memilih **{target_member.display_name}** untuk dilindungi.")
+        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Doc) melindungi {target_member.display_name} ({target_member.id}).")
+
+    @commands.command(name="cek", hidden=True)
+    async def seer_check_cmd(self, ctx, target_type: str, target_num: int):
+        print(f"[{datetime.now()}] [DEBUG WW] !cek DM command dipanggil oleh {ctx.author.display_name} ({ctx.author.id}).")
+        if not isinstance(ctx.channel, discord.DMChannel):
+            return await ctx.send("Perintah ini hanya bisa digunakan di DM dengan bot.", ephemeral=True)
+        
+        game_state = None
+        for ch_id, state in self.werewolf_game_states.items():
+            if ctx.author.id in state['living_players']:
+                game_state = state
+                break
+        
+        if not game_state or game_state['phase'] != 'night':
+            return await ctx.send("Tidak ada game Werewolf yang aktif atau bukan fase malam sekarang.", ephemeral=True)
+        
+        player_role = game_state['roles'].get(ctx.author.id)
+        if player_role != "Peramal":
+            return await ctx.send("Hanya Peramal yang bisa menggunakan perintah ini.", ephemeral=True)
+        
+        if target_type.lower() != "warga":
+            return await ctx.send("Format yang benar: `!cek warga <nomor_warga>`", ephemeral=True)
+
+        target_member = game_state['player_map'].get(target_num)
+        if not target_member or target_member.id not in game_state['living_players']:
+            return await ctx.send(f"Warga {target_num} tidak valid atau sudah mati. Pilih warga yang hidup dari daftar.", ephemeral=True)
+
+        target_actual_role = game_state['roles'].get(target_member.id)
+        is_werewolf = "Werewolf" in target_actual_role 
+
+        result_text = f"Warga {target_num} ({target_member.display_name}) adalah seorang **Werewolf**." if is_werewolf else f"Warga {target_num} ({target_member.display_name}) adalah **bukan Werewolf**."
+        await ctx.send(f"Hasil ramalanmu: {result_text}")
+        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Seer) cek {target_member.display_name} ({result_text}).")
+
+    @commands.command(name="jaga", hidden=True)
+    async def guard_protect_cmd(self, ctx, target_type: str, target_num: int):
+        print(f"[{datetime.now()}] [DEBUG WW] !jaga DM command dipanggil oleh {ctx.author.display_name} ({ctx.author.id}).")
+        if not isinstance(ctx.channel, discord.DMChannel):
+            return await ctx.send("Perintah ini hanya bisa digunakan di DM dengan bot.", ephemeral=True)
+        
+        game_state = None
+        for ch_id, state in self.werewolf_game_states.items():
+            if ctx.author.id in state['living_players']:
+                game_state = state
+                break
+        
+        if not game_state or game_state['phase'] != 'night':
+            return await ctx.send("Tidak ada game Werewolf yang aktif atau bukan fase malam sekarang.", ephemeral=True)
+        
+        player_role = game_state['roles'].get(ctx.author.id)
+        if player_role != "Pengawal":
+            return await ctx.send("Hanya Pengawal yang bisa menggunakan perintah ini.", ephemeral=True)
+        
+        if target_type.lower() != "warga":
+            return await ctx.send("Format yang benar: `!jaga warga <nomor_warga>`", ephemeral=True)
+
+        target_member = game_state['player_map'].get(target_num)
+        if not target_member or target_member.id not in game_state['living_players']:
+            return await ctx.send(f"Warga {target_num} tidak valid atau sudah mati. Pilih warga yang hidup dari daftar.", ephemeral=True)
+
+        game_state['role_actions_pending']['Pengawal'] = target_member.id
+        await ctx.send(f"Kamu telah memilih **{target_member.display_name}** untuk dijaga dari hukuman mati.")
+        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Guard) menjaga {target_member.display_name} ({target_member.id}).")
+
+
+    @commands.command(name="vote")
+    async def werewolf_vote_cmd(self, ctx, target_type: str, target_num: int):
+        print(f"[{datetime.now()}] [DEBUG WW] !vote command dipanggil oleh {ctx.author.display_name} di {ctx.channel.name}.")
+        channel_id = ctx.channel.id
+        game_state = self.werewolf_game_states.get(channel_id)
+
+        if not game_state or game_state['phase'] not in ['day', 'voting']:
+            return await ctx.send("Tidak ada game Werewolf yang aktif, atau bukan fase diskusi/voting.", ephemeral=True)
+        
+        if ctx.author.id not in game_state['living_players']:
+            return await ctx.send("Kamu sudah mati dan tidak bisa memilih.", ephemeral=True)
+
+        if target_type.lower() != "warga":
+            return await ctx.send("Format yang benar: `!vote warga <nomor_warga>`", ephemeral=True)
+
+        target_member = game_state['player_map'].get(target_num)
+        if not target_member or target_member.id not in game_state['living_players']:
+            return await ctx.send(f"Warga {target_num} tidak valid atau sudah mati. Pilih warga yang hidup dari daftar.", ephemeral=True)
+        
+        if target_member.id == ctx.author.id:
+            return await ctx.send("Kamu tidak bisa memilih dirimu sendiri untuk digantung!", ephemeral=True)
+
+        # Store the vote
+        game_state['role_actions_votes'].setdefault('vote', {})
+        game_state['role_actions_votes']['vote'][ctx.author.id] = target_member.id
+        game_state['players_who_voted'].add(ctx.author.id)
+
+        await ctx.send(f"✅ **{ctx.author.display_name}** telah memilih untuk menggantung **{target_member.display_name}**.", delete_after=5)
+        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} memilih untuk menggantung {target_member.display_name}.")
+
+    async def _voting_reminder(self, game_state, voting_start_time):
+        main_channel = game_state['main_channel']
+        while datetime.utcnow() < voting_start_time:
+            await asyncio.sleep(10) # Check every 10 seconds
+            if game_state['phase'] not in ['day', 'voting']:
+                return # Stop if phase changes
+
+        if game_state['phase'] == 'day': # Only send reminder if still in discussion phase
+            game_state['phase'] = 'voting' # Transition to voting phase
+            await main_channel.send("🔔 **WAKTU VOTING!** Kalian punya waktu singkat untuk memilih siapa yang akan digantung. Gunakan `!vote warga <nomor_warga>` sekarang!")
+        
+        # Continuously update remaining time for voting
+        voting_end_time = datetime.fromisoformat(game_state['timers']['voting_end_time'])
+        while datetime.utcnow() < voting_end_time:
+            time_left = voting_end_time - datetime.utcnow()
+            total_seconds = int(time_left.total_seconds())
+            if total_seconds <= 0: break # Time's up
+
+            minutes, seconds = divmod(total_seconds, 60)
+            if minutes < 1 and seconds % 10 == 0: # Update every 10 seconds for last minute
+                await main_channel.send(f"⏳ **{seconds} detik** tersisa untuk voting!", delete_after=10)
+            elif minutes > 0 and minutes % 1 == 0 and seconds == 0: # Update every minute
+                 await main_channel.send(f"⏳ **{minutes} menit** tersisa untuk voting!", delete_after=10)
+            await asyncio.sleep(min(10, total_seconds if total_seconds > 0 else 1)) # Wait up to 10s or less if time is almost up
+
+    async def _process_day_vote(self, game_state):
+        main_channel = game_state['main_channel']
+        
+        votes = game_state['role_actions_votes'].get('vote', {})
+        
+        if not votes:
+            game_state['voted_out_today'] = None
+            return # No votes, no one lynched
+
+        # Count votes for each target
+        target_counts = {}
+        for voter_id, target_id in votes.items():
+            # Only count votes from living players
+            if voter_id in game_state['living_players']:
+                target_counts[target_id] = target_counts.get(target_id, 0) + 1
+        
+        if not target_counts: # No valid votes from living players
+            game_state['voted_out_today'] = None
+            return
+
+        # Find the target with the most votes
+        max_votes = 0
+        potential_lynch_targets = []
+        for target_id, count in target_counts.items():
+            if count > max_votes:
+                max_votes = count
+                potential_lynch_targets = [target_id]
+            elif count == max_votes:
+                potential_lynch_targets.append(target_id)
+        
+        lynched_player_id = random.choice(potential_lynch_targets) # Random if tie
+
+        # Check if lynched player was guarded by Guard
+        guard_target_id = game_state['role_actions_pending'].get('Pengawal')
+        if lynched_player_id == guard_target_id:
+            await main_channel.send(f"🛡️ **{main_channel.guild.get_member(lynched_player_id).display_name}** diselamatkan dari hukuman mati oleh seorang Pengawal misterius!")
+            game_state['voted_out_today'] = None # No one was actually lynched
+            print(f"[{datetime.now()}] [DEBUG WW] {main_channel.guild.get_member(lynched_player_id).display_name} diselamatkan oleh Pengawal.")
+        else:
+            game_state['voted_out_today'] = lynched_player_id
+            game_state['living_players'].discard(lynched_player_id)
+            game_state['dead_players'].add(lynched_player_id)
+            print(f"[{datetime.now()}] [DEBUG WW] {main_channel.guild.get_member(lynched_player_id).display_name} dilynch.")
+
+    def _check_win_condition(self, game_state):
+        living_werewolves = {p_id for p_id in game_state['living_players'] if game_state['roles'][p_id] == "Werewolf"}
+        living_villagers = {p_id for p_id in game_state['living_players'] if game_state['roles'][p_id] != "Werewolf"}
+
+        if not living_werewolves:
+            return "Village" # Semua Werewolf mati
+        if len(living_werewolves) >= len(living_villagers):
+            return "Werewolf" # Werewolf sama atau lebih banyak dari penduduk desa
+        if not living_villagers and living_werewolves: # Semua villagers mati (termasuk special roles non-WW)
+            return "Werewolf"
+        
+        # Additional small game condition for WW win
+        if len(game_state['living_players']) > 0 and len(living_werewolves) > 0 and len(living_werewolves) >= len(living_villagers):
+            return "Werewolf"
+
+        return None # Belum ada yang menang
+
+    async def _end_game(self, game_state, winner):
+        main_channel = game_state['main_channel']
+        game_state['phase'] = 'game_over'
+
+        if winner == "Werewolf":
+            embed = discord.Embed(
+                title="🐺 Para Werewolf Berjaya! 🐺",
+                description="Kegelapan menyelimuti desa. Para Werewolf telah menguasai dan memangsa semua penduduk!",
+                color=discord.Color.dark_red()
+            )
+            embed.set_image(url="https://i.imgur.com/vH1B6jA.gif") # Werewolf win GIF
+        else: # Village wins
+            embed = discord.Embed(
+                title="🌟 Penduduk Desa Selamat! 🌟",
+                description="Para penduduk telah bersatu dan berhasil mengusir semua Werewolf dari desa!",
+                color=discord.Color.gold()
+            )
+            embed.set_image(url="https://i.imgur.com/oWbWb2v.gif") # Villager win GIF
+        
+        await main_channel.send(embed=embed)
+        await asyncio.sleep(3)
+
+        # Show final roles
+        final_roles_text = ""
+        for player_id in game_state['players']:
+            member = main_channel.guild.get_member(player_id)
+            role = game_state['roles'].get(player_id, "Tidak Diketahui")
+            status = "HIDUP" if player_id in game_state['living_players'] else "MATI"
+            if member:
+                final_roles_text += f"**{member.display_name}** ({role}) - {status}\n"
+        
+        final_roles_embed = discord.Embed(
+            title="📜 Ringkasan Akhir Permainan 📜",
+            description=final_roles_text,
+            color=discord.Color.greyple()
+        )
+        await main_channel.send(embed=final_roles_embed)
+
+        # Disconnect bot from voice channel
+        if game_state.get('voice_client'):
+            await game_state['voice_client'].disconnect()
+            game_state['voice_client'] = None
+        
+        # Give rewards (example)
+        for player_id in game_state['players']: # Iterate all original players for rewards
+            player = main_channel.guild.get_member(player_id)
+            if not player: continue # Skip if player left guild
+
+            if (winner == "Werewolf" and game_state['roles'][player_id] == "Werewolf") or \
+               (winner == "Village" and game_state['roles'][player_id] != "Werewolf"):
+                if player_id in game_state['living_players']: # Only living winners get full reward
+                    await self.give_rewards_with_bonus_check(player, main_channel.guild.id, main_channel, custom_rsw=500, custom_exp=300)
+                else: # Dead winners get less
+                    await self.give_rewards_with_bonus_check(player, main_channel.guild.id, main_channel, custom_rsw=100, custom_exp=50)
+            else: # Losing side (regardless of alive/dead)
+                await self.give_rewards_with_bonus_check(player, main_channel.guild.id, main_channel, custom_rsw=50, custom_exp=25)
+
+        print(f"[{datetime.now()}] [DEBUG WW] Game berakhir di channel {game_state['main_channel'].name}. Pemenang: {winner}.")
+
+
     async def _send_werewolf_visual(self, channel: discord.TextChannel, phase: str):
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Mengirim visual Werewolf untuk fase: {phase} di channel {channel.name}.")
+        print(f"[{datetime.now()}] [DEBUG WW] Mengirim visual Werewolf untuk fase: {phase} di channel {channel.name}.")
         global_config = self.global_werewolf_config.get('default_config', {})
         image_urls = global_config.get('image_urls', {})
 
         visual_url = None
-        if phase == "game_start": visual_url = image_urls.get('game_start_image_url')
-        elif phase == "night_phase": visual_url = image_urls.get('night_phase_image_url')
-        elif phase == "day_phase": visual_url = image_urls.get('day_phase_image_url')
-        elif phase == "night_resolution": visual_url = image_urls.get('night_resolution_image_url')
-        # Menghapus werewolf_win_image_url dan villager_win_image_url dari pemilihan visual
-        # elif phase == "werewolf_win": visual_url = image_urls.get('werewolf_win_image_url')
-        # elif phase == "villager_win": visual_url = image_urls.get('villager_win_image_url')
+        title = ""
+        description = ""
+        color = discord.Color.dark_purple()
 
-
+        if phase == "game_start": 
+            visual_url = image_urls.get('game_start_image_url')
+            title = "🐺 Game Werewolf Dimulai! 🐺"
+            description = "Selamat datang di desa yang diserang Werewolf. Setiap pemain telah menerima peran mereka di DM."
+            color = discord.Color.blue()
+        elif phase == "night_phase": 
+            visual_url = image_urls.get('night_phase_image_url')
+            title = "🌙 Malam Telah Tiba! 🌙"
+            description = "Para penduduk desa tertidur. Peran-peran malam, saatnya beraksi di DM kalian!"
+            color = discord.Color.dark_blue()
+        elif phase == "day_phase": 
+            visual_url = image_urls.get('day_phase_image_url')
+            title = "☀️ Pagi Telah Datang! ☀️"
+            description = "Teror semalam telah berakhir. Waktunya berdiskusi dan mencari tahu siapa pembunuhnya!"
+            color = discord.Color.orange()
+        elif phase == "night_resolution": 
+            visual_url = image_urls.get('night_resolution_image_url')
+            title = "💔 Korban Ditemukan! 💔"
+            description = "Keheningan pagi dipecah oleh penemuan jasad. Siapa yang menjadi korban tak berdosa ini?"
+            color = discord.Color.dark_red()
+        
         embed = discord.Embed(
-            title=f"Fase Werewolf: {phase.replace('_', ' ').title()}",
-            description="Detail informasi tentang fase game ini akan muncul di sini.",
-            color=discord.Color.dark_purple()
+            title=title,
+            description=description,
+            color=color
         )
 
         if visual_url and visual_url.lower().endswith(('.gif', '.png', '.jpg', '.jpeg')):
-            embed.set_image(url=visual_url)
+            embed.set_image(url=visual_url) # Menampilkan GIF secara besar
             await channel.send(embed=embed)
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Visual Werewolf dengan URL {visual_url} dikirim.")
+            print(f"[{datetime.now()}] [DEBUG WW] Visual Werewolf dengan URL {visual_url} dikirim.")
         else:
             await channel.send(embed=embed)
             if visual_url:
-                await channel.send("ℹ️ URL gambar yang diberikan tidak valid atau bukan format gambar/GIF yang didukung. Mengirim pesan tanpa gambar.")
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] URL visual Werewolf tidak valid: {visual_url}.")
+                await channel.send("ℹ️ URL gambar yang diberikan tidak valid atau bukan format gambar/GIF yang didukung untuk fase ini. Mengirim pesan tanpa gambar.")
+                print(f"[{datetime.now()}] [DEBUG WW] URL visual Werewolf tidak valid: {visual_url}.")
             else:
-                await channel.send("ℹ️ URL gambar untuk fase ini belum diatur.")
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] URL visual Werewolf tidak diatur untuk fase {phase}.")
+                await channel.send("ℹ️ URL gambar untuk fase ini belum diatur dalam konfigurasi.")
+                print(f"[{datetime.now()}] [DEBUG WW] URL visual Werewolf tidak diatur untuk fase {phase}.")
 
 
     async def _play_werewolf_audio(self, text_channel: discord.TextChannel, audio_type: str):
@@ -640,29 +1424,18 @@ class GamesGlobalEvents(commands.Cog):
         global_config = self.global_werewolf_config.get('default_config', {})
         audio_urls = global_config.get('audio_urls', {})
 
-        audio_url = None
-        if audio_type == "game_start_audio_url": audio_url = audio_urls.get('game_start_audio_url')
-        elif audio_type == "night_phase_audio_url": audio_url = audio_urls.get('night_phase_audio_url')
-        elif audio_type == "day_phase_audio_url": audio_url = audio_urls.get('day_phase_audio_url')
-        # vote_phase_audio_url dan game_end_audio_url sudah dihapus, jadi tidak perlu di sini
-        # elif audio_type == "vote_phase_audio_url": audio_url = audio_urls.get('vote_phase_audio_url')
-        # elif audio_type == "game_end_audio_url": audio_url = audio_urls.get('game_end_audio_url')
+        audio_url = audio_urls.get(audio_type)
 
         if audio_url and self.music_cog: 
             try:
-                if voice_client.is_playing() or voice_client.is_paused():
-                    voice_client.stop()
-                
-                # Memastikan Music.YTDLSource diimpor atau didefinisikan di Music cog
-                # Asumsi Music.YTDLSource adalah bagian dari Music cog yang dimuat
-                if hasattr(self.music_cog, 'YTDLSource'): # Pengecekan lebih aman
-                    source = await self.music_cog.YTDLSource.from_url(audio_url, loop=self.bot.loop, stream=True)
-                    voice_client.play(source, after=lambda e: print(f'[{datetime.now()}] [DEBUG GLOBAL EVENTS] Player error in Werewolf audio: {e}') if e else None)
-                    print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Audio Werewolf '{audio_type}' berhasil diputar.")
+                # Assuming music_cog.play_audio handles stopping current audio and playing new one
+                if hasattr(self.music_cog, 'play_audio'):
+                    await self.music_cog.play_audio(voice_client, audio_url)
                 else:
-                    print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Music.YTDLSource tidak ditemukan di Music cog.")
+                    print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] 'play_audio' method not found in Music cog.")
+                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Audio Werewolf '{audio_type}' berhasil diputar.")
             except Exception as e:
-                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Gagal memutar audio Werewolf '{audio_type}': {e}.")
+                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Gagal memutar audio Werewolf '{audio_type}': {e}.", file=sys.stderr)
                 await text_channel.send(f"⚠️ Maaf, gagal memutar audio untuk fase ini: `{e}`")
         elif not self.music_cog:
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Music cog tidak ditemukan, tidak dapat memutar audio Werewolf.")
@@ -673,8 +1446,9 @@ class GamesGlobalEvents(commands.Cog):
     @commands.command(name="stopwerewolfaudio", help="Hentikan audio Werewolf yang sedang diputar.")
     async def stop_werewolf_audio(self, ctx):
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Command !stopwerewolfaudio dipanggil oleh {ctx.author.display_name}.")
-        game_state = self.werewolf_game_states.get(ctx.channel.id)
-        if not game_state or (ctx.author.id != game_state.get('host', None) and not ctx.author.guild_permissions.manage_channels):
+        channel_id = ctx.channel.id
+        game_state = self.werewolf_game_states.get(channel_id)
+        if not game_state or (ctx.author.id != game_state.get('host', None).id and not ctx.author.guild_permissions.manage_channels):
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !stopwerewolfaudio: Bukan host atau moderator, blokir.")
             return await ctx.send("Hanya host game Werewolf atau moderator yang bisa menghentikan audio.", ephemeral=True)
         
@@ -715,7 +1489,8 @@ class GamesGlobalEvents(commands.Cog):
         
         user = ctx.author
         user_id_str = str(user.id)
-        bank_data = load_json_from_root('data/bank_data.json')
+        # Ambil data bank dari root
+        bank_data = load_json_from_root('data/bank_data.json', default_value={})
         current_balance = bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance']
 
         if current_balance < current_wheel_config['cost']:
@@ -758,29 +1533,140 @@ class GamesGlobalEvents(commands.Cog):
         if outcome_image_url:
             result_embed.set_image(url=outcome_image_url)
         else:
+            # Fallback GIFs for default segments
             if outcome['type'] == 'jackpot_rsw': result_embed.set_image(url="https://media.giphy.com/media/xT39D7PvWnJ14wD5c4/giphy.gif")
+            elif outcome['type'] == 'jackpot_rsw_big': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif")
             elif outcome['type'] == 'boost_exp': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif")
             elif outcome['type'] == 'protection': result_embed.set_image(url="https://media.giphy.com/media/3o7WIJFA5r5d9n7jcA/giphy.gif")
             elif outcome['type'] == 'tax': result_embed.set_image(url="https://media.giphy.com/media/l3V0cE3tV6h6rC3m0/giphy.gif")
             elif outcome['type'] == 'nickname_transform': result_embed.set_image(url="https://media.giphy.com/media/rY9zudf2f2o8M/giphy.gif")
             elif outcome['type'] == 'message_mishap': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
             elif outcome['type'] == 'bless_random_user': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
-            elif outcome['type'] == 'curse_mute_random': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
+            elif outcome['type'] == 'curse_mute_random': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif") # Reused, ideally unique
             elif outcome['type'] == 'ping_random_user': result_embed.set_image(url="https://media.giphy.com/media/3ohhwpvL89Q8zN0n2g/giphy.gif")
-            elif outcome['type'] == 'emoji_rain': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif")
-            elif outcome['type'] == 'channel_rename': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
+            elif outcome['type'] == 'emoji_rain': result_embed.set_image(url="https://media.giphy.com/media/l0HlSZ0V5725j9M9W/giphy.gif") # Reused, ideally unique
+            elif outcome['type'] == 'channel_rename': result_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif") # Reused, ideally unique
             elif outcome['type'] == 'random_duck': result_embed.set_image(url="https://media.giphy.com/media/f3ekFq7v18B9lTzY/giphy.gif")
-            elif outcome['type'] == 'absurd_fortune': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif")
+            elif outcome['type'] == 'absurd_fortune': result_embed.set_image(url="https://media.giphy.com/media/l3V0qXjXG2XW2tM/giphy.gif") # Reused, ideally unique
 
         await spin_message.edit(embed=result_embed)
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !putarroda: Hasil roda dikirim. Outcome: {outcome['type']}.")
         
-        if self.dunia_cog:
-            await self.dunia_cog._apply_wheel_consequence(guild, channel, user, outcome)
+        # Apply the consequence using DuniaHidup cog if available
+        if self.dunia_cog and hasattr(self.dunia_cog, '_apply_wheel_consequence'):
+            await self.dunia_cog._apply_wheel_consequence(guild, ctx.channel, user, outcome)
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !putarroda: Efek roda diterapkan melalui DuniaHidup cog.")
         else:
-            await channel.send("⚠️ Error: DuniaHidup cog tidak ditemukan, efek roda takdir tidak dapat diterapkan.")
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !putarroda: DuniaHidup cog tidak ditemukan, efek tidak diterapkan.")
+            # Fallback to apply consequences if DuniaHidup is not available
+            await ctx.send("⚠️ Warning: DuniaHidup cog not found. Applying basic wheel consequence locally.")
+            await self._apply_wheel_consequence_fallback(ctx, user, outcome)
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !putarroda: DuniaHidup cog tidak ditemukan, efek diterapkan secara fallback.")
+
+    async def _apply_wheel_consequence_fallback(self, ctx, user: discord.Member, outcome: dict):
+        """Fallback function to apply wheel consequences if DuniaHidup cog is not loaded."""
+        user_id_str = str(user.id)
+        bank_data = load_json_from_root('data/bank_data.json', default_value={})
+        level_data = load_json_from_root('data/level_data.json', default_value={})
+        
+        wheel_stats = self.wheel_of_fate_data.setdefault('players_stats', {}).setdefault(user_id_str, {'spins': 0, 'wins_rsw': 0, 'losses_rsw': 0, 'weird_effects': 0})
+
+        if outcome['type'].startswith('jackpot_rsw'):
+            amount = outcome.get('amount', 500) # Default for jackpot
+            bank_data.setdefault(user_id_str, {'balance': 0})['balance'] += amount
+            wheel_stats['wins_rsw'] += amount
+            await ctx.send(f"Selamat! Kamu memenangkan **{amount} RSWN**!")
+        elif outcome['type'] == 'boost_exp':
+            # This is hard to implement without a dedicated EXP system accessible here
+            await ctx.send("Kamu merasa lebih energik! (Efek boost EXP tidak dapat diterapkan tanpa sistem EXP aktif).")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'protection':
+            # This relies on other systems (monster attacks), so hard to implement fully here.
+            await ctx.send("Kamu merasa terlindungi. (Efek perlindungan tidak dapat diterapkan tanpa sistem terkait).")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'tax':
+            amount = outcome.get('amount', random.randint(100, 300)) # Default for tax
+            bank_data.setdefault(user_id_str, {'balance': 0})['balance'] = max(0, bank_data[user_id_str]['balance'] - amount)
+            wheel_stats['losses_rsw'] += amount
+            await ctx.send(f"Oh tidak! Kamu kehilangan **{amount} RSWN** sebagai pajak takdir.")
+        elif outcome['type'] == 'nickname_transform':
+            original_nickname = user.nick if user.nick else user.name
+            random_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
+            new_nickname = f"Warga Absurd {random_suffix}"
+            try:
+                await user.edit(nick=new_nickname)
+                await ctx.send(f"Nickname {user.display_name} berubah menjadi **{new_nickname}** untuk 1 jam!")
+                await asyncio.sleep(3600) # Wait 1 hour
+                await user.edit(nick=original_nickname)
+                await ctx.send(f"Nickname {new_nickname} kembali normal.")
+            except discord.Forbidden:
+                await ctx.send("Tidak dapat mengubah nickname user (izin kurang).")
+            except Exception as e:
+                await ctx.send(f"Terjadi error saat mengubah nickname: {e}")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'message_mishap':
+             await ctx.send("Kata-katamu tersangkut! Pesanmu jadi aneh selama 30 menit. (Efek ini tidak diimplementasikan penuh tanpa message listener).")
+             wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'bless_random_user':
+            eligible_users = [m for m in ctx.guild.members if not m.bot and m.id != user.id]
+            if eligible_users:
+                blessed_user = random.choice(eligible_users)
+                amount = outcome.get('amount', 750)
+                bank_data.setdefault(str(blessed_user.id), {'balance': 0})['balance'] += amount
+                await ctx.send(f"Sebuah berkat tak terduga! **{blessed_user.mention}** mendapatkan **{amount} RSWN**!")
+                # Update blessed user's stats if applicable
+                self.wheel_of_fate_data.setdefault('players_stats', {}).setdefault(str(blessed_user.id), {'spins': 0, 'wins_rsw': 0, 'losses_rsw': 0, 'weird_effects': 0})['wins_rsw'] += amount
+            else:
+                await ctx.send("Tidak ada user lain yang bisa diberkati.")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'curse_mute_random':
+            eligible_users = [m for m in ctx.guild.members if not m.bot and m.id != user.id and m.voice and m.voice.channel]
+            if eligible_users:
+                cursed_user = random.choice(eligible_users)
+                try:
+                    await cursed_user.timeout(timedelta(seconds=60), reason="Roda Takdir Gila!")
+                    await ctx.send(f"Sebuah kutukan! **{cursed_user.mention}** kena timeout 60 detik di voice channel!")
+                except discord.Forbidden:
+                    await ctx.send("Tidak dapat timeout user (izin kurang).")
+                except Exception as e:
+                    await ctx.send(f"Terjadi error saat timeout: {e}")
+            else:
+                await ctx.send("Tidak ada user lain yang bisa dikutuk (tidak ada di VC).")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'ping_random_user':
+            eligible_users = [m for m in ctx.guild.members if not m.bot and m.id != user.id]
+            if eligible_users:
+                pinged_user = random.choice(eligible_users)
+                await ctx.send(f"Panggilan Darurat! {pinged_user.mention}, roda takdir memanggilmu!")
+            else:
+                await ctx.send("Tidak ada user lain yang bisa di-ping.")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'emoji_rain':
+            await ctx.send("🥳🎉🎊✨💫🌟") # Simple emoji burst
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'channel_rename':
+            original_name = ctx.channel.name
+            random_suffix = ''.join(random.choices(string.ascii_letters, k=5))
+            new_name = f"channel-konyol-{random_suffix}"
+            try:
+                await ctx.channel.edit(name=new_name)
+                await ctx.send(f"Nama channel ini berubah menjadi **#{new_name}** selama 15 menit!")
+                await asyncio.sleep(900) # Wait 15 minutes
+                await ctx.channel.edit(name=original_name)
+                await ctx.send(f"Nama channel kembali normal: **#{original_name}**.")
+            except discord.Forbidden:
+                await ctx.send("Tidak dapat mengubah nama channel (izin kurang).")
+            except Exception as e:
+                await ctx.send(f"Terjadi error saat mengubah nama channel: {e}")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'random_duck':
+            await ctx.send("Quack! 🦆 Tidak terjadi apa-apa yang serius, tapi ada bebek!")
+            wheel_stats['weird_effects'] += 1
+        elif outcome['type'] == 'absurd_fortune':
+            await ctx.send("Takdirmu akan sangat aneh, siapkan dirimu untuk kejutan tak terduga... di masa depan!")
+            wheel_stats['weird_effects'] += 1
+
+        save_json_to_root(bank_data, 'data/bank_data.json')
+        save_json_to_root(self.wheel_of_fate_data, 'data/wheel_of_mad_fate.json')
 
 
     def _get_default_wheel_segments(self):
@@ -811,8 +1697,6 @@ class GamesGlobalEvents(commands.Cog):
         for segment in segments:
             current_weight += segment['weight']
             if rand_num <= current_weight:
-                if segment['type'] == 'jackpot_rsw_big':
-                    return {'type': 'jackpot_rsw', 'description': "MEGA JACKPOT! Kamu mendapatkan **1500 RSWN**!", 'color': (255,165,0), 'amount': 1500}
                 return segment.copy() 
         return random.choice(segments).copy() # Fallback (seharusnya tidak terjadi)
 
@@ -922,12 +1806,22 @@ class GamesGlobalEvents(commands.Cog):
         if not race_state: return
 
         for i in range(race_state['betting_duration'], 0, -5):
-            if race_state.get('race_message') and i % 5 == 0: # Pastikan pesan masih ada
-                await race_state['race_message'].edit(embed=race_state['race_message'].embeds[0].set_footer(text=f"Taruhan ditutup dalam {i} detik!"))
+            if race_state.get('race_message'): # Pastikan pesan masih ada
+                try:
+                    await race_state['race_message'].edit(embed=race_state['race_message'].embeds[0].set_footer(text=f"Taruhan ditutup dalam {i} detik!"))
+                except discord.NotFound:
+                    print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan balapan tidak ditemukan saat update countdown.")
+                    break # Exit loop if message is gone
+                except Exception as e:
+                    print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Error updating betting countdown message: {e}")
+                    break
             await asyncio.sleep(5)
         
         if race_state.get('race_message'): # Pastikan pesan masih ada
-            await race_state['race_message'].edit(embed=race_state['race_message'].embeds[0].set_footer(text="Taruhan DITUTUP!"))
+            try:
+                await race_state['race_message'].edit(embed=race_state['race_message'].embeds[0].set_footer(text="Taruhan DITUTUP!"))
+            except discord.NotFound:
+                pass
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Betting countdown selesai untuk channel {channel_id}.")
 
 
@@ -942,7 +1836,6 @@ class GamesGlobalEvents(commands.Cog):
             if not race_state['bets']:
                 await ctx.send("Tidak ada yang bertaruh! Balapan dibatalkan.", delete_after=15)
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Tidak ada taruhan, balapan dibatalkan.")
-                # Pastikan game dibersihkan jika dibatalkan karena tidak ada taruhan
                 self.end_game_cleanup_global(channel_id, game_type='horse_racing')
                 return
             
@@ -966,8 +1859,12 @@ class GamesGlobalEvents(commands.Cog):
                 race_state['horses'].sort(key=lambda h: h['position'], reverse=True)
 
                 if race_state.get('race_message'): # Pastikan pesan masih ada
-                    await race_state['race_message'].edit(embed=self._get_race_progress_embed(race_state))
-                    print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Progres balapan diperbarui.")
+                    try:
+                        await race_state['race_message'].edit(embed=self._get_race_progress_embed(race_state))
+                        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Progres balapan diperbarui.")
+                    except discord.NotFound:
+                        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan balapan tidak ditemukan saat update progres.")
+                        break # Exit loop if message is gone
 
                 winner = None
                 for horse in race_state['horses']:
@@ -985,7 +1882,7 @@ class GamesGlobalEvents(commands.Cog):
             await ctx.send("Balapan Kuda dihentikan.")
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Game flow dibatalkan (CancelledError) untuk channel {channel_id}.")
         except Exception as e:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: ERROR fatal di channel {channel_id}: {e}.")
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: ERROR fatal di channel {channel_id}: {e}.", file=sys.stderr)
             await ctx.send(f"Terjadi kesalahan fatal pada Balapan Kuda: `{e}`. Game dihentikan.")
         finally:
             self.end_game_cleanup_global(channel_id, game_type='horse_racing')
@@ -1002,11 +1899,12 @@ class GamesGlobalEvents(commands.Cog):
         track_length = race_state['track_length']
         progress_text = ""
         for horse in race_state['horses']:
-            progress_int = int(horse['position'])
-            progress = min(progress_int, track_length) # Gunakan int untuk visualisasi
+            # Calculate integer position for display, ensuring it doesn't exceed track length
+            progress_int = min(int(horse['position']), track_length) 
             
-            track_segment = "─" * progress
-            remaining_segment = "─" * max(0, track_length - progress - 1)
+            # Create the track segments (ensure no negative length)
+            track_segment = "─" * progress_int
+            remaining_segment = "─" * max(0, track_length - progress_int - 1) # -1 for horse emoji space
             
             progress_bar = f"[{track_segment}{horse['emoji']}{remaining_segment}]"
             
@@ -1021,7 +1919,7 @@ class GamesGlobalEvents(commands.Cog):
         race_state = self.horse_racing_states.get(channel_id)
         if not race_state: return
 
-        bank_data = load_json_from_root('data/bank_data.json')
+        bank_data = load_json_from_root('data/bank_data.json', default_value={})
         odds = race_state['odds'].get(winning_horse_id, 1.0)
         
         winners = []
@@ -1035,10 +1933,11 @@ class GamesGlobalEvents(commands.Cog):
                 winnings = int(bet_info['amount'] * odds)
                 bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance'] += winnings
                 winners.append(f"{user.mention} (Menang: **{winnings} RSWN**)")
-                await self.give_rewards_with_bonus_check(user, ctx.guild.id, custom_rsw=winnings, custom_exp=50)
+                await self.give_rewards_with_bonus_check(user, ctx.guild.id, custom_rsw=winnings, custom_exp=50) # Assuming 50 exp for winning a bet
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: {user.display_name} menang {winnings} RSWN.")
             else:
                 losers.append(f"{user.mention} (Kalah: {bet_info['amount']} RSWN)")
+                # No reward for losers, their money is already deducted
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: {user.display_name} kalah {bet_info['amount']} RSWN.")
         
         save_json_to_root(bank_data, 'data/bank_data.json')
@@ -1088,7 +1987,7 @@ class GamesGlobalEvents(commands.Cog):
             return await ctx.send(f"Kuda #{horse_id} tidak ditemukan. Pilih nomor kuda yang valid dari daftar.", ephemeral=True)
 
         user_id_str = str(ctx.author.id)
-        bank_data = load_json_from_root('data/bank_data.json')
+        bank_data = load_json_from_root('data/bank_data.json', default_value={})
         current_balance = bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance']
 
         if current_balance < amount:
@@ -1136,10 +2035,17 @@ class GamesGlobalEvents(commands.Cog):
                     found_bets_field = True
                     break
             if not found_bets_field:
-                betting_embed.add_field(name="Taruhan Saat Ini", value=current_bets_field_value, inline=False)
+                # Insert at a specific index to keep order
+                betting_embed.insert_field_at(index=1, name="Taruhan Saat Ini", value=current_bets_field_value, inline=False)
 
-            await race_state['race_message'].edit(embed=betting_embed)
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Pesan taruhan diupdate.")
+
+            try:
+                await race_state['race_message'].edit(embed=betting_embed)
+                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !taruhan: Pesan taruhan diupdate.")
+            except discord.NotFound:
+                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan taruhan tidak ditemukan saat update.")
+            except Exception as e:
+                print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Error updating betting message: {e}")
 
     def _get_current_bets_text(self, bets, horses):
         if not bets:
@@ -1158,11 +2064,17 @@ class GamesGlobalEvents(commands.Cog):
             bet_summary[horse_id]['bettors'].append(f"{user_display_name} ({amount} RSWN)")
 
         text = ""
-        for horse in horses:
+        # Sort horses by ID for consistent display order
+        sorted_horses = sorted(horses, key=lambda h: h['id'])
+        for horse in sorted_horses:
             summary = bet_summary.get(horse['id'])
             if summary:
                 text += f"**{horse['emoji']} {horse['name']}** (#{horse['id']}): Total **{summary['total_amount']} RSWN**\n"
-                text += "  " + ", ".join(summary['bettors']) + "\n"
+                # Limit bettors displayed to avoid too long messages
+                bettors_display = ", ".join(summary['bettors'][:5]) # Show up to 5 bettors
+                if len(summary['bettors']) > 5:
+                    bettors_display += f", dan {len(summary['bettors']) - 5} lainnya"
+                text += f"  > {bettors_display}\n"
             else:
                 text += f"**{horse['emoji']} {horse['name']}** (#{horse['id']}): Belum ada taruhan.\n"
         return text
@@ -1188,3 +2100,4 @@ class GamesGlobalEvents(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(GamesGlobalEvents(bot))
+
