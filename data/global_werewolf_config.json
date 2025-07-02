@@ -5,22 +5,27 @@
             "Warga Polos": 4,
             "Dokter": 1,
             "Peramal": 1,
-            "Pemburu": 0,
-            "Penyihir": 0,
-            "Alpha Werewolf": 0
+            "Pemburu": 1,
+            "Penyihir": 1,
+            "Alpha Werewolf": 0,
+            "Penjaga Malam": 0,
+            "Ksatria Suci": 0,
+            "Mata-Mata Werewolf": 0
         },
         "image_urls": {
-            "game_start_image_url": "https://example.com/werewolf_start.gif",
-            "night_phase_image_url": "https://example.com/werewolf_night.gif",
-            "day_phase_image_url": "https://example.com/werewolf_day.gif",
-            "night_resolution_image_url": "https://example.com/werewolf_victim.gif"
+            "game_start_image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W1.gif",
+            "night_phase_image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W2.gif",
+            "day_phase_image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W3.gif",
+            "night_resolution_image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W4.gif",
+            "werewolf_win_image_url": "https://i.imgur.com/e5pYc.gif",
+            "villager_win_image_url": "https://i.imgur.com/qBvWc.gif"
         },
         "audio_urls": {
-            "game_start_audio_url": "https://example.com/audio/start_music.mp3",
-            "night_phase_audio_url": "https://example.com/audio/night_ambience.mp3",
-            "day_phase_audio_url": "https://example.com/audio/day_discussion.mp3",
-            "vote_phase_audio_url": "https://example.com/audio/tense_vote.mp3",
-            "game_end_audio_url": "https://example.com/audio/game_over_fanfare.mp3"
+            "game_start_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W1.mp3",
+            "night_phase_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W2.mp3",
+            "day_phase_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W3.mp3",
+            "vote_phase_audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+            "game_end_audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
         }
     }
 }
