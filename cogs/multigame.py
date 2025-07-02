@@ -69,7 +69,7 @@ class TicTacToeView(discord.ui.View):
         await interaction.message.edit(embed=embed, view=self)
         if self.winner or is_draw:
             self.stop()
-            self.game_cog.end_game_cleanup(interaction.channel.id)
+            await self.game_cog.end_game_cleanup(interaction.channel.id, interaction.channel) # Pass channel object
 
 class TicTacToeButton(discord.ui.Button):
     def __init__(self, row: int):
@@ -87,6 +87,25 @@ class TicTacToeButton(discord.ui.Button):
         view.board[button_index] = self.label
         await view.update_board(interaction)
 
+# New DonationView
+class DonationView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # Keep buttons active indefinitely
+
+        bagi_bagi_button = discord.ui.Button(
+            label="Dukung via Bagi-Bagi!",
+            style=discord.ButtonStyle.link,
+            url="https://bagibagi.co/Rh7155"
+        )
+        self.add_item(bagi_bagi_button)
+
+        saweria_button = discord.ui.Button(
+            label="Donasi via Saweria!",
+            style=discord.ButtonStyle.link,
+            url="https://saweria.co/RH7155"
+        )
+        self.add_item(saweria_button)
+
 class UltimateGameArena(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -100,7 +119,7 @@ class UltimateGameArena(commands.Cog):
         self.pernah_gak_pernah_data = load_json_from_root('data/pernah_gak_pernah.json')
         self.hitung_cepat_data = load_json_from_root('data/hitung_cepat.json')
         self.mata_mata_locations = load_json_from_root('data/mata_mata_locations.json')
-        self.deskripsi_data = load_json_from_root('data/deskripsi_tebak.json')
+        self.deskripsi_data = load_json_from_from_root('data/deskripsi_tebak.json')
         self.perang_otak_data = load_json_from_root('data/perang_otak.json') 
         self.cerita_pembuka_data = load_json_from_root('data/cerita_pembuka.json')
         self.tekateki_harian_data = load_json_from_root('data/teka_teki_harian.json')
@@ -150,7 +169,7 @@ class UltimateGameArena(commands.Cog):
         self.active_games.add(ctx.channel.id)
         return True
 
-    def end_game_cleanup(self, channel_id):
+    async def end_game_cleanup(self, channel_id, channel_obj=None):
         self.active_games.discard(channel_id)
         if channel_id in self.spyfall_game_states:
             spy_member = self.spyfall_game_states[channel_id]['spy']
@@ -162,6 +181,19 @@ class UltimateGameArena(commands.Cog):
             del self.spyfall_game_states[channel_id]
         print(f"Game cleanup complete for channel {channel_id}.")
 
+        # Add donation buttons at the end of the game
+        if channel_obj:
+            donation_message = (
+                "🎮 **Permainan Telah Usai!** Terima kasih sudah bermain bersama kami.\n\n"
+                "Apakah kamu menikmati petualangan dan keseruan yang kami hadirkan?\n"
+                "Dukung terus pengembangan bot ini agar kami bisa terus berinovasi dan "
+                "memberikan pengalaman bermain yang lebih seru lagi!\n\n"
+                "Donasi sekecil apa pun sangat berarti untuk kami! 🙏"
+            )
+            donation_view = DonationView()
+            await channel_obj.send(donation_message, view=donation_view)
+
+
     # --- GAME 1: SIAPAKAH AKU? ---
     @commands.command(name="siapakahaku", help="Mulai sesi 10 soal tebak-tebakan kompetitif.")
     @commands.cooldown(1, 60, commands.BucketType.channel)
@@ -169,7 +201,7 @@ class UltimateGameArena(commands.Cog):
         if not await self.start_game_check(ctx): return
         if len(self.siapakah_aku_data) < 10:
             await ctx.send("Tidak cukup soal di database untuk memulai sesi (butuh minimal 10).")
-            self.end_game_cleanup(ctx.channel.id)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             return
         questions = random.sample(self.siapakah_aku_data, 10)
         leaderboard = {}
@@ -237,7 +269,7 @@ class UltimateGameArena(commands.Cog):
             await ctx.send(embed=final_embed)
         else:
             await ctx.send("Sesi game berakhir tanpa ada pemenang.")
-        self.end_game_cleanup(ctx.channel.id)
+        await self.end_game_cleanup(ctx.channel.id, ctx.channel)
 
     # --- GAME 2: PERNAH GAK PERNAH (Disesuaikan) ---
     @commands.command(name="pernahgak", help="Mulai game 'Pernah Gak Pernah' di voice channelmu.")
@@ -254,7 +286,7 @@ class UltimateGameArena(commands.Cog):
 
         if len(self.pernah_gak_pernah_data) < 10:
             await ctx.send("Tidak cukup pertanyaan di database untuk sesi ini (butuh minimal 10).")
-            self.end_game_cleanup(ctx.channel.id)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             return
 
         questions = random.sample(self.pernah_gak_pernah_data, 10)
@@ -323,7 +355,7 @@ class UltimateGameArena(commands.Cog):
         else:
             await ctx.send("Sesi 'Pernah Gak Pernah' berakhir tanpa hasil yang tercatat.")
 
-        self.end_game_cleanup(ctx.channel.id)
+        await self.end_game_cleanup(ctx.channel.id, ctx.channel)
 
     # --- GAME 3: HITUNG CEPAT (Disesuaikan) ---
     @commands.command(name="hitungcepat", help="Selesaikan soal matematika secepat mungkin!")
@@ -333,7 +365,7 @@ class UltimateGameArena(commands.Cog):
 
         if len(self.hitung_cepat_data) < 10:
             await ctx.send("Tidak cukup soal di database untuk sesi ini (butuh minimal 10).")
-            self.end_game_cleanup(ctx.channel.id)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             return
         
         problems = random.sample(self.hitung_cepat_data, 10)
@@ -390,7 +422,7 @@ class UltimateGameArena(commands.Cog):
         else:
             await ctx.send("Sesi Hitung Cepat berakhir tanpa ada jawaban benar.")
 
-        self.end_game_cleanup(ctx.channel.id)
+        await self.end_game_cleanup(ctx.channel.id, ctx.channel)
 
 
     # --- GAME 4: MATA-MATA ---
@@ -402,19 +434,19 @@ class UltimateGameArena(commands.Cog):
         
         if not ctx.author.voice or not ctx.author.voice.channel:
             await ctx.send("Kamu harus berada di voice channel untuk memulai game ini.", delete_after=10)
-            self.end_game_cleanup(ctx.channel.id)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             return
         
         vc = ctx.author.voice.channel
         members = [m for m in vc.members if not m.bot]
         if len(members) < 3:
             await ctx.send("Game ini butuh minimal 3 orang di voice channel.", delete_after=10)
-            self.end_game_cleanup(ctx.channel.id)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             return
         
         if not self.mata_mata_locations:
             await ctx.send("Tidak ada lokasi yang tersedia untuk game Mata-Mata. Mohon tambahkan data lokasi.", delete_after=10)
-            self.end_game_cleanup(ctx.channel.id)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             return
 
         location = random.choice(self.mata_mata_locations)
@@ -447,7 +479,7 @@ class UltimateGameArena(commands.Cog):
         
         if failed_dms:
             await ctx.send(f"Gagal memulai game karena tidak bisa mengirim DM ke: {', '.join(failed_dms)}. Pastikan DM-nya terbuka."); 
-            self.end_game_cleanup(ctx.channel.id)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             return
 
         embed = discord.Embed(title="🎭 Game Mata-Mata Dimulai!", color=0x7289da)
@@ -478,7 +510,7 @@ class UltimateGameArena(commands.Cog):
                 await ctx.send(f"Waktu penuduhan habis! Mata-mata ({spy.mention}) menang karena tidak ada yang berhasil menuduh atau mata-mata tidak mengungkapkan lokasi! Lokasi sebenarnya adalah **{location}**.")
                 await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
                 self.spyfall_game_states[ctx.channel.id]['game_ended'] = True
-                self.end_game_cleanup(ctx.channel.id)
+                await self.end_game_cleanup(ctx.channel.id, ctx.channel)
 
         except asyncio.CancelledError:
             print(f"Mata-Mata game in channel {ctx.channel.id} was cancelled.")
@@ -487,7 +519,7 @@ class UltimateGameArena(commands.Cog):
         finally:
             if ctx.channel.id in self.spyfall_game_states and not self.spyfall_game_states[ctx.channel.id]['game_ended']:
                 self.spyfall_game_states[ctx.channel.id]['game_ended'] = True
-                self.end_game_cleanup(ctx.channel.id)
+                await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             elif ctx.channel.id not in self.spyfall_game_states:
                 print(f"Mata-Mata game in channel {ctx.channel.id} already cleaned up.")
 
@@ -561,7 +593,7 @@ class UltimateGameArena(commands.Cog):
                     await self.give_rewards_with_bonus_check(spy, ctx.guild.id, ctx.channel)
                 
                 game['game_ended'] = True
-                self.end_game_cleanup(ctx.channel.id)
+                await self.end_game_cleanup(ctx.channel.id, ctx.channel)
             else:
                 await ctx.send(f"❌ **Voting Gagal.** Tidak cukup suara untuk menuduh {member.mention}. Permainan dilanjutkan!")
                 game['vote_in_progress'] = False
@@ -598,7 +630,7 @@ class UltimateGameArena(commands.Cog):
                     await self.give_rewards_with_bonus_check(p, ctx.guild.id, ctx.channel)
         
         game['game_ended'] = True
-        self.end_game_cleanup(ctx.channel.id)
+        await self.end_game_cleanup(ctx.channel.id, ctx.channel)
 
     # --- GAME TEKA-TEKI HARIAN ---
     @tasks.loop(time=time(hour=5, minute=0, tzinfo=None)) # Menggunakan UTC (jam 5 pagi WIB = jam 22.00 UTC hari sebelumnya)
