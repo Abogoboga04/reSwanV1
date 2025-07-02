@@ -32,6 +32,25 @@ def save_json_to_root(data, file_path):
     with open(full_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
+# New DonationView
+class DonationView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # Keep buttons active indefinitely
+
+        bagi_bagi_button = discord.ui.Button(
+            label="Dukung via Bagi-Bagi!",
+            style=discord.ButtonStyle.link,
+            url="https://bagibagi.co/Rh7155"
+        )
+        self.add_item(bagi_bagi_button)
+
+        saweria_button = discord.ui.Button(
+            label="Donasi via Saweria!",
+            style=discord.ButtonStyle.link,
+            url="https://saweria.co/RH7155"
+        )
+        self.add_item(saweria_button)
+
 class TicTacToeView(discord.ui.View):
     def __init__(self, game_cog, player1, player2):
         super().__init__(timeout=300)
@@ -87,25 +106,6 @@ class TicTacToeButton(discord.ui.Button):
         view.board[button_index] = self.label
         await view.update_board(interaction)
 
-# New DonationView
-class DonationView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None) # Keep buttons active indefinitely
-
-        bagi_bagi_button = discord.ui.Button(
-            label="Dukung via Bagi-Bagi!",
-            style=discord.ButtonStyle.link,
-            url="https://bagibagi.co/Rh7155"
-        )
-        self.add_item(bagi_bagi_button)
-
-        saweria_button = discord.ui.Button(
-            label="Donasi via Saweria!",
-            style=discord.ButtonStyle.link,
-            url="https://saweria.co/RH7155"
-        )
-        self.add_item(saweria_button)
-
 class UltimateGameArena(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -119,7 +119,7 @@ class UltimateGameArena(commands.Cog):
         self.pernah_gak_pernah_data = load_json_from_root('data/pernah_gak_pernah.json')
         self.hitung_cepat_data = load_json_from_root('data/hitung_cepat.json')
         self.mata_mata_locations = load_json_from_root('data/mata_mata_locations.json')
-        self.deskripsi_data = load_json_from_from_root('data/deskripsi_tebak.json')
+        self.deskripsi_data = load_json_from_root('data/deskripsi_tebak.json') # Perbaikan bug di sini
         self.perang_otak_data = load_json_from_root('data/perang_otak.json') 
         self.cerita_pembuka_data = load_json_from_root('data/cerita_pembuka.json')
         self.tekateki_harian_data = load_json_from_root('data/teka_teki_harian.json')
