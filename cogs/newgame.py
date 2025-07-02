@@ -29,6 +29,25 @@ def save_json_to_root(data, file_path):
     with open(full_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
+# New DonationView - reusable for any game cog
+class DonationView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # Keep buttons active indefinitely
+
+        bagi_bagi_button = discord.ui.Button(
+            label="Dukung via Bagi-Bagi!",
+            style=discord.ButtonStyle.link,
+            url="https://bagibagi.co/Rh7155"
+        )
+        self.add_item(bagi_bagi_button)
+
+        saweria_button = discord.ui.Button(
+            label="Donasi via Saweria!",
+            style=discord.ButtonStyle.link,
+            url="https://saweria.co/RH7155"
+        )
+        self.add_item(saweria_button)
+
 class GameLanjutan(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -82,6 +101,31 @@ class GameLanjutan(commands.Cog):
         if anomaly_multiplier > 1 and channel:
             await channel.send(f"✨ **BONUS ANOMALI!** {user.mention} mendapatkan hadiah yang dilipatgandakan!", delete_after=15)
 
+    # --- FUNGSI PENANGANAN AKHIR GAME UNTUK DONASI ---
+    async def end_game_cleanup(self, channel_id, game_type, channel_obj=None):
+        """
+        Membersihkan status game yang aktif dan menampilkan tombol donasi.
+        game_type bisa 'scramble' atau 'sambung_kata'.
+        """
+        if game_type == 'scramble' and channel_id in self.active_scramble_games:
+            self.active_scramble_games.pop(channel_id, None)
+            print(f"Game Tebak Kata Acak di channel {channel_id} telah selesai.")
+        elif game_type == 'sambung_kata' and channel_id in self.active_sambung_games:
+            self.active_sambung_games.pop(channel_id, None)
+            print(f"Game Sambung Kata di voice channel {channel_id} telah selesai.")
+        
+        if channel_obj:
+            donation_message = (
+                "🎮 **Permainan Telah Usai!** Terima kasih sudah bermain bersama kami.\n\n"
+                "Apakah kamu menikmati petualangan dan keseruan yang kami hadirkan?\n"
+                "Dukung terus pengembangan bot ini agar kami bisa terus berinovasi dan "
+                "memberikan pengalaman bermain yang lebih seru lagi!\n\n"
+                "Donasi sekecil apa pun sangat berarti untuk kami! 🙏"
+            )
+            donation_view = DonationView()
+            await channel_obj.send(donation_message, view=donation_view)
+
+
     # --- GAME 1: TEBAK KATA ACAK (WORD SCRAMBLE) ---
     @commands.command(name="resacak", help="Mulai permainan Tebak Kata Acak.")
     async def resacak(self, ctx):
@@ -122,7 +166,7 @@ class GameLanjutan(commands.Cog):
     async def play_scramble_game(self, ctx):
         if not self.scramble_questions or len(self.scramble_questions) < 10:
             await ctx.send("Maaf, bank soal Tebak Kata Acak tidak ditemukan atau tidak cukup.")
-            self.active_scramble_games.pop(ctx.channel.id, None)
+            await self.end_game_cleanup(ctx.channel.id, 'scramble', ctx.channel) # Call cleanup here
             return
             
         questions = random.sample(self.scramble_questions, 10)
@@ -154,7 +198,7 @@ class GameLanjutan(commands.Cog):
             final_embed = discord.Embed(title="🏆 Papan Skor Akhir", description=desc, color=discord.Color.gold())
             await ctx.send(embed=final_embed)
 
-        self.active_scramble_games.pop(ctx.channel.id, None)
+        await self.end_game_cleanup(ctx.channel.id, 'scramble', ctx.channel) # Call cleanup at the very end
 
     # --- GAME 2: SAMBUNG KATA ---
     @commands.command(name="ressambung", help="Mulai permainan Sambung Kata di Voice Channel.")
@@ -167,11 +211,13 @@ class GameLanjutan(commands.Cog):
 
         members = [m for m in vc.members if not m.bot]
         if len(members) < 2:
-            return await ctx.send("Permainan ini membutuhkan minimal 2 orang di dalam voice channel.", delete_after=10)
+            await ctx.send("Permainan ini membutuhkan minimal 2 orang di dalam voice channel.", delete_after=10)
+            return await self.end_game_cleanup(vc.id, 'sambung_kata', ctx.channel) # Ensure cleanup on early exit
 
         game_state = {
             "players": {p.id: p for p in members}, "turn_index": 0, "current_word": "",
-            "used_words": set(), "channel": ctx.channel, "guild_id": ctx.guild.id
+            "used_words": set(), "channel": ctx.channel, "guild_id": ctx.guild.id,
+            "voice_channel_id": vc.id # Store VC ID for cleanup if needed
         }
         self.active_sambung_games[vc.id] = game_state
         
@@ -194,14 +240,17 @@ class GameLanjutan(commands.Cog):
 
     async def play_sambung_kata_game(self, vc_id):
         game = self.active_sambung_games.get(vc_id)
-        if not game: return
+        if not game:
+            # If game state somehow disappeared, just clean up and exit
+            await self.end_game_cleanup(vc_id, 'sambung_kata', game.get("channel"))
+            return
 
         player_ids = list(game["players"].keys())
         random.shuffle(player_ids)
         
         if not self.sambung_kata_words:
             await game["channel"].send("Bank kata untuk memulai tidak ditemukan.")
-            self.active_sambung_games.pop(vc_id, None)
+            await self.end_game_cleanup(vc_id, 'sambung_kata', game["channel"]) # Call cleanup
             return
 
         game["current_word"] = random.choice(self.sambung_kata_words).lower()
@@ -259,14 +308,12 @@ class GameLanjutan(commands.Cog):
 
         if len(player_ids) == 1:
             winner = game["players"][player_ids[0]]
-            is_bonus = await self.give_rewards_with_bonus_check(winner, self.sambung_kata_winner_reward, game["channel"])
-            if is_bonus:
-                await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Karena ada Anomali, hadiahmu dilipatgandakan!")
-            else:
-                await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Kamu mendapatkan hadiah!")
+            await self.give_rewards_with_bonus_check(winner, self.sambung_kata_winner_reward, game["channel"])
+            await game["channel"].send(f"🏆 Pemenangnya adalah {winner.mention}! Kamu mendapatkan hadiah!")
         else:
             await game["channel"].send("Permainan berakhir tanpa pemenang.")
-        self.active_sambung_games.pop(vc_id, None)
+        
+        await self.end_game_cleanup(vc_id, 'sambung_kata', game["channel"]) # Call cleanup at the very end
     
     # --- HELPER FUNCTION FOR TIMER ---
     async def wait_for_answer_with_timer(self, ctx, correct_answer, question_msg, time_limit):
