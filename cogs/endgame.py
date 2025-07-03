@@ -346,15 +346,15 @@ class GamesGlobalEvents(commands.Cog):
             default_value={
                 "roles": {
                     "Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu bunuh malam ini?", "dm_command": "!bunuh", "can_target_self": False, "emoji": "🐺", "order": 1, "night_action_order": 2, "description": "Tugasmu adalah membunuh para penduduk desa setiap malam hingga jumlahmu sama atau lebih banyak dari mereka.", "goal": "Musnahkan semua penduduk desa!"},
-                    "Dokter": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi malam ini?", "dm_command": "!lindungi", "can_target_self": true, "emoji": "⚕️", "order": 2, "night_action_order": 1, "description": "Kamu bisa melindungi satu orang setiap malam agar tidak dibunuh oleh Werewolf.", "goal": "Lindungi penduduk desa dan singkirkan Werewolf!"},
-                    "Peramal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu cek perannya malam ini?", "dm_command": "!cek", "can_target_self": true, "emoji": "🔮", "order": 3, "night_action_order": 3, "description": "Setiap malam, kamu bisa memilih satu pemain untuk mengetahui apakah dia Werewolf atau bukan.", "goal": "Temukan Werewolf dan bantu penduduk desa menggantung mereka!"},
-                    "Pengawal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu jaga dari hukuman mati siang nanti?", "dm_command": "!jaga", "can_target_self": true, "emoji": "🛡️", "order": 4, "night_action_order": 4, "description": "Kamu bisa melindungi satu pemain dari hukuman gantung di siang hari.", "goal": "Lindungi warga dari keputusan gantung yang salah."},
-                    "Pemburu": {"team": "Village", "action_prompt": "Jika kamu mati, siapa yang ingin kamu tembak sebagai balas dendam?", "dm_command": "!tembak", "can_target_self": false, "emoji": "🏹", "order": 5, "night_action_order": None, "description": "Jika kamu dibunuh oleh Werewolf atau digantung oleh desa, kamu bisa memilih satu pemain untuk ditembak mati sebagai balas dendam.", "goal": "Bantu warga menemukan Werewolf, dan bawa satu Werewolf bersamamu jika kamu mati."},
-                    "Penyihir": {"team": "Village", "action_prompt": "Pilih ramuanmu: `!racun <nomor_warga>` (bunuh) atau `!penawar <nomor_warga>` (hidupkan)?", "dm_command": "!racun atau !penawar", "can_target_self": true, "emoji": "🧙‍♀️", "order": 6, "night_action_order": 5, "description": "Kamu memiliki satu ramuan racun untuk membunuh siapapun, dan satu ramuan penawar untuk menghidupkan kembali seseorang yang baru saja mati.", "goal": "Gunakan ramuanmu dengan bijak untuk membantu warga menang."},
-                    "Alpha Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu bunuh malam ini? (Kamu adalah pemimpin Werewolf)", "dm_command": "!bunuhalpha", "can_target_self": false, "emoji": "🐺👑", "order": 7, "night_action_order": 2, "description": "Kamu adalah pemimpin Werewolf. Jika kamu mati, Werewolf lain masih bisa beraksi.", "goal": "Pimpin Werewolf untuk memusnahkan semua penduduk desa!"},
-                    "Penjaga Malam": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi dari semua aksi peran lain malam ini?", "dm_command": "!jagamalam", "can_target_self": true, "emoji": "👮", "order": 8, "night_action_order": 0, "description": "Kamu bisa melindungi satu orang setiap malam agar tidak menjadi target aksi peran lain (termasuk Werewolf).", "goal": "Jaga keamanan desa di malam hari."},
-                    "Ksatria Suci": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi dengan perisaimu malam ini?", "dm_command": "!perisai", "can_target_self": true, "emoji": "⚔️", "order": 9, "night_action_order": 1, "description": "Kamu bisa melindungi satu pemain dari serangan Werewolf. Jika kamu melindungi Werewolf, kamu akan mati.", "goal": "Lindungi warga dari Werewolf, bahkan dengan risiko nyawamu."},
-                    "Mata-Mata Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu intai perannya malam ini?", "dm_command": "!intai", "can_target_self": false, "emoji": "🤫", "order": 10, "night_action_order": 3, "description": "Kamu adalah Werewolf yang bisa mengintai peran satu pemain setiap malam. Kamu tidak bisa membunuh.", "goal": "Dapatkan informasi penting untuk tim Werewolf."},
+                    "Dokter": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi malam ini?", "dm_command": "!lindungi", "can_target_self": True, "emoji": "⚕️", "order": 2, "night_action_order": 1, "description": "Kamu bisa melindungi satu orang setiap malam agar tidak dibunuh oleh Werewolf.", "goal": "Lindungi penduduk desa dan singkirkan Werewolf!"},
+                    "Peramal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu cek perannya malam ini?", "dm_command": "!cek", "can_target_self": True, "emoji": "🔮", "order": 3, "night_action_order": 3, "description": "Setiap malam, kamu bisa memilih satu pemain untuk mengetahui apakah dia Werewolf atau bukan.", "goal": "Temukan Werewolf dan bantu penduduk desa menggantung mereka!"},
+                    "Pengawal": {"team": "Village", "action_prompt": "Siapa yang ingin kamu jaga dari hukuman mati siang nanti?", "dm_command": "!jaga", "can_target_self": True, "emoji": "🛡️", "order": 4, "night_action_order": 4, "description": "Kamu bisa melindungi satu pemain dari hukuman gantung di siang hari.", "goal": "Lindungi warga dari keputusan gantung yang salah."},
+                    "Pemburu": {"team": "Village", "action_prompt": "Jika kamu mati, siapa yang ingin kamu tembak sebagai balas dendam?", "dm_command": "!tembak", "can_target_self": False, "emoji": "🏹", "order": 5, "night_action_order": None, "description": "Jika kamu dibunuh oleh Werewolf atau digantung oleh desa, kamu bisa memilih satu pemain untuk ditembak mati sebagai balas dendam.", "goal": "Bantu warga menemukan Werewolf, dan bawa satu Werewolf bersamamu jika kamu mati."},
+                    "Penyihir": {"team": "Village", "action_prompt": "Pilih ramuanmu: `!racun <nomor_warga>` (bunuh) atau `!penawar <nomor_warga>` (hidupkan)?", "dm_command": "!racun atau !penawar", "can_target_self": True, "emoji": "🧙‍♀️", "order": 6, "night_action_order": 5, "description": "Kamu memiliki satu ramuan racun untuk membunuh siapapun, dan satu ramuan penawar untuk menghidupkan kembali seseorang yang baru saja mati.", "goal": "Gunakan ramuanmu dengan bijak untuk membantu warga menang."},
+                    "Alpha Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu bunuh malam ini? (Kamu adalah pemimpin Werewolf)", "dm_command": "!bunuhalpha", "can_target_self": False, "emoji": "🐺👑", "order": 7, "night_action_order": 2, "description": "Kamu adalah pemimpin Werewolf. Jika kamu mati, Werewolf lain masih bisa beraksi.", "goal": "Pimpin Werewolf untuk memusnahkan semua penduduk desa!"},
+                    "Penjaga Malam": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi dari semua aksi peran lain malam ini?", "dm_command": "!jagamalam", "can_target_self": True, "emoji": "👮", "order": 8, "night_action_order": 0, "description": "Kamu bisa melindungi satu orang setiap malam agar tidak menjadi target aksi peran lain (termasuk Werewolf).", "goal": "Jaga keamanan desa di malam hari."},
+                    "Ksatria Suci": {"team": "Village", "action_prompt": "Siapa yang ingin kamu lindungi dengan perisaimu malam ini?", "dm_command": "!perisai", "can_target_self": True, "emoji": "⚔️", "order": 9, "night_action_order": 1, "description": "Kamu bisa melindungi satu pemain dari serangan Werewolf. Jika kamu melindungi Werewolf, kamu akan mati.", "goal": "Lindungi warga dari Werewolf, bahkan dengan risiko nyawamu."},
+                    "Mata-Mata Werewolf": {"team": "Werewolf", "action_prompt": "Siapa yang ingin kamu intai perannya malam ini?", "dm_command": "!intai", "can_target_self": False, "emoji": "🤫", "order": 10, "night_action_order": 3, "description": "Kamu adalah Werewolf yang bisa mengintai peran satu pemain setiap malam. Kamu tidak bisa membunuh.", "goal": "Dapatkan informasi penting untuk tim Werewolf."},
                     "Warga Polos": {"team": "Village", "action_prompt": None, "dm_command": None, "can_target_self": False, "emoji": "🧑‍🌾", "order": 11, "night_action_order": None, "description": "Kamu adalah penduduk desa biasa. Tujuanmu adalah menemukan Werewolf dan menggantung mereka.", "goal": "Gantung semua Werewolf!"}
                 }
             }
@@ -910,22 +910,20 @@ class GamesGlobalEvents(commands.Cog):
 
                 # Pengumuman korban
                 await self._send_werewolf_visual(main_channel, "night_resolution")
-                killed_player_id = None # Akan menampung ID korban utama malam itu
-                
-                # Cek apakah ada yang mati oleh Werewolf (sebelum penawar Penyihir)
                 # killed_this_night sudah di-set di _process_night_actions jika ada korban WW
                 
-                victims_this_night = [p_data for p_id, p_data in game_state['players'].items()
-                                      if p_data['status'] == 'dead' and p_id not in game_state['dead_players']
-                                      and p_data.get('death_reason') in ['werewolf', 'witch_poison', 'sacrificed_for_werewolf']]
+                # Kumpulkan semua korban yang mati di malam ini (termasuk yang diselamatkan oleh Penyihir Penawar)
+                victims_this_night_for_announcement = [p_data for p_id, p_data in game_state['players'].items()
+                                                        if p_data['status'] == 'dead' and p_id not in game_state['dead_players'] # Hanya yang baru mati
+                                                        and p_data.get('death_reason') in ['werewolf', 'witch_poison', 'sacrificed_for_werewolf']]
                 
                 # Tambahkan yang mati di malam hari ke dead_players set
-                for p_data in victims_this_night:
+                for p_data in victims_this_night_for_announcement:
                     game_state['living_players'].discard(p_data['obj'].id)
                     game_state['dead_players'].add(p_data['obj'].id)
                 
-                if victims_this_night:
-                    for victim_data in victims_this_night:
+                if victims_this_night_for_announcement:
+                    for victim_data in victims_this_night_for_announcement:
                         victim_member = victim_data['obj']
                         victim_role = victim_data['role']
                         death_reason = victim_data['death_reason']
@@ -933,7 +931,6 @@ class GamesGlobalEvents(commands.Cog):
                         death_message = ""
                         if death_reason == 'werewolf':
                             death_message = f"Warga **{victim_member.display_name}** ({victim_member.mention}) ditemukan tak bernyawa! Dia adalah seorang **{victim_role}**."
-                            killed_player_id = victim_member.id # Ini adalah target utama yang dibunuh Werewolf
                         elif death_reason == 'witch_poison':
                             death_message = f"Warga **{victim_member.display_name}** ({victim_member.mention}) tewas karena ramuan racun Penyihir! Dia adalah seorang **{victim_role}**."
                         elif death_reason == 'sacrificed_for_werewolf':
@@ -959,7 +956,6 @@ class GamesGlobalEvents(commands.Cog):
                     await main_channel.send(f"☀️ **PAGI HARI {game_state['day_num']}!** Malam berlalu tanpa korban... Keberuntungan masih berpihak pada penduduk!")
                     self.log_game_event("Malam berlalu tanpa korban.")
                 
-                game_state['killed_this_night'] = killed_player_id # Simpan korban asli Werewolf ini untuk referensi
 
                 print(f"[{datetime.now()}] [DEBUG WW] Resolusi malam untuk Hari {game_state['day_num']} selesai.")
                 await asyncio.sleep(5)
@@ -1158,7 +1154,7 @@ class GamesGlobalEvents(commands.Cog):
 
         if werewolves_and_spies_living:
             # Jika belum ada thread atau di-disable, coba buat
-            if not game_state.get('werewolf_dm_thread') or game_state['werewolf_dm_thread'] == 'disabled':
+            if not game_state.get('werewolf_dm_thread') or game_state['werewolf_dm_thread'] is False: # Cek 'is False' bukan '== disabled'
                 try:
                     thread = await main_channel.create_thread(
                         name=f"Werewolf Den - Hari {game_state['day_num']}",
@@ -1183,7 +1179,7 @@ class GamesGlobalEvents(commands.Cog):
 
                 except discord.Forbidden:
                     print(f"[{datetime.now()}] [DEBUG WW] Bot tidak punya izin membuat private thread untuk Werewolf. Akan menggunakan DM pribadi.", file=sys.stderr)
-                    game_state['werewolf_dm_thread'] = 'disabled' # Set ke disabled agar selalu fallback ke DM
+                    game_state['werewolf_dm_thread'] = False # Set ke False agar selalu fallback ke DM
                     # Jika gagal buat thread, kirim DM individu
                     for ww_data in werewolves_and_spies_living:
                         ww_member = ww_data['obj']
@@ -1197,7 +1193,7 @@ class GamesGlobalEvents(commands.Cog):
                         print(f"[{datetime.now()}] [DEBUG WW] DM aksi malam untuk Werewolf ({ww_member.display_name}) dikirim sebagai fallback.")
                 except Exception as e:
                     print(f"[{datetime.now()}] [DEBUG WW] Error creating Werewolf thread: {e}. Falling back to DMs.", file=sys.stderr)
-                    game_state['werewolf_dm_thread'] = 'disabled' # Set ke disabled
+                    game_state['werewolf_dm_thread'] = False # Set ke False
                     # Jika gagal buat thread, kirim DM individu
                     for ww_data in werewolves_and_spies_living:
                         ww_member = ww_data['obj']
@@ -1287,7 +1283,6 @@ class GamesGlobalEvents(commands.Cog):
         main_channel = game_state['main_channel']
 
         # Inisialisasi daftar aksi yang akan diproses dari role_actions_pending
-        # game_state['role_actions_pending'] adalah {player_id: {role_name: target_id, 'Penyihir_command': 'racun'/'penawar'}}
         actions_to_process = []
         # Tambahkan aksi dari role_actions_pending
         for player_id, actions_data in game_state['role_actions_pending'].items():
@@ -1306,8 +1301,9 @@ class GamesGlobalEvents(commands.Cog):
                         'order': self.werewolf_roles_data['roles'][player_role_name].get('night_action_order', 99)
                     })
             else: # Peran lain
-                if target_id is None and player_role_name not in ["Werewolf", "Alpha Werewolf", "Mata-Mata Werewolf"]: # Werewolf dan Mata-Mata_WW tidak perlu target langsung di sini karena voting/intai
-                    continue # Lewati jika tidak ada target untuk peran yang membutuhkannya
+                # Hanya tambahkan aksi jika ada target yang valid (kecuali untuk WW/AlphaWW/Mata-Mata yang targetnya diambil dari tempat lain atau tidak wajib)
+                if target_id is None and player_role_name not in ["Werewolf", "Alpha Werewolf", "Mata-Mata Werewolf"]:
+                    continue
 
                 actions_to_process.append({
                     'player_id': player_id,
@@ -1352,8 +1348,8 @@ class GamesGlobalEvents(commands.Cog):
 
             # Jika target dilindungi Penjaga Malam, aksi ini gagal
             if protected_by_guard_id == target_player_data['obj'].id:
-                await self.send_dm(acting_player_data['obj'].id, f"Aksimu gagal karena **{target_player_data['obj'].obj.display_name}** dijaga oleh Penjaga Malam.")
-                self.log_game_event(f"{acting_player_data['obj'].display_name} mencoba aksi '{action['role_name']}' pada {target_player_data['obj'].obj.display_name}, tapi gagal karena dijaga.")
+                await self.send_dm(acting_player_data['obj'].id, f"Aksimu gagal karena **{target_player_data['obj'].display_name}** dijaga oleh Penjaga Malam.")
+                self.log_game_event(f"{acting_player_data['obj'].display_name} mencoba aksi '{action['role_name']}' pada {target_player_data['obj'].display_name}, tapi gagal karena dijaga.")
                 continue
 
             if action['role_name'] == 'Dokter':
@@ -1405,21 +1401,21 @@ class GamesGlobalEvents(commands.Cog):
                 # 2. Dokter
                 if protected_by_doctor_id == target_to_kill_data['obj'].id:
                     # Target terlindungi oleh Dokter
-                    game_state['killed_this_night'] = None # Tidak ada yang mati oleh Werewolf
+                    # game_state['killed_this_night'] = None # Ini di set nanti setelah Penyihir
                     self.log_game_event(f"Werewolf gagal membunuh {target_to_kill_data['obj'].display_name} karena dilindungi Dokter.")
                 # 3. Ksatria Suci
                 elif protected_by_knight_id == target_to_kill_data['obj'].id:
                     knight_player_data = game_state['players'].get(protected_by_knight_id)
-                    if knight_player_data and knight_player_data['role_info']['team'] == 'Werewolf':
+                    if knight_player_data and target_to_kill_data['role_info']['team'] == 'Werewolf':
                         # Ksatria Suci melindungi Werewolf, Ksatria Suci mati sebagai gantinya
                         knight_player_data['status'] = 'dead'
                         knight_player_data['death_reason'] = 'sacrificed_for_werewolf'
                         # Jangan ubah killed_this_night karena target WW masih hidup
-                        game_state['killed_this_night'] = None 
+                        # game_state['killed_this_night'] = None 
                         self.log_game_event(f"Ksatria Suci {knight_player_data['obj'].display_name} mati karena melindungi Werewolf {target_to_kill_data['obj'].display_name}.")
                     else:
                         # Ksatria Suci melindungi warga biasa, aksi Werewolf gagal
-                        game_state['killed_this_night'] = None # Tidak ada yang mati oleh Werewolf langsung
+                        # game_state['killed_this_night'] = None # Tidak ada yang mati oleh Werewolf langsung
                         self.log_game_event(f"Werewolf gagal membunuh {target_to_kill_data['obj'].display_name} karena dilindungi Ksatria Suci {knight_player_data['obj'].display_name}.")
                 else:
                     # Tidak ada perlindungan, target mati oleh Werewolf
@@ -1497,7 +1493,7 @@ class GamesGlobalEvents(commands.Cog):
             elif action['command_type'] == 'penawar':
                 if not witch_player_data['healing_potion_used']:
                     # Cek apakah target adalah korban Werewolf malam itu DAN masih mati
-                    if killed_by_werewolf_this_night_id and killed_by_werewolf_this_night_id == target_player_data['obj'].id and target_player_data['status'] == 'dead':
+                    if game_state['killed_this_night'] and game_state['killed_this_night'] == target_player_data['obj'].id and target_player_data['status'] == 'dead':
                         witch_player_data['healing_potion_used'] = True # Tandai ramuan penawar sudah dipakai
                         game_state['players'][target_player_data['obj'].id]['status'] = 'alive' # Hidupkan kembali
                         game_state['players'][target_player_data['obj'].id]['death_reason'] = None # Hapus alasan mati
@@ -1523,197 +1519,6 @@ class GamesGlobalEvents(commands.Cog):
                 game_state['dead_players'].add(p_id)
 
         print(f"[{datetime.now()}] [DEBUG WW] Pemrosesan aksi malam selesai.")
-
-    # --- DM COMMANDS ---
-    # Setiap command DM sekarang memiliki fungsi terpisah
-    async def _process_dm_command_template(self, ctx, required_role_name, target_type: str, target_num: int, is_werewolf_team_command=False):
-        """Template helper for processing common DM commands."""
-        print(f"[{datetime.now()}] [DEBUG WW] DM command '{ctx.command.name}' dipanggil oleh {ctx.author.display_name} ({ctx.author.id}).")
-        
-        # Validasi bahwa command ini hanya dari DM atau Werewolf Thread
-        is_werewolf_thread = isinstance(ctx.channel, discord.Thread) and ctx.channel.name.startswith("Werewolf Den")
-        is_dm = isinstance(ctx.channel, discord.DMChannel)
-
-        if not (is_dm or is_werewolf_thread):
-            return await ctx.send("Perintah ini hanya bisa digunakan di DM atau thread pribadi Werewolf dengan bot.", ephemeral=True)
-
-        game_state = None
-        for ch_id, state in self.werewolf_game_states.items():
-            if ctx.author.id in state['living_players']:
-                # Untuk perintah WW/AlphaWW/Mata-Mata di thread, pastikan itu thread yang benar
-                if is_werewolf_team_command: # Command tim (WW, AlphaWW, Mata-Mata)
-                    if state.get('werewolf_dm_thread') == ctx.channel or (is_dm and state.get('werewolf_dm_thread') == 'disabled'):
-                        game_state = state
-                        break
-                    elif is_dm and state.get('werewolf_dm_thread') and state.get('werewolf_dm_thread') != 'disabled':
-                        await ctx.send(f"Silakan gunakan thread Werewolf (`#{state['werewolf_dm_thread'].name}`) untuk perintah timmu.", ephemeral=True)
-                        return
-                else: # Command individu (Dokter, Peramal, dll.)
-                    if is_dm:
-                        game_state = state
-                        break
-                    else: # Bukan DM pribadi, tapi di thread
-                        await ctx.send("Perintah ini hanya bisa digunakan di DM pribadi dengan bot.", ephemeral=True)
-                        return
-
-        if not game_state:
-            print(f"[{datetime.now()}] [DEBUG WW] Command DM: Game tidak aktif atau bukan fase malam untuk {ctx.author.display_name}.")
-            return await ctx.send("Tidak ada game Werewolf yang aktif, atau bukan fase malam sekarang.", ephemeral=True)
-
-        player_data = game_state['players'].get(ctx.author.id)
-        if not player_data or player_data['status'] != 'alive':
-            print(f"[{datetime.now()}] [DEBUG WW] Command DM: {ctx.author.display_name} sudah mati atau tidak dalam game.")
-            return await ctx.send("Kamu sudah mati atau tidak dalam game Werewolf yang aktif.", ephemeral=True)
-
-        player_role = player_data['role']
-        if player_role != required_role_name:
-            print(f"[{datetime.now()}] [DEBUG WW] Command DM: {ctx.author.display_name} ({player_role}) mencoba command {ctx.command.name} yang bukan untuk perannya.")
-            return await ctx.send(f"Hanya **{required_role_name}** yang bisa menggunakan perintah ini.", ephemeral=True)
-
-        if game_state['phase'] != 'night':
-             return await ctx.send("Kamu hanya bisa menggunakan perintah ini saat fase malam.", ephemeral=True)
-
-        # Validasi format target
-        if target_type is None or target_type.lower() != "warga":
-            return await ctx.send(f"Format yang benar: `!{ctx.command.name} warga <nomor_warga>`", ephemeral=True)
-
-        if target_num is None:
-            return await ctx.send("Harap berikan nomor warga yang ingin Anda target.", ephemeral=True)
-
-        target_member_obj = game_state['player_map'].get(target_num) # Dapatkan objek member dari nomor
-        if not target_member_obj:
-            return await ctx.send(f"Warga dengan nomor `{target_num}` tidak ditemukan. Pastikan Anda memilih nomor dari daftar pemain yang hidup.", ephemeral=True)
-            
-        target_player_data = game_state['players'].get(target_member_obj.id) # Dapatkan data pemain lengkap
-        if not target_player_data or target_player_data['status'] != 'alive':
-            return await ctx.send(f"Warga **{target_member_obj.display_name}** (`{target_num}`) sudah mati. Pilih warga yang hidup dari daftar.", ephemeral=True)
-
-        # Pencegahan target diri sendiri jika tidak diizinkan
-        role_info = self.werewolf_roles_data['roles'].get(player_role)
-        if not role_info.get('can_target_self', False) and target_member_obj.id == ctx.author.id:
-            return await ctx.send("Kamu tidak bisa menargetkan diri sendiri untuk aksi ini!", ephemeral=True)
-
-        return game_state, player_data, target_member_obj, target_player_data
-
-
-    @commands.command(name="bunuh", hidden=True)
-    async def werewolf_kill_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Werewolf", target_type, target_num, is_werewolf_team_command=True)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['werewolf_votes'][ctx.author.id] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk dibunuh. (Pilihanmu telah dicatat, Werewolf lain mungkin juga memilih).")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Werewolf) memilih {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="bunuhalpha", hidden=True)
-    async def alpha_werewolf_kill_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Alpha Werewolf", target_type, target_num, is_werewolf_team_command=True)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['werewolf_votes'][ctx.author.id] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk dibunuh. (Pilihanmu telah dicatat, Werewolf lain mungkin juga memilih).")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Alpha Werewolf) memilih {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="lindungi", hidden=True)
-    async def doctor_protect_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Dokter", target_type, target_num)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Dokter'] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk dilindungi.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Dokter) melindungi {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="cek", hidden=True)
-    async def seer_check_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Peramal", target_type, target_num)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Peramal'] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk dicek perannya.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Peramal) memilih {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="jaga", hidden=True)
-    async def guard_protect_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Pengawal", target_type, target_num)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Pengawal'] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk dijaga dari hukuman mati.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Pengawal) menjaga {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="tembak", hidden=True)
-    async def hunter_target_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Pemburu", target_type, target_num)
-        if result is None: return
-        game_state, player_data, target_member_obj, _ = result
-
-        game_state['players'][ctx.author.id]['hunter_target'] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** sebagai target tembakan balas dendammu jika kamu mati.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Pemburu) memilih {target_member_obj.display_name} ({target_member_obj.id}) sebagai target balas dendam.")
-
-    @commands.command(name="racun", hidden=True)
-    async def witch_poison_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Penyihir", target_type, target_num)
-        if result is None: return
-        game_state, player_data, target_member_obj, _ = result
-
-        if player_data['poison_potion_used']:
-            return await ctx.send("Kamu sudah menggunakan ramuan racunmu.")
-        
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Penyihir'] = target_member_obj.id
-        game_state['role_actions_pending'][ctx.author.id]['Penyihir_command'] = 'racun'
-        await ctx.send(f"Kamu telah memilih untuk meracuni **{target_member_obj.display_name}**.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Penyihir) memilih untuk meracuni {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="penawar", hidden=True)
-    async def witch_cure_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Penyihir", target_type, target_num)
-        if result is None: return
-        game_state, player_data, target_member_obj, _ = result
-
-        if player_data['healing_potion_used']:
-            return await ctx.send("Kamu sudah menggunakan ramuan penawarmu.")
-        
-        # Target penawar haruslah yang dibunuh Werewolf malam itu. Verifikasi dilakukan di _process_night_actions.
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Penyihir'] = target_member_obj.id
-        game_state['role_actions_pending'][ctx.author.id]['Penyihir_command'] = 'penawar'
-        await ctx.send(f"Kamu telah memilih untuk mencoba menawar **{target_member_obj.display_name}**.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Penyihir) memilih untuk menawar {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="jagamalam", hidden=True)
-    async def watchman_protect_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Penjaga Malam", target_type, target_num)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Penjaga Malam'] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk dijaga dari semua aksi malam.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Penjaga Malam) menjaga {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="perisai", hidden=True)
-    async def holy_knight_protect_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Ksatria Suci", target_type, target_num)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Ksatria Suci'] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk dilindungi dengan perisaimu.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Ksatria Suci) melindungi {target_member_obj.display_name} ({target_member_obj.id}).")
-
-    @commands.command(name="intai", hidden=True)
-    async def werewolf_spy_check_cmd(self, ctx, target_type: str, target_num: int):
-        result = await self._process_dm_command_template(ctx, "Mata-Mata Werewolf", target_type, target_num, is_werewolf_team_command=True)
-        if result is None: return
-        game_state, _, target_member_obj, _ = result
-
-        game_state['role_actions_pending'].setdefault(ctx.author.id, {})['Mata-Mata Werewolf'] = target_member_obj.id
-        await ctx.send(f"Kamu telah memilih **{target_member_obj.display_name}** untuk diintai perannya.")
-        print(f"[{datetime.now()}] [DEBUG WW] {ctx.author.display_name} (Mata-Mata Werewolf) mengintai {target_member_obj.display_name} ({target_member_obj.id}).")
 
 
     @commands.command(name="vote")
