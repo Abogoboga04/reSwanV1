@@ -7,8 +7,8 @@ import asyncio
 from typing import Optional
 from datetime import datetime, timedelta
 import time
-import aiohttp # Import aiohttp untuk request async ke URL
-import sys # Import sys untuk mencetak error ke stderr
+import aiohttp
+import sys
 
 # =======================================================================================
 # UTILITY FUNCTIONS - Fungsi bantuan
@@ -22,7 +22,7 @@ def load_data(file_path):
             return {}
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-            if not content: 
+            if not content:
                 print(f"[{datetime.now()}] [DEBUG HELPER] File kosong: {file_path}. Mengembalikan data kosong.")
                 return {}
             data = json.loads(content)
@@ -65,7 +65,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     """
     def __init__(self, bot):
         self.bot = bot
-        # Pastikan path ke folder data sudah benar relatif terhadap main bot script
         self.settings_file = "data/settings.json"
         self.filters_file = "data/filters.json"
         self.warnings_file = "data/warnings.json"
@@ -80,9 +79,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         self.color_warning = 0xF1C40F
         self.color_log = 0x95A5A6
         self.color_welcome = 0x9B59B6
-        self.color_announce = 0x7289DA # Warna baru untuk announcement
-        
-        # Menggunakan load_data secara langsung
+        self.color_announce = 0x7289DA
+
         self.settings = load_data(self.settings_file)
         self.filters = load_data(self.filters_file)
         self.warnings = load_data(self.warnings_file)
@@ -98,13 +96,11 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 "log_channel_id": None, "reaction_roles": {},
                 "channel_rules": {}
             }
-            # Memanggil save_data secara langsung
-            save_data(self.settings_file, self.settings) 
+            save_data(self.settings_file, self.settings)
             print(f"[{datetime.now()}] [DEBUG ADMIN] Pengaturan default dibuat untuk guild {guild_id}.")
         elif "channel_rules" not in self.settings[guild_id_str]:
             self.settings[guild_id_str]["channel_rules"] = {}
-            # Memanggil save_data secara langsung
-            save_data(self.settings_file, self.settings) 
+            save_data(self.settings_file, self.settings)
             print(f"[{datetime.now()}] [DEBUG ADMIN] Aturan channel ditambahkan untuk guild {guild_id}.")
         return self.settings[guild_id_str]
 
@@ -116,8 +112,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 "disallow_bots": False, "disallow_media": False, "disallow_prefix": False,
                 "disallow_url": False, "auto_delete_seconds": 0
             }
-            # Memanggil save_data secara langsung
-            save_data(self.settings_file, self.settings) 
+            save_data(self.settings_file, self.settings)
             print(f"[{datetime.now()}] [DEBUG ADMIN] Aturan default dibuat untuk channel {channel_id} di guild {guild_id}.")
         return guild_settings["channel_rules"][channel_id_str]
         
@@ -125,12 +120,10 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         guild_id_str = str(guild_id)
         if guild_id_str not in self.filters:
             self.filters[guild_id_str] = { "bad_words": [], "link_patterns": [] }
-            # Memanggil save_data secara langsung
-            save_data(self.filters_file, self.filters) 
+            save_data(self.filters_file, self.filters)
             print(f"[{datetime.now()}] [DEBUG ADMIN] Filter default dibuat untuk guild {guild_id}.")
         return self.filters[guild_id_str]
         
-    # Menggunakan save_data secara langsung
     def save_settings(self): save_data(self.settings_file, self.settings)
     def save_filters(self): save_data(self.filters_file, self.filters)
     def save_warnings(self): save_data(self.warnings_file, self.warnings)
@@ -144,7 +137,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
 
     async def log_action(self, guild: discord.Guild, title: str, fields: dict, color: int):
         print(f"[{datetime.now()}] [DEBUG ADMIN] Logging action: {title} di guild {guild.name}.")
-        if not (log_channel_id := self.get_guild_settings(guild.id).get("log_channel_id")): 
+        if not (log_channel_id := self.get_guild_settings(guild.id).get("log_channel_id")):
             print(f"[{datetime.now()}] [DEBUG ADMIN] Log channel tidak diatur untuk guild {guild.name}.")
             return
         if (log_channel := guild.get_channel(log_channel_id)) and log_channel.permissions_for(guild.me).send_messages:
@@ -167,9 +160,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             embed = self._create_embed(description=f"❌ Anda tidak memiliki izin `{', '.join(error.missing_permissions)}` untuk menjalankan perintah ini.", color=self.color_error)
             await ctx.send(embed=embed, delete_after=15)
             print(f"[{datetime.now()}] [DEBUG ADMIN] Error: MissingPermissions. Pesan dikirim.")
-        elif isinstance(error, commands.CommandNotFound): 
+        elif isinstance(error, commands.CommandNotFound):
             print(f"[{datetime.now()}] [DEBUG ADMIN] Error: CommandNotFound. Diabaikan.")
-            pass # Diabaikan agar tidak spam di log
+            pass
         elif isinstance(error, commands.MemberNotFound):
             await ctx.send(embed=self._create_embed(description=f"❌ Anggota tidak ditemukan.", color=self.color_error))
             print(f"[{datetime.now()}] [DEBUG ADMIN] Error: MemberNotFound. Pesan dikirim.")
@@ -181,9 +174,6 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             print(f"[{datetime.now()}] [DEBUG ADMIN] Error: BadArgument. Pesan dikirim.")
         else:
             print(f"[{datetime.now()}] [DEBUG ADMIN] Error tak terduga pada perintah '{ctx.command}': {error}", file=sys.stderr)
-            # Baris raise error ini ada di main.py, bukan di sini, untuk mencetak traceback penuh
-            # await ctx.send(embed=self._create_embed(description=f"❌ Terjadi kesalahan tak terduga: {error}", color=self.color_error), ephemeral=True)
-
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -207,19 +197,15 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if not message.guild or message.author.id == self.bot.user.id: return
-        # print(f"[{datetime.now()}] [DEBUG ADMIN] on_message dipicu untuk {message.author.display_name}: {message.content[:50]}...") # Komentar untuk menghindari spam log
         
-        # Jangan proses perintah di sini, karena sudah ditangani oleh bot.process_commands di main.py
-        # Ini hanya untuk fitur moderasi otomatis seperti filter dan auto-delete
-
         rules = self.get_channel_rules(message.guild.id, message.channel.id)
         log_fields = {"Pengirim": message.author.mention, "Channel": message.channel.mention, "Isi Pesan": f"```{message.content[:1000]}```"}
         
         if (delay := rules.get("auto_delete_seconds", 0)) > 0:
-            try: 
+            try:
                 await message.delete(delay=delay)
                 print(f"[{datetime.now()}] [DEBUG ADMIN] Pesan dari {message.author.display_name} dihapus otomatis setelah {delay} detik.")
-            except discord.NotFound: 
+            except discord.NotFound:
                 print(f"[{datetime.now()}] [DEBUG ADMIN] Gagal hapus pesan {message.id}: Sudah tidak ditemukan.")
                 pass
 
@@ -229,9 +215,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             print(f"[{datetime.now()}] [DEBUG ADMIN] Pesan bot {message.author.display_name} dihapus.")
             return
 
-        # Hanya proses filter untuk non-bot
         if message.author.bot:
-             return
+            return
 
         if rules.get("disallow_media") and message.attachments:
             await message.delete()
@@ -247,24 +232,20 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             except discord.Forbidden: print(f"[{datetime.now()}] [DEBUG ADMIN] Gagal kirim DM peringatan ke {message.author.display_name} (Forbidden).")
             return
         
-        # Perbaiki agar tidak memblokir perintah bot
-        # Menggunakan bot.get_context() untuk memverifikasi apakah ini command yang valid
-        if message.content and message.content.startswith(self.bot.command_prefix): 
-            # Dapatkan semua prefix yang digunakan bot
+        if message.content and message.content.startswith(self.bot.command_prefix):
             command_prefixes = await self.bot.get_prefix(message)
-            if not isinstance(command_prefixes, list): # Pastikan command_prefixes adalah list
+            if not isinstance(command_prefixes, list):
                 command_prefixes = [command_prefixes]
 
             is_actual_command = False
             for prefix in command_prefixes:
                 if message.content.startswith(prefix):
-                    # Coba dapatkan command dari pesan
                     command_name = message.content[len(prefix):].split(' ')[0]
                     if self.bot.get_command(command_name):
                         is_actual_command = True
                         break
             
-            if rules.get("disallow_prefix") and not is_actual_command: # Jika disallow_prefix aktif DAN ini BUKAN command yang valid
+            if rules.get("disallow_prefix") and not is_actual_command:
                 await message.delete()
                 await message.channel.send(embed=self._create_embed(description=f"❗ {message.author.mention}, dilarang menggunakan perintah bot di channel ini.", color=self.color_warning), delete_after=10)
                 await self.log_action(message.guild, "❗ Perintah Bot Dihapus", log_fields, self.color_warning)
@@ -293,9 +274,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 await message.channel.send(embed=self._create_embed(description=f"🤫 Pesan dari {message.author.mention} dihapus karena melanggar aturan.", color=self.color_warning), delete_after=10)
                 await self.log_action(message.guild, "🚫 Pesan Disensor (Kata Kasar)", log_fields, self.color_warning)
                 print(f"[{datetime.now()}] [DEBUG ADMIN] Pesan kata kasar dari {message.author.display_name} dihapus.")
-                return 
+                return
         for pattern in guild_filters.get("link_patterns", []):
-            try: # Gunakan try-except untuk regex yang mungkin tidak valid
+            try:
                 if re.search(pattern, message.content):
                     await message.delete()
                     await message.channel.send(embed=self._create_embed(description=f"🚨 {message.author.mention}, jenis link tersebut tidak diizinkan di sini.", color=self.color_warning), delete_after=10)
@@ -304,15 +285,14 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                     return
             except re.error as e:
                 print(f"[{datetime.now()}] [DEBUG ADMIN] ERROR: Regex filter pattern '{pattern}' tidak valid: {e}", file=sys.stderr)
-                # Anda bisa menambahkan pesan ke log channel jika mau
         
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if payload.guild_id is None or payload.member is None or payload.member.bot: return # Member bisa None jika di DM
+        if payload.guild_id is None or payload.member is None or payload.member.bot: return
         print(f"[{datetime.now()}] [DEBUG ADMIN] on_raw_reaction_add dipicu oleh {payload.member.display_name} di guild {payload.guild_id}.")
 
         guild = self.bot.get_guild(payload.guild_id)
-        if not guild: 
+        if not guild:
             print(f"[{datetime.now()}] [DEBUG ADMIN] on_raw_reaction_add: Guild tidak ditemukan untuk payload {payload.guild_id}.")
             return
         
@@ -346,7 +326,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         
         if role_map and (role_id := role_map.get(str(payload.emoji))):
             if (role := guild.get_role(role_id)):
-                if role in member.roles: # Pastikan user punya role itu sebelum dihapus
+                if role in member.roles:
                     try:
                         await member.remove_roles(role, reason="Reaction Role Removed")
                         print(f"[{datetime.now()}] [DEBUG ADMIN] Reaction Role Removed: {role.name} dihapus dari {member.display_name}.")
@@ -369,11 +349,11 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     @commands.has_permissions(kick_members=True)
     async def kick(self, ctx, member: discord.Member, *, reason: Optional[str] = "Tidak ada alasan."):
         print(f"[{datetime.now()}] [DEBUG ADMIN] Command !kick dipanggil oleh {ctx.author.display_name} untuk {member.display_name}.")
-        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner: 
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengeluarkan anggota dengan role setara atau lebih tinggi.", color=self.color_error)); return
-        if member.id == ctx.guild.owner.id: 
+        if member.id == ctx.guild.owner.id:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengeluarkan pemilik server.", color=self.color_error)); return
-        if member.id == self.bot.user.id: 
+        if member.id == self.bot.user.id:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa mengeluarkan bot ini sendiri.", color=self.color_error)); return
 
         try:
@@ -521,8 +501,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         await ctx.send(embed=self._create_embed(description=f"✅ Peringatan ke-{warning_index} untuk **{member.display_name}** telah dihapus.", color=self.color_success))
         
         log_fields = {
-            "Member": f"{member} ({member.id})", 
-            "Moderator": ctx.author.mention, 
+            "Member": f"{member} ({member.id})",
+            "Moderator": ctx.author.mention,
             "Alasan Hapus": reason,
             "Peringatan yang Dihapus": f"`{removed_warning['reason']}`"
         }
@@ -560,11 +540,11 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     @commands.has_permissions(moderate_members=True)
     async def timeout(self, ctx, member: discord.Member, duration: str, *, reason: Optional[str] = "Tidak ada alasan."):
         print(f"[{datetime.now()}] [DEBUG ADMIN] Command !timeout dipanggil oleh {ctx.author.display_name} untuk {member.display_name} selama {duration}.")
-        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner: 
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada anggota dengan role setara atau lebih tinggi.", color=self.color_error)); return
-        if member.id == ctx.guild.owner.id: 
+        if member.id == ctx.guild.owner.id:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada pemilik server.", color=self.color_error)); return
-        if member.id == self.bot.user.id: 
+        if member.id == self.bot.user.id:
             await ctx.send(embed=self._create_embed(description="❌ Anda tidak bisa memberikan timeout pada bot ini sendiri.", color=self.color_error)); return
 
         delta = parse_duration(duration)
@@ -657,7 +637,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         print(f"[{datetime.now()}] [DEBUG ADMIN] Command !lock dipanggil oleh {ctx.author.display_name} untuk channel: {channel.name if channel else ctx.channel.name}.")
         target_channel = channel or ctx.channel
         current_perms = target_channel.permissions_for(ctx.guild.default_role)
-        if not current_perms.send_messages is False: # Check if send_messages is explicitly False
+        if not current_perms.send_messages is False:
             try:
                 await target_channel.set_permissions(ctx.guild.default_role, send_messages=False)
                 await ctx.send(embed=self._create_embed(description=f"🔒 Channel {target_channel.mention} telah dikunci.", color=self.color_success))
@@ -680,9 +660,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         print(f"[{datetime.now()}] [DEBUG ADMIN] Command !unlock dipanggil oleh {ctx.author.display_name} untuk channel: {channel.name if channel else ctx.channel.name}.")
         target_channel = channel or ctx.channel
         current_perms = target_channel.permissions_for(ctx.guild.default_role)
-        if not current_perms.send_messages is True: # Check if send_messages is explicitly True
+        if not current_perms.send_messages is True:
             try:
-                await target_channel.set_permissions(ctx.guild.default_role, send_messages=None) # Reset permissions
+                await target_channel.set_permissions(ctx.guild.default_role, send_messages=None)
                 await ctx.send(embed=self._create_embed(description=f"🔓 Kunci channel {target_channel.mention} telah dibuka.", color=self.color_success))
                 await self.log_action(ctx.guild, "🔓 Kunci Dibuka", {"Channel": target_channel.mention, "Moderator": ctx.author.mention}, self.color_success)
                 print(f"[{datetime.now()}] [DEBUG ADMIN] Channel {target_channel.name} berhasil dibuka kuncinya.")
@@ -795,7 +775,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 super().__init__(timeout=300)
                 self.cog, self.author, self.target_channel = cog_instance, author, target_channel
                 self.guild_id, self.channel_id = target_channel.guild.id, target_channel.id
-                self.message = None # To store the message this view is attached to
+                self.message = None
                 self.update_buttons()
                 print(f"[{datetime.now()}] [DEBUG ADMIN] ChannelRuleView diinisialisasi untuk {target_channel.name}.")
 
@@ -806,7 +786,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                     button.label = f"{label_text}: {'Aktif' if is_active else 'Nonaktif'}"
                     button.style = discord.ButtonStyle.green if is_active else discord.ButtonStyle.red
                 
-                self.clear_items() # Clear existing items before adding updated ones
+                self.clear_items()
                 
                 self.toggle_bots = discord.ui.Button(emoji="🛡️", row=0)
                 self.toggle_bots.callback = lambda i: self.toggle_rule(i, "disallow_bots")
@@ -838,8 +818,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
 
             async def interaction_check(self, interaction: discord.Interaction) -> bool:
                 print(f"[{datetime.now()}] [DEBUG ADMIN] ChannelRuleView: interaction_check dipicu oleh {interaction.user.display_name}.")
-                if interaction.user != self.author: 
-                    await interaction.response.send_message("Hanya pengguna yang memulai perintah yang dapat berinteraksi.", ephemeral=True); 
+                if interaction.user != self.author:
+                    await interaction.response.send_message("Hanya pengguna yang memulai perintah yang dapat berinteraksi.", ephemeral=True)
                     print(f"[{datetime.now()}] [DEBUG ADMIN] ChannelRuleView: Pengguna bukan pemanggil asli.")
                     return False
                 if not interaction.user.guild_permissions.manage_channels:
@@ -857,9 +837,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 self.update_buttons()
                 await interaction.response.edit_message(view=self)
                 await self.cog.log_action(
-                    self.target_channel.guild, 
-                    "🔧 Aturan Channel Diubah", 
-                    {"Channel": self.target_channel.mention, f"Aturan '{rule_name}'": "Diaktifkan" if rules[rule_name] else "Dinonaktifkan", "Moderator": interaction.user.mention}, 
+                    self.target_channel.guild,
+                    "🔧 Aturan Channel Diubah",
+                    {"Channel": self.target_channel.mention, f"Aturan '{rule_name}'": "Diaktifkan" if rules[rule_name] else "Dinonaktifkan", "Moderator": interaction.user.mention},
                     self.cog.color_info
                 )
                 print(f"[{datetime.now()}] [DEBUG ADMIN] ChannelRuleView: Aturan '{rule_name}' diubah ke {rules[rule_name]}.")
@@ -869,10 +849,10 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 class AutoDeleteModal(discord.ui.Modal, title="Atur Hapus Otomatis"):
                     def __init__(self, current_delay, parent_view_instance):
                         super().__init__()
-                        self.cog = parent_view_instance.cog 
+                        self.cog = parent_view_instance.cog
                         self.guild_id = parent_view_instance.guild_id
                         self.channel_id = parent_view_instance.channel_id
-                        self.parent_view = parent_view_instance 
+                        self.parent_view = parent_view_instance
 
                         self.delay_input = discord.ui.TextInput(
                             label="Durasi (detik, 0 untuk nonaktif)",
@@ -899,12 +879,12 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                             print(f"[{datetime.now()}] [DEBUG ADMIN] AutoDeleteModal: Durasi auto delete diatur ke {delay}s.")
                             
                             self.parent_view.update_buttons()
-                            await modal_interaction.response.edit_message(view=self.parent_view) 
+                            await modal_interaction.message.edit(view=self.parent_view) # Edit the original message of the modal trigger
                             
                             await self.cog.log_action(
-                                self.parent_view.target_channel.guild, 
-                                "⏳ Hapus Otomatis Diubah", 
-                                {"Channel": self.parent_view.target_channel.mention, "Durasi": f"{delay} detik" if delay > 0 else "Dinonaktifkan", "Moderator": modal_interaction.user.mention}, 
+                                self.parent_view.target_channel.guild,
+                                "⏳ Hapus Otomatis Diubah",
+                                {"Channel": self.parent_view.target_channel.mention, "Durasi": f"{delay} detik" if delay > 0 else "Dinonaktifkan", "Moderator": modal_interaction.user.mention},
                                 self.cog.color_info
                             )
                         except ValueError:
@@ -920,7 +900,12 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] ChannelRuleView: Modal AutoDeleteModal dikirim.")
 
         embed = self._create_embed(title=f"🔧 Aturan untuk Channel: #{target_channel.name}", description="Tekan tombol untuk mengaktifkan (hijau) atau menonaktifkan (merah) aturan untuk channel ini. Tekan tombol hapus otomatis untuk mengatur durasi (default 30s).", color=self.color_info)
-        await ctx.send(embed=embed, view=ChannelRuleView(self, ctx.author, target_channel))
+        initial_msg = await ctx.send(embed=embed, view=ChannelRuleView(self, ctx.author, target_channel))
+        # Store the message for later edits by the view
+        ChannelRuleView(self, ctx.author, target_channel).message = initial_msg # This line needs to be careful. Better to pass the message object to the view's init or make it a method.
+        # Let's adjust this to properly pass the message object
+        view_instance = ChannelRuleView(self, ctx.author, target_channel)
+        view_instance.message = await ctx.send(embed=embed, view=view_instance)
         print(f"[{datetime.now()}] [DEBUG ADMIN] !channelrules: Pesan ChannelRuleView dikirim.")
         
     # =======================================================================================
@@ -973,17 +958,23 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
     async def setup(self, ctx):
         print(f"[{datetime.now()}] [DEBUG ADMIN] Command !setup dipanggil oleh {ctx.author.display_name}.")
         class SetupView(discord.ui.View):
-            def __init__(self, cog_instance):
+            def __init__(self, cog_instance, author, ctx): # Added ctx to init
                 super().__init__(timeout=300)
-                self.cog = cog_instance; self.guild_id = ctx.guild.id; self.author = ctx.author
+                self.cog = cog_instance
+                self.guild_id = ctx.guild.id
+                self.author = author
+                self.ctx = ctx # Store ctx
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView diinisialisasi.")
+
             async def interaction_check(self, interaction: discord.Interaction) -> bool:
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: interaction_check dipicu oleh {interaction.user.display_name}.")
-                if interaction.user != self.author: 
-                    await interaction.response.send_message("Hanya pengguna yang memulai setup yang dapat berinteraksi.", ephemeral=True); 
+                if interaction.user != self.author:
+                    await interaction.response.send_message("Hanya pengguna yang memulai setup yang dapat berinteraksi.", ephemeral=True)
+                    print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Pengguna bukan pemanggil asli.")
                     return False
                 if not interaction.user.guild_permissions.manage_guild:
                     await interaction.response.send_message("Anda tidak memiliki izin `Manage Server` untuk menggunakan setup ini.", ephemeral=True)
+                    print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Pengguna tidak memiliki izin.")
                     return False
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Check interaksi lolos.")
                 return True
@@ -995,7 +986,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                     msg = await self.cog.bot.wait_for('message', check=lambda m: m.author == self.author and m.channel == interaction.channel, timeout=120)
                     await callback(msg, interaction)
                     print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Respons untuk handle_response diterima.")
-                except asyncio.TimeoutError: 
+                except asyncio.TimeoutError:
                     await interaction.followup.send(embed=self.cog._create_embed(description="❌ Waktu habis.", color=self.cog.color_error), ephemeral=True)
                     print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: handle_response waktu habis.")
                 except Exception as e:
@@ -1006,15 +997,16 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             async def set_auto_role(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Tombol Auto Role diklik.")
                 async def callback(msg, inter):
-                    role = msg.role_mentions[0] if msg.role_mentions else ctx.guild.get_role(int(msg.content)) if msg.content.isdigit() else None
+                    role = msg.role_mentions[0] if msg.role_mentions else self.ctx.guild.get_role(int(msg.content)) if msg.content.isdigit() else None
                     if role:
                         self.cog.get_guild_settings(self.guild_id)['auto_role_id'] = role.id; self.cog.save_settings()
                         await inter.followup.send(embed=self.cog._create_embed(description=f"✅ Auto Role diatur ke **{role.mention}**.", color=self.cog.color_success), ephemeral=True)
                         print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Auto Role diatur ke {role.name}.")
-                    else: 
+                    else:
                         await inter.followup.send(embed=self.cog._create_embed(description="❌ Role tidak ditemukan.", color=self.cog.color_error), ephemeral=True)
                         print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Role tidak ditemukan untuk Auto Role.")
                 await self.handle_response(interaction, "Sebutkan (mention) atau masukkan ID role untuk pengguna baru:", callback)
+
             @discord.ui.button(label="Welcome Msg", style=discord.ButtonStyle.primary, emoji="💬", row=0)
             async def set_welcome_message(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Tombol Welcome Msg diklik.")
@@ -1023,37 +1015,41 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                     await inter.followup.send(embed=self.cog._create_embed(description="✅ Pesan selamat datang berhasil diatur.", color=self.cog.color_success), ephemeral=True)
                     print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Pesan selamat datang diatur.")
                 await self.handle_response(interaction, "Ketik pesan selamat datangmu. Gunakan `{user}` dan `{guild_name}`.", callback)
+
             @discord.ui.button(label="Log Channel", style=discord.ButtonStyle.primary, emoji="📝", row=0)
             async def set_log_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Tombol Log Channel diklik.")
                 async def callback(msg, inter):
-                    channel = msg.channel_mentions[0] if msg.channel_mentions else ctx.guild.get_channel(int(msg.content)) if msg.content.isdigit() else None
+                    channel = msg.channel_mentions[0] if msg.channel_mentions else self.ctx.guild.get_channel(int(msg.content)) if msg.content.isdigit() else None
                     if channel and isinstance(channel, discord.TextChannel):
                         self.cog.get_guild_settings(self.guild_id)['log_channel_id'] = channel.id; self.cog.save_settings()
                         await inter.followup.send(embed=self.cog._create_embed(description=f"✅ Log Channel diatur ke **{channel.mention}**.", color=self.cog.color_success), ephemeral=True)
                         print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Log Channel diatur ke {channel.name}.")
-                    else: 
+                    else:
                         await inter.followup.send(embed=self.cog._create_embed(description="❌ Channel tidak ditemukan atau bukan channel teks.", color=self.cog.color_error), ephemeral=True)
                         print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Channel tidak ditemukan untuk Log Channel.")
                 await self.handle_response(interaction, "Sebutkan (mention) atau masukkan ID channel untuk log aktivitas bot:", callback)
+
             @discord.ui.button(label="Kelola Filter", style=discord.ButtonStyle.secondary, emoji="🛡️", row=1)
-            async def manage_filters(self, interaction: discord.Interaction, button: discord.ui.Button): 
+            async def manage_filters(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Tombol Kelola Filter diklik.")
                 await interaction.response.send_message(view=FilterManageView(self.cog, self.author), ephemeral=True)
+
             @discord.ui.button(label="Lihat Konfigurasi", style=discord.ButtonStyle.secondary, emoji="📋", row=1)
             async def view_config(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Tombol Lihat Konfigurasi diklik.")
                 settings = self.cog.get_guild_settings(self.guild_id); filters = self.cog.get_guild_filters(self.guild_id)
-                auto_role = ctx.guild.get_role(settings.get('auto_role_id')) if settings.get('auto_role_id') else "Tidak diatur"
-                welcome_ch = ctx.guild.get_channel(settings.get('welcome_channel_id')) if settings.get('welcome_channel_id') else "Tidak diatur"
-                log_ch = ctx.guild.get_channel(settings.get('log_channel_id')) if settings.get('log_channel_id') else "Tidak diatur"
-                embed = self.cog._create_embed(title=f"Konfigurasi untuk {ctx.guild.name}", color=self.cog.color_info)
+                auto_role = self.ctx.guild.get_role(settings.get('auto_role_id')) if settings.get('auto_role_id') else "Tidak diatur"
+                welcome_ch = self.ctx.guild.get_channel(settings.get('welcome_channel_id')) if settings.get('welcome_channel_id') else "Tidak diatur"
+                log_ch = self.ctx.guild.get_channel(settings.get('log_channel_id')) if settings.get('log_channel_id') else "Tidak diatur"
+                embed = self.cog._create_embed(title=f"Konfigurasi untuk {self.ctx.guild.name}", color=self.cog.color_info)
                 embed.add_field(name="Pengaturan Dasar", value=f"**Auto Role**: {auto_role.mention if isinstance(auto_role, discord.Role) else auto_role}\n**Welcome Channel**: {welcome_ch.mention if isinstance(welcome_ch, discord.TextChannel) else welcome_ch}\n**Log Channel**: {log_ch.mention if isinstance(log_ch, discord.TextChannel) else log_ch}", inline=False)
                 embed.add_field(name="Pesan Selamat Datang", value=f"```{settings.get('welcome_message')}```", inline=False)
                 embed.add_field(name="Filter Kata Kasar", value=f"Total: {len(filters.get('bad_words',[]))} kata", inline=True)
                 embed.add_field(name="Filter Link", value=f"Total: {len(filters.get('link_patterns',[]))} pola", inline=True)
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 print(f"[{datetime.now()}] [DEBUG ADMIN] SetupView: Konfigurasi dilihat.")
+
         class AddFilterModal(discord.ui.Modal, title="Tambah Filter"):
             def __init__(self, cog_instance, filter_type):
                 super().__init__(); self.cog = cog_instance; self.filter_type = filter_type
@@ -1084,30 +1080,31 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                     filters[self.filter_type].remove(item); self.cog.save_filters()
                     await interaction.response.send_message(embed=self.cog._create_embed(description=f"✅ `{item}` berhasil dihapus dari filter.", color=self.cog.color_success), ephemeral=True)
                     print(f"[{datetime.now()}] [DEBUG ADMIN] RemoveFilterModal: Item '{item}' dihapus.")
-                else: 
+                else:
                     await interaction.response.send_message(embed=self.cog._create_embed(description=f"❌ `{item}` tidak ditemukan di filter.", color=self.cog.color_error), ephemeral=True)
                     print(f"[{datetime.now()}] [DEBUG ADMIN] RemoveFilterModal: Item tidak ditemukan.")
+
         class FilterManageView(discord.ui.View):
             def __init__(self, cog_instance, author):
                 super().__init__(timeout=180); self.cog = cog_instance; self.author = author
                 print(f"[{datetime.now()}] [DEBUG ADMIN] FilterManageView diinisialisasi.")
-            async def interaction_check(self, interaction: discord.Interaction) -> bool: 
+            async def interaction_check(self, interaction: discord.Interaction) -> bool:
                 print(f"[{datetime.now()}] [DEBUG ADMIN] FilterManageView: interaction_check dipicu oleh {interaction.user.display_name}.")
                 return interaction.user == self.author
             @discord.ui.button(label="Tambah Kata Kasar", style=discord.ButtonStyle.primary, emoji="🤬")
-            async def add_bad_word(self, interaction: discord.Interaction, button: discord.ui.Button): 
+            async def add_bad_word(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] FilterManageView: Tombol Tambah Kata Kasar diklik.")
                 await interaction.response.send_modal(AddFilterModal(self.cog, "bad_words"))
             @discord.ui.button(label="Hapus Kata Kasar", style=discord.ButtonStyle.danger, emoji="🗑️")
-            async def remove_bad_word(self, interaction: discord.Interaction, button: discord.ui.Button): 
+            async def remove_bad_word(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] FilterManageView: Tombol Hapus Kata Kasar diklik.")
                 await interaction.response.send_modal(RemoveFilterModal(self.cog, "bad_words"))
             @discord.ui.button(label="Tambah Pola Link", style=discord.ButtonStyle.primary, emoji="🔗")
-            async def add_link_pattern(self, interaction: discord.Interaction, button: discord.ui.Button): 
+            async def add_link_pattern(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] FilterManageView: Tombol Tambah Pola Link diklik.")
                 await interaction.response.send_modal(AddFilterModal(self.cog, "link_patterns"))
             @discord.ui.button(label="Hapus Pola Link", style=discord.ButtonStyle.danger, emoji="🔗")
-            async def remove_link_pattern(self, interaction: discord.Interaction, button: discord.ui.Button): 
+            async def remove_link_pattern(self, interaction: discord.Interaction, button: discord.ui.Button):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] FilterManageView: Tombol Hapus Pola Link diklik.")
                 await interaction.response.send_modal(RemoveFilterModal(self.cog, "link_patterns"))
             @discord.ui.button(label="Lihat Semua Filter", style=discord.ButtonStyle.secondary, emoji="📋", row=2)
@@ -1120,7 +1117,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 print(f"[{datetime.now()}] [DEBUG ADMIN] FilterManageView: Filter dilihat.")
 
         embed = self._create_embed(title="⚙️ Panel Kontrol Server", description="Gunakan tombol di bawah ini untuk mengatur bot. Anda memiliki 5 menit sebelum panel ini nonaktif.", color=self.color_info, author_name=ctx.guild.name, author_icon_url=ctx.guild.icon.url if ctx.guild.icon else "")
-        await ctx.send(embed=embed, view=SetupView(self))
+        view_instance = SetupView(self, ctx.author, ctx) # Pass ctx here
+        await ctx.send(embed=embed, view=view_instance)
+        print(f"[{datetime.now()}] [DEBUG ADMIN] !setup: Pesan SetupView dikirim.")
 
 
     # =======================================================================================
@@ -1139,50 +1138,47 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         Contoh: !announce #general
         Contoh: !announce 123456789012345678
         """
-        print(f"[{datetime.now()}] [DEBUG ADMIN] Command !announce dipanggil oleh {ctx.author.display_name} untuk channel: '{channel_identifier}'.")
-        # Hardcode the GitHub Raw URL for the announcement description
-        GITHUB_RAW_DESCRIPTION_URL = "https://raw.githubusercontent.com/Abogoboga04/OpenAI/refs/heads/main/announcement.txt" 
-        print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Menggunakan GitHub Raw URL: {GITHUB_RAW_DESCRIPTION_URL}.")
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Command !announce dipanggil oleh {ctx.author.display_name} untuk channel: '{channel_identifier}'.")
+        GITHUB_RAW_DESCRIPTION_URL = "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/announcement.txt" # Ganti 'main' jika branch Anda berbeda
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] !announce: Menggunakan GitHub Raw URL: {GITHUB_RAW_DESCRIPTION_URL}.")
 
         # --- Parsing Channel from Command Argument ---
         target_channel = None
-        # Coba parse sebagai channel mention (e.g., <#1234567890>)
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Menganalisis channel_identifier: '{channel_identifier}'")
+
         if channel_identifier.startswith('<#') and channel_identifier.endswith('>'):
             try:
                 channel_id = int(channel_identifier[2:-1])
-                target_channel = ctx.guild.get_channel(channel_id) 
-                if not target_channel: 
+                target_channel = ctx.guild.get_channel(channel_id)
+                if not target_channel:
                     target_channel = self.bot.get_channel(channel_id)
-                print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Channel diidentifikasi via mention sebagai ID: {channel_id}.")
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Channel diidentifikasi via mention sebagai ID: {channel_id}, Result: {target_channel.name if target_channel else 'None'}.")
             except ValueError:
-                print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Gagal parsing mention channel. Mencoba ID mentah.")
-                pass 
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Gagal parsing mention channel. Mencoba ID mentah.")
+                pass
         
-        # Jika tidak ditemukan oleh mention, coba parse sebagai ID channel mentah
         if not target_channel and channel_identifier.isdigit():
             try:
                 channel_id = int(channel_identifier)
                 target_channel = ctx.guild.get_channel(channel_id)
                 if not target_channel:
-                    target_channel = self.bot.get_channel(channel_id) 
-                print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Channel diidentifikasi via ID: {channel_id}.")
+                    target_channel = self.bot.get_channel(channel_id)
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Channel diidentifikasi via ID: {channel_id}, Result: {target_channel.name if target_channel else 'None'}.")
             except ValueError:
-                print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Gagal parsing ID channel mentah.")
-                pass 
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Gagal parsing ID channel mentah.")
+                pass
 
         if not target_channel or not isinstance(target_channel, discord.TextChannel):
-            print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Channel target '{channel_identifier}' tidak ditemukan atau bukan channel teks yang valid.")
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Channel target '{channel_identifier}' tidak ditemukan atau bukan channel teks yang valid.")
             await ctx.send(embed=self._create_embed(
                 description=f"❌ Channel '{channel_identifier}' tidak ditemukan atau bukan channel teks yang valid. Mohon gunakan mention channel (misal: `#general`) atau ID channel yang benar. Pastikan bot berada di server tersebut.",
                 color=self.color_error
             ))
             return
-        print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Channel target valid: {target_channel.name} ({target_channel.id}).")
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Channel target valid: {target_channel.name} ({target_channel.id}).")
         
         # --- Announcement Modal Class (Definisi kelas di dalam fungsi announce untuk akses ke context) ---
         class AnnouncementModal(discord.ui.Modal, title=f"Buat Pengumuman untuk #{target_channel.name}"):
-            # Input fields for custom profile, username, title, and image URL
-            # Note: Max 5 TextInput components per Modal in Discord API
             announcement_title = discord.ui.TextInput(
                 label="Judul Pengumuman (maks 256 karakter)",
                 placeholder="Contoh: Pembaruan Server Penting!",
@@ -1201,7 +1197,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 label="URL Avatar Pengirim Kustom (Opsional, http/https)",
                 placeholder="Contoh: https://example.com/avatar.png",
                 max_length=2000,
-                required=False, 
+                required=False,
                 row=2
             )
             announcement_image_url = discord.ui.TextInput(
@@ -1218,63 +1214,63 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 self.original_ctx = original_ctx
                 self.target_channel_obj = target_channel_obj
                 self.github_raw_url = github_raw_url
-                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal diinisialisasi.")
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal diinisialisasi.")
 
             async def on_submit(self, interaction: discord.Interaction):
-                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: on_submit dipanggil oleh {interaction.user.display_name}.")
-                await interaction.response.defer(ephemeral=True) 
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: on_submit dipanggil oleh {interaction.user.display_name}.")
+                await interaction.response.defer(ephemeral=True)
 
                 title = self.announcement_title.value.strip()
                 username = self.custom_username.value.strip()
                 profile_url = self.custom_profile_url.value.strip()
                 image_url = self.announcement_image_url.value.strip()
 
-                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Input diterima - Judul: '{title}', User: '{username}'.")
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Input diterima - Judul: '{title}', User: '{username}'.")
 
                 # --- Validasi Input ---
                 if not username:
-                    print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Username kustom kosong.")
+                    print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Username kustom kosong.")
                     await interaction.followup.send(embed=self.cog._create_embed(description="❌ Username Pengirim Kustom tidak boleh kosong.", color=self.cog.color_error), ephemeral=True); return
                 if profile_url and not (profile_url.startswith("http://") or profile_url.startswith("https://")):
-                    print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: URL Avatar tidak valid: {profile_url}.")
+                    print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: URL Avatar tidak valid: {profile_url}.")
                     await interaction.followup.send(embed=self.cog._create_embed(description="❌ URL Avatar Pengirim Kustom tidak valid. Harus dimulai dengan `http://` atau `https://`.", color=self.cog.color_error), ephemeral=True); return
                 if image_url and not (image_url.startswith("http://") or image_url.startswith("https://")):
-                    print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: URL Gambar tidak valid: {image_url}.")
+                    print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: URL Gambar tidak valid: {image_url}.")
                     await interaction.followup.send(embed=self.cog._create_embed(description="❌ URL Gambar Pengumuman tidak valid. Harus dimulai dengan `http://` atau `https://`.", color=self.cog.color_error), ephemeral=True); return
                 
-                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Input divalidasi. Mencoba ambil deskripsi dari {self.github_raw_url}.")
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Input divalidasi. Mencoba ambil deskripsi dari {self.github_raw_url}.")
 
                 # --- Fetch Description from GitHub Raw URL ---
                 full_description = ""
                 try:
                     async with aiohttp.ClientSession() as session:
                         async with session.get(self.github_raw_url) as resp:
-                            print(f"[{datetime.now()}] [DEBUG ADMIN] GitHub fetch: Status {resp.status} dari {self.github_raw_url}.")
+                            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] GitHub fetch Status: {resp.status}, Content-Type: {resp.headers.get('Content-Type')}.")
                             if resp.status == 200:
                                 full_description = await resp.text()
-                                print(f"[{datetime.now()}] [DEBUG ADMIN] GitHub fetch: Deskripsi berhasil diambil ({len(full_description)} karakter).")
+                                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] GitHub fetch: Deskripsi berhasil diambil ({len(full_description)} karakter). Awal deskripsi: '{full_description[:100]}...'")
                             else:
-                                print(f"[{datetime.now()}] [DEBUG ADMIN] GitHub fetch: Gagal (HTTP Status {resp.status}).")
+                                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] GitHub fetch: Gagal (HTTP Status {resp.status}).")
                                 await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Gagal mengambil deskripsi dari URL GitHub Raw ({self.github_raw_url}): Status HTTP {resp.status}. Pastikan URL valid dan publik.", color=self.cog.color_error), ephemeral=True); return
                 except aiohttp.ClientError as e:
-                    print(f"[{datetime.now()}] [DEBUG ADMIN] GitHub fetch: Kesalahan jaringan: {e}.", file=sys.stderr)
+                    print(f"[{datetime.now()}] [ERROR ANNOUNCE] GitHub fetch: Kesalahan jaringan: {e}.", file=sys.stderr)
                     await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan jaringan saat mengambil deskripsi dari GitHub: {e}. Pastikan URL GitHub Raw benar.", color=self.cog.color_error), ephemeral=True); return
                 except Exception as e:
-                    print(f"[{datetime.now()}] [DEBUG ADMIN] GitHub fetch: Kesalahan tak terduga: {e}.", file=sys.stderr)
+                    print(f"[{datetime.now()}] [ERROR ANNOUNCE] GitHub fetch: Kesalahan tak terduga: {e}.", file=sys.stderr)
                     await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan tidak terduga saat mengambil deskripsi: {e}", color=self.cog.color_error), ephemeral=True); return
 
                 if not full_description.strip():
-                     print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Deskripsi dari GitHub Raw kosong.")
-                     await interaction.followup.send(embed=self.cog._create_embed(description="❌ Deskripsi pengumuman dari URL GitHub Raw kosong atau hanya berisi spasi. Pastikan file teks memiliki konten.", color=self.cog.color_error), ephemeral=True); return
+                    print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Deskripsi dari GitHub Raw kosong atau hanya spasi.")
+                    await interaction.followup.send(embed=self.cog._create_embed(description="❌ Deskripsi pengumuman dari URL GitHub Raw kosong atau hanya berisi spasi. Pastikan file teks memiliki konten.", color=self.cog.color_error), ephemeral=True); return
                 
                 description_chunks = [full_description[i:i+4096] for i in range(0, len(full_description), 4096)]
-                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Deskripsi dipecah menjadi {len(description_chunks)} bagian.")
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Deskripsi dipecah menjadi {len(description_chunks)} bagian.")
 
 
                 # --- Create and Send Embeds ---
                 sent_first_embed = False
                 for i, chunk in enumerate(description_chunks):
-                    if not chunk.strip(): continue # Skip empty chunks
+                    if not chunk.strip(): continue
 
                     embed = discord.Embed(
                         description=chunk,
@@ -1294,42 +1290,45 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                         perms = self.target_channel_obj.permissions_for(self.target_channel_obj.guild.me)
                         if not perms.send_messages or not perms.embed_links:
                             if not sent_first_embed:
-                                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Bot kekurangan izin kirim pesan/embed di {self.target_channel_obj.name}.")
+                                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Bot kekurangan izin kirim pesan/embed di {self.target_channel_obj.name}.")
                                 await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Bot tidak memiliki izin untuk mengirim pesan atau menyematkan tautan di {self.target_channel_obj.mention}. Pastikan bot memiliki izin 'Kirim Pesan' dan 'Sematkan Tautan'.", color=self.cog.color_error), ephemeral=True)
                             return
                         
                         await self.target_channel_obj.send(embed=embed)
                         sent_first_embed = True
-                        print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Embed #{i+1} berhasil dikirim ke {self.target_channel_obj.name}.")
+                        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Embed #{i+1} berhasil dikirim ke {self.target_channel_obj.name}.")
                     except discord.Forbidden:
-                        print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Bot Forbidden kirim pesan ke {self.target_channel_obj.name}.", file=sys.stderr)
+                        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Bot Forbidden kirim pesan ke {self.target_channel_obj.name}.", file=sys.stderr)
                         if not sent_first_embed: await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Bot tidak memiliki izin untuk mengirim pesan di {self.target_channel_obj.mention}. Pastikan bot memiliki izin 'Send Messages' dan 'Embed Links'.", color=self.cog.color_error), ephemeral=True); return
                     except Exception as e:
-                        print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Error saat mengirim embed ke {self.target_channel_obj.name}: {e}.", file=sys.stderr)
+                        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Error saat mengirim embed ke {self.target_channel_obj.name}: {e}.", file=sys.stderr)
                         if not sent_first_embed: await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan saat mengirim pengumuman: {e}", color=self.cog.color_error), ephemeral=True); return
                 
                 if sent_first_embed:
                     await interaction.followup.send(embed=self.cog._create_embed(description=f"✅ Pengumuman berhasil dikirim ke <#{self.target_channel_obj.id}>!", color=self.cog.color_success), ephemeral=True)
                     await self.cog.log_action(self.original_ctx.guild, "📢 Pengumuman Baru Dibuat", {"Pengirim (Eksekutor)": self.original_ctx.author.mention, "Pengirim (Tampilan)": f"{username} ({profile_url if profile_url else 'Default'})", "Channel Target": f"<#{self.target_channel_obj.id}>", "Judul": title, "Deskripsi Sumber": GITHUB_RAW_DESCRIPTION_URL, "Panjang Deskripsi": f"{len(full_description)} karakter"}, self.cog.color_announce)
-                    print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Konfirmasi dan log pengumuman selesai.")
+                    print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Konfirmasi dan log pengumuman selesai.")
                 else:
-                    print(f"[{datetime.now()}] [DEBUG ADMIN] AnnouncementModal: Tidak ada embed yang berhasil terkirim.")
+                    print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModal: Tidak ada embed yang berhasil terkirim.")
 
             async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-                print(f"[{datetime.now()}] [DEBUG ADMIN] Error in AnnouncementModal (on_error): {error}", file=sys.stderr)
+                print(f"[{datetime.now()}] [ERROR ANNOUNCE] Error in AnnouncementModal (on_error): {error}", file=sys.stderr)
                 if not interaction.response.is_done():
                     await interaction.response.send_message(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}", color=self.cog.color_error), ephemeral=True)
                 else:
                     await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}", color=self.cog.color_error), ephemeral=True)
 
         # Initial message with the button
-        await ctx.send(embed=self._create_embed(
-            title="🔔 Siap Membuat Pengumuman?", 
-            description=f"Anda akan membuat pengumuman di channel {target_channel.mention}. Tekan tombol di bawah untuk mengisi detail lainnya. Deskripsi pengumuman akan diambil otomatis dari file teks di GitHub (`{GITHUB_RAW_DESCRIPTION_URL}`). Anda memiliki **60 detik** untuk mengisi formulir.", 
-            color=self.color_info), 
-            view=AnnounceButtonView(self.bot, self.cog, ctx, target_channel, GITHUB_RAW_DESCRIPTION_URL) # Pass bot, cog, ctx, target_channel, and URL
+        # Perbaikan untuk AnnounceButtonView: Simpan pesan awal agar bisa diedit saat timeout
+        view_instance = AnnounceButtonView(self.bot, self, ctx, target_channel, GITHUB_RAW_DESCRIPTION_URL)
+        initial_msg = await ctx.send(embed=self._create_embed(
+            title="🔔 Siap Membuat Pengumuman?",
+            description=f"Anda akan membuat pengumuman di channel {target_channel.mention}. Tekan tombol di bawah untuk mengisi detail lainnya. Deskripsi pengumuman akan diambil otomatis dari file teks di GitHub (`{GITHUB_RAW_DESCRIPTION_URL}`). Anda memiliki **60 detik** untuk mengisi formulir.",
+            color=self.color_info),
+            view=view_instance
         )
-        print(f"[{datetime.now()}] [DEBUG ADMIN] !announce: Pesan pemicu modal dikirim.")
+        view_instance.message = initial_msg # Menyimpan objek pesan untuk view
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] !announce: Pesan pemicu modal dikirim.")
 
 # View untuk tombol pemicu modal
 class AnnounceButtonView(discord.ui.View):
@@ -1340,6 +1339,7 @@ class AnnounceButtonView(discord.ui.View):
         self.original_ctx = original_ctx
         self.target_channel_obj = target_channel_obj
         self.github_raw_url = github_raw_url
+        self.message = None # Ini akan diisi setelah pesan awal dikirim di command !announce
         print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView diinisialisasi.")
 
     @discord.ui.button(label="Buka Formulir Pengumuman", style=discord.ButtonStyle.primary, emoji="📣")
@@ -1349,13 +1349,32 @@ class AnnounceButtonView(discord.ui.View):
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pengguna bukan pemanggil asli, blokir.")
             return await interaction.response.send_message("Hanya orang yang memulai perintah yang dapat membuat pengumuman ini.", ephemeral=True)
         
-        # Check permissions again just in case (though command already checks)
-        # Menggunakan original_ctx.author.guild_permissions yang lebih aman
-        if not self.original_ctx.author.guild_permissions.manage_guild: 
+        if not self.original_ctx.author.guild_permissions.manage_guild:
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pemanggil asli kekurangan izin 'Manage Server', blokir.")
             return await interaction.response.send_message("Anda tidak memiliki izin `Manage Server` untuk membuat pengumuman.", ephemeral=True)
         
-        modal = AnnouncementModal(self.cog, self.original_ctx, self.target_channel_obj, self.github_raw_url)
+        # Perbaiki agar AnnouncementModal bisa diakses (diimport atau didefinisikan di luar)
+        # Untuk tujuan kode lengkap ini, saya akan mengasumsikan AnnouncementModal didefinisikan secara lokal di `announce`
+        # atau Anda memindahkannya ke luar (misalnya ke level file ini).
+        # Jika Anda tetap menginginkan nested class seperti di kode asli, ini bisa jadi tricky.
+        # Solusi terbaik adalah definisi Modal di global scope file ini.
+        # UNTUK KODE LENGKAP INI, SAYA ASUMSIKAN AnnouncementModal DI DEFINISIKAN DALAM FUNGSI ANNOUNCE ITU SENDIRI
+        # DAN KITA MEMANGGILNYA DARI SANA SEPERTI INI. Ini hanya berfungsi jika modal didefinisikan global.
+        # Karena modal didefinisikan di dalam `announce`, kita perlu memanggil modal dari `announce` command.
+        # Button view harus dikirimkan dari dalam `announce` command itu sendiri, bukan di luar.
+        # Ini berarti struktur kode Anda yang asli untuk `AnnounceButtonView` (didefinisikan di luar Cog)
+        # dan `AnnouncementModal` (didefinisikan di dalam command `announce`) saling bertentangan.
+        # Mari kita sesuaikan agar `AnnouncementModal` juga bisa diakses dari `AnnounceButtonView`.
+        # CARA PALING MUDAH: DEFINISIKAN AnnouncementModal DI LUAR `ServerAdminCog` atau di Global Scope file ini.
+
+        # --- RE-DEFINISI ULANG AnnouncementModal DI GLOBAL SCOPE (ini perubahan besar) ---
+        # (Saya akan menempatkannya di bawah `AnnounceButtonView` agar kode tetap teratur)
+        # Karena ini adalah kode lengkap, saya akan masukkan semua definisi di satu file.
+        # Ini akan membuat `AnnouncementModal` dapat diakses dari mana saja di file ini.
+        
+        # Karena AnnouncementModal sekarang di global scope, dia tidak memiliki akses langsung ke `self.cog` dari `ServerAdminCog`.
+        # Kita harus meneruskan `cog_instance` ke modal saat inisialisasi.
+        modal = AnnouncementModalGlobal(self.cog, self.original_ctx, self.target_channel_obj, self.github_raw_url)
         try:
             await interaction.response.send_modal(modal)
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Modal pengumuman berhasil dikirim.")
@@ -1371,17 +1390,159 @@ class AnnounceButtonView(discord.ui.View):
         for item in self.children:
             item.disabled = True
         try:
-            # Edit the original message to reflect the disabled buttons
-            # Menggunakan interaction.message yang merupakan pesan yang berisi view ini
-            # Asumsi pesan ini adalah pesan respons dari ctx.send()
-            await self.message.edit(view=self) # Jika self.message disimpan di __init__
-            print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pesan view dinonaktifkan.")
+            if self.message: # Hanya edit jika self.message sudah ada
+                await self.message.edit(view=self)
+                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pesan view dinonaktifkan.")
+            else:
+                print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pesan view tidak ditemukan saat timeout (belum diatur).")
         except discord.NotFound:
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: Pesan view tidak ditemukan saat timeout.")
-            pass 
+            pass
         except Exception as e:
             print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: ERROR saat menonaktifkan tombol pada timeout: {e}.", file=sys.stderr)
 
 
+# =======================================================================================
+# GLOBAL MODAL CLASS FOR ANNOUNCEMENT (DIPINDAHKAN KE SINI AGAR BISA DIAKSES DARI VIEWS)
+# =======================================================================================
+class AnnouncementModalGlobal(discord.ui.Modal, title="Buat Pengumuman"): # Nama diubah sedikit
+    announcement_title = discord.ui.TextInput(
+        label="Judul Pengumuman (maks 256 karakter)",
+        placeholder="Contoh: Pembaruan Server Penting!",
+        max_length=256,
+        required=True,
+        row=0
+    )
+    custom_username = discord.ui.TextInput(
+        label="Username Pengirim Kustom (maks 256 karakter)",
+        placeholder="Contoh: Tim Admin / Pengumuman Resmi",
+        max_length=256,
+        required=True,
+        row=1
+    )
+    custom_profile_url = discord.ui.TextInput(
+        label="URL Avatar Pengirim Kustom (Opsional, http/https)",
+        placeholder="Contoh: https://example.com/avatar.png",
+        max_length=2000,
+        required=False,
+        row=2
+    )
+    announcement_image_url = discord.ui.TextInput(
+        label="URL Gambar di Akhir Pengumuman (Opsional, http/https)",
+        placeholder="Contoh: https://example.com/banner.png",
+        max_length=2000,
+        required=False,
+        row=3
+    )
+
+    def __init__(self, cog_instance, original_ctx, target_channel_obj, github_raw_url):
+        super().__init__()
+        self.cog = cog_instance
+        self.original_ctx = original_ctx
+        self.target_channel_obj = target_channel_obj
+        self.github_raw_url = github_raw_url
+        # Update title based on target channel
+        self.title = f"Buat Pengumuman untuk #{target_channel_obj.name}"
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal diinisialisasi.")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: on_submit dipanggil oleh {interaction.user.display_name}.")
+        await interaction.response.defer(ephemeral=True)
+
+        title = self.announcement_title.value.strip()
+        username = self.custom_username.value.strip()
+        profile_url = self.custom_profile_url.value.strip()
+        image_url = self.announcement_image_url.value.strip()
+
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Input diterima - Judul: '{title}', User: '{username}'.")
+
+        if not username:
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Username kustom kosong.")
+            await interaction.followup.send(embed=self.cog._create_embed(description="❌ Username Pengirim Kustom tidak boleh kosong.", color=self.cog.color_error), ephemeral=True); return
+        if profile_url and not (profile_url.startswith("http://") or profile_url.startswith("https://")):
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: URL Avatar tidak valid: {profile_url}.")
+            await interaction.followup.send(embed=self.cog._create_embed(description="❌ URL Avatar Pengirim Kustom tidak valid. Harus dimulai dengan `http://` atau `https://`.", color=self.cog.color_error), ephemeral=True); return
+        if image_url and not (image_url.startswith("http://") or image_url.startswith("https://")):
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: URL Gambar tidak valid: {image_url}.")
+            await interaction.followup.send(embed=self.cog._create_embed(description="❌ URL Gambar Pengumuman tidak valid. Harus dimulai dengan `http://` atau `https://`.", color=self.cog.color_error), ephemeral=True); return
+        
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Input divalidasi. Mencoba ambil deskripsi dari {self.github_raw_url}.")
+
+        full_description = ""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.github_raw_url) as resp:
+                    print(f"[{datetime.now()}] [DEBUG ANNOUNCE] GitHub fetch Status: {resp.status}, Content-Type: {resp.headers.get('Content-Type')}.")
+                    if resp.status == 200:
+                        full_description = await resp.text()
+                        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] GitHub fetch: Deskripsi berhasil diambil ({len(full_description)} karakter). Awal deskripsi: '{full_description[:100]}...'")
+                    else:
+                        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] GitHub fetch: Gagal (HTTP Status {resp.status}).")
+                        await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Gagal mengambil deskripsi dari URL GitHub Raw ({self.github_raw_url}): Status HTTP {resp.status}. Pastikan URL valid dan publik.", color=self.cog.color_error), ephemeral=True); return
+        except aiohttp.ClientError as e:
+            print(f"[{datetime.now()}] [ERROR ANNOUNCE] GitHub fetch: Kesalahan jaringan: {e}.", file=sys.stderr)
+            await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan jaringan saat mengambil deskripsi dari GitHub: {e}. Pastikan URL GitHub Raw benar.", color=self.cog.color_error), ephemeral=True); return
+        except Exception as e:
+            print(f"[{datetime.now()}] [ERROR ANNOUNCE] GitHub fetch: Kesalahan tak terduga: {e}.", file=sys.stderr)
+            await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan tidak terduga saat mengambil deskripsi: {e}", color=self.cog.color_error), ephemeral=True); return
+
+        if not full_description.strip():
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Deskripsi dari GitHub Raw kosong atau hanya spasi.")
+            await interaction.followup.send(embed=self.cog._create_embed(description="❌ Deskripsi pengumuman dari URL GitHub Raw kosong atau hanya berisi spasi. Pastikan file teks memiliki konten.", color=self.cog.color_error), ephemeral=True); return
+        
+        description_chunks = [full_description[i:i+4096] for i in range(0, len(full_description), 4096)]
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Deskripsi dipecah menjadi {len(description_chunks)} bagian.")
+
+        sent_first_embed = False
+        for i, chunk in enumerate(description_chunks):
+            if not chunk.strip(): continue
+
+            embed = discord.Embed(
+                description=chunk,
+                color=self.cog.color_announce,
+                timestamp=datetime.utcnow() if i == 0 else discord.Embed.Empty
+            )
+            
+            if i == 0:
+                embed.title = title
+                embed.set_author(name=username, icon_url=profile_url if profile_url else discord.Embed.Empty)
+                if image_url: embed.set_image(url=image_url)
+                embed.set_footer(text=f"Pengumuman dari {self.original_ctx.guild.name}", icon_url=self.original_ctx.guild.icon.url if self.original_ctx.guild.icon else None)
+            else:
+                embed.set_footer(text=f"Lanjutan Pengumuman ({i+1}/{len(description_chunks)})")
+
+            try:
+                perms = self.target_channel_obj.permissions_for(self.target_channel_obj.guild.me)
+                if not perms.send_messages or not perms.embed_links:
+                    if not sent_first_embed:
+                        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Bot kekurangan izin kirim pesan/embed di {self.target_channel_obj.name}.")
+                        await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Bot tidak memiliki izin untuk mengirim pesan atau menyematkan tautan di {self.target_channel_obj.mention}. Pastikan bot memiliki izin 'Kirim Pesan' dan 'Sematkan Tautan'.", color=self.cog.color_error), ephemeral=True)
+                    return
+                
+                await self.target_channel_obj.send(embed=embed)
+                sent_first_embed = True
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Embed #{i+1} berhasil dikirim ke {self.target_channel_obj.name}.")
+            except discord.Forbidden:
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Bot Forbidden kirim pesan ke {self.target_channel_obj.name}.", file=sys.stderr)
+                if not sent_first_embed: await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Bot tidak memiliki izin untuk mengirim pesan di {self.target_channel_obj.mention}. Pastikan bot memiliki izin 'Send Messages' dan 'Embed Links'.", color=self.cog.color_error), ephemeral=True); return
+            except Exception as e:
+                print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Error saat mengirim embed ke {self.target_channel_obj.name}: {e}.", file=sys.stderr)
+                if not sent_first_embed: await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan saat mengirim pengumuman: {e}", color=self.cog.color_error), ephemeral=True); return
+            
+        if sent_first_embed:
+            await interaction.followup.send(embed=self.cog._create_embed(description=f"✅ Pengumuman berhasil dikirim ke <#{self.target_channel_obj.id}>!", color=self.cog.color_success), ephemeral=True)
+            await self.cog.log_action(self.original_ctx.guild, "📢 Pengumuman Baru Dibuat", {"Pengirim (Eksekutor)": self.original_ctx.author.mention, "Pengirim (Tampilan)": f"{username} ({profile_url if profile_url else 'Default'})", "Channel Target": f"<#{self.target_channel_obj.id}>", "Judul": title, "Deskripsi Sumber": GITHUB_RAW_DESCRIPTION_URL, "Panjang Deskripsi": f"{len(full_description)} karakter"}, self.cog.color_announce)
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Konfirmasi dan log pengumuman selesai.")
+        else:
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] AnnouncementModalGlobal: Tidak ada embed yang berhasil terkirim.")
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        print(f"[{datetime.now()}] [ERROR ANNOUNCE] Error in AnnouncementModalGlobal (on_error): {error}", file=sys.stderr)
+        if not interaction.response.is_done():
+            await interaction.response.send_message(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}", color=self.cog.color_error), ephemeral=True)
+        else:
+            await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan tak terduga saat memproses formulir: {error}", color=self.cog.color_error), ephemeral=True)
+
+# Function to setup the cog in your main bot file
 async def setup(bot):
     await bot.add_cog(ServerAdminCog(bot))
