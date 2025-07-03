@@ -19,9 +19,9 @@
             "night_resolution_image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W5.gif"
         },
         "audio_urls": {
-            "game_start_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W1.mp3",
-            "night_phase_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W2.mp3",
-            "day_phase_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W3.mp3"
+            "game_start_audio_url": "https://github.com/Abogoboga04/OpenAI/raw/main/W1.mp3",
+            "night_phase_audio_url": "https://github.com/Abogoboga04/OpenAI/raw/main/W2.mp3",
+            "day_phase_audio_url": "https://github.com/Abogoboga04/OpenAI/raw/main/W3.mp3"
         },
         "min_players": 3,
         "night_duration_seconds": 90,
