@@ -69,7 +69,7 @@
         "Alpha Werewolf": {
             "team": "Werewolf",
             "action_prompt": "Siapa yang ingin kamu bunuh malam ini? (Kamu adalah pemimpin Werewolf)",
-            "dm_command": "!bunuhalpha",
+            "dm_command": "!bunuh",
             "can_target_self": false,
             "emoji": "🐺👑",
             "order": 7,
