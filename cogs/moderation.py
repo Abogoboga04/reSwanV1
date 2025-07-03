@@ -1194,14 +1194,14 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 row=1
             )
             custom_profile_url = discord.ui.TextInput(
-                label="URL Avatar Pengirim Kustom",
+                label="URL Avatar Pengirim",
                 placeholder="Contoh: https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A8.png",
                 max_length=2000,
                 required=False,
                 row=2
             )
             announcement_image_url = discord.ui.TextInput(
-                label="URL Gambar di Akhir Pengumuman (Opsional, http/https)",
+                label="URL banner",
                 placeholder="Contoh: https://example.com/banner.png",
                 max_length=2000,
                 required=False,
