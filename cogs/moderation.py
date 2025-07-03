@@ -1187,15 +1187,15 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 row=0
             )
             custom_username = discord.ui.TextInput(
-                label="Username Pengirim Kustom (maks 256 karakter)",
+                label="Username Pengirim",
                 placeholder="Contoh: Tim Admin / Pengumuman Resmi",
                 max_length=256,
                 required=True,
                 row=1
             )
             custom_profile_url = discord.ui.TextInput(
-                label="URL Avatar Pengirim Kustom (Opsional, http/https)",
-                placeholder="Contoh: https://example.com/avatar.png",
+                label="URL Avatar Pengirim Kustom",
+                placeholder="Contoh: https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/A8.png",
                 max_length=2000,
                 required=False,
                 row=2
