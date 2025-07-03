@@ -30,7 +30,7 @@ def load_json_from_root(file_path, default_value=None):
             save_json_to_root(default_value, file_path)
             return default_value
         return {}
-    except json.JSONDecodeError:
+    except json.JSONDecodeError: # Menggunakan json.JSONDecodeError
         print(f"[{datetime.now()}] [DEBUG HELPER] Peringatan: File {full_path} rusak (JSON tidak valid). Menggunakan nilai default.")
         # Buat ulang file dengan nilai default jika rusak
         if default_value is not None:
@@ -240,10 +240,11 @@ class WerewolfRoleSetupView(discord.ui.View):
     @discord.ui.button(label="Selesai Mengatur", style=discord.ButtonStyle.success, custom_id="finish_role_setup", row=4)
     async def finish_setup_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Tombol 'Selesai Mengatur' diklik oleh {interaction.user.display_name}.")
-        game_state = self.game_cog.werewolf_game_states.get(interaction.channel.id)
-        if not game_state or interaction.user.id != game_state['host'].id:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Bukan host, blokir selesai pengaturan.")
-            return await interaction.response.send_message("Hanya host yang bisa menyelesaikan pengaturan peran.", ephemeral=True)
+        
+        # Cek apakah pengguna memiliki izin manage_guild (administrator)
+        if not interaction.user.guild_permissions.manage_guild:
+            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Bukan admin server, blokir selesai pengaturan.")
+            return await interaction.response.send_message("Hanya administrator server yang bisa menyelesaikan pengaturan peran.", ephemeral=True)
 
         await interaction.response.defer()
 
@@ -574,18 +575,17 @@ class GamesGlobalEvents(commands.Cog):
         else:
             await ctx.send("Kamu tidak ada di antrean Werewolf.", ephemeral=True)
 
-    @werewolf_group.command(name="set", help="[Admin/Host] Atur peran default untuk game Werewolf global.")
+    @werewolf_group.command(name="set", help="[Admin Server] Atur peran default untuk game Werewolf global.")
+    @commands.has_permissions(manage_guild=True) # Hanya Admin Server yang bisa mengatur
     async def set_werewolf_config(self, ctx):
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Command !ww set dipanggil oleh {ctx.author.display_name} di channel: {ctx.channel.name} ({ctx.channel.id}).")
 
+        # Cek apakah ada game aktif, dan jika ada, apakah pemanggil adalah hostnya.
+        # Jika bukan host, tapi admin, dia tetap bisa set config default.
         game_state = self.werewolf_game_states.get(ctx.channel.id)
-        if not (game_state and ctx.author.id == game_state['host'].id) and not ctx.author.guild_permissions.manage_channels:
-            print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] !ww set: Bukan host atau Admin, blokir.")
-            return await ctx.send("Hanya host game Werewolf yang aktif di channel ini atau admin server yang bisa mengatur konfigurasi.", ephemeral=True)
-
+        
         total_players_for_setup = len(self.werewolf_join_queues.get(ctx.channel.id, []))
         if game_state: # If a game is already active, use actual player count
-            # total_players_for_setup = len(game_state['living_players']) + len(game_state['dead_players'])
             total_players_for_setup = len(game_state['players']) # Gunakan total pemain awal game
 
         # Ensure total_players_for_setup is at least the minimum allowed for setup if queue is empty
@@ -910,7 +910,6 @@ class GamesGlobalEvents(commands.Cog):
 
                 # Pengumuman korban
                 await self._send_werewolf_visual(main_channel, "night_resolution")
-                # killed_this_night sudah di-set di _process_night_actions jika ada korban WW
                 
                 # Kumpulkan semua korban yang mati di malam ini (termasuk yang diselamatkan oleh Penyihir Penawar)
                 victims_this_night_for_announcement = [p_data for p_id, p_data in game_state['players'].items()
@@ -1320,8 +1319,12 @@ class GamesGlobalEvents(commands.Cog):
         protected_by_doctor_id = None # Dokter
         protected_by_knight_id = None # Ksatria Suci
         
-        killed_by_werewolf_this_night_id = None # Korban WW yang belum dihidupkan
-        witch_poison_victim_id = None # Korban racun penyihir
+        # Inisialisasi target pembunuhan dan korban racun
+        killed_by_werewolf_target_id = None 
+        
+        # Reset death_reason untuk semua pemain yang saat ini 'alive' untuk ronde ini
+        for p_id in game_state['living_players']:
+            game_state['players'][p_id]['death_reason'] = None
 
 
         # --- FASE 0: Penjaga Malam (Order 0) ---
@@ -1397,11 +1400,9 @@ class GamesGlobalEvents(commands.Cog):
             if target_to_kill_data and target_to_kill_data['status'] == 'alive': # Pastikan target masih hidup
                 
                 # Prioritas perlindungan:
-                # 1. Penjaga Malam (sudah dicek sebelumnya untuk target pilihan Werewolf)
+                # 1. Penjaga Malam (sudah dicek sebelumnya untuk target pilihan Werewolf, tidak bisa target)
                 # 2. Dokter
                 if protected_by_doctor_id == target_to_kill_data['obj'].id:
-                    # Target terlindungi oleh Dokter
-                    # game_state['killed_this_night'] = None # Ini di set nanti setelah Penyihir
                     self.log_game_event(f"Werewolf gagal membunuh {target_to_kill_data['obj'].display_name} karena dilindungi Dokter.")
                 # 3. Ksatria Suci
                 elif protected_by_knight_id == target_to_kill_data['obj'].id:
@@ -1410,24 +1411,22 @@ class GamesGlobalEvents(commands.Cog):
                         # Ksatria Suci melindungi Werewolf, Ksatria Suci mati sebagai gantinya
                         knight_player_data['status'] = 'dead'
                         knight_player_data['death_reason'] = 'sacrificed_for_werewolf'
-                        # Jangan ubah killed_this_night karena target WW masih hidup
-                        # game_state['killed_this_night'] = None 
                         self.log_game_event(f"Ksatria Suci {knight_player_data['obj'].display_name} mati karena melindungi Werewolf {target_to_kill_data['obj'].display_name}.")
                     else:
                         # Ksatria Suci melindungi warga biasa, aksi Werewolf gagal
-                        # game_state['killed_this_night'] = None # Tidak ada yang mati oleh Werewolf langsung
                         self.log_game_event(f"Werewolf gagal membunuh {target_to_kill_data['obj'].display_name} karena dilindungi Ksatria Suci {knight_player_data['obj'].display_name}.")
                 else:
                     # Tidak ada perlindungan, target mati oleh Werewolf
                     target_to_kill_data['status'] = 'dead'
                     target_to_kill_data['death_reason'] = 'werewolf'
-                    killed_by_werewolf_this_night_id = target_to_kill_data['obj'].id # Simpan korban Werewolf ini
+                    killed_by_werewolf_target_id = target_to_kill_data['obj'].id # Simpan korban Werewolf ini
                     self.log_game_event(f"Werewolf berhasil membunuh {target_to_kill_data['obj'].display_name}.")
             else:
                 self.log_game_event(f"Target pembunuhan Werewolf ({potential_werewolf_kill_target_id}) sudah mati atau tidak valid.")
         
         # Simpan korban WW ke game_state['killed_this_night'] untuk Penyihir dan pengumuman pagi
-        game_state['killed_this_night'] = killed_by_werewolf_this_night_id
+        # Ini akan diubah jika Penyihir menghidupkan kembali
+        game_state['killed_this_night'] = killed_by_werewolf_target_id
 
 
         # --- FASE 3: Peramal & Mata-Mata Werewolf (Order 3) ---
@@ -1467,8 +1466,17 @@ class GamesGlobalEvents(commands.Cog):
             if not witch_player_data or witch_player_data['status'] != 'alive':
                 continue
 
+            # Handle case where target_player_data is None for cure potion
+            if target_player_data is None and action['command_type'] == 'racun':
+                await self.send_dm(witch_player_data['obj'].id, "Target untuk ramuan racun tidak valid.")
+                continue
+            elif target_player_data is None and action['command_type'] == 'penawar':
+                await self.send_dm(witch_player_data['obj'].id, "Target untuk ramuan penawar tidak ditemukan atau tidak valid.")
+                continue
+
+
             # Jika target dilindungi Penjaga Malam, aksi ini gagal
-            if target_player_data and protected_by_guard_id == target_player_data['obj'].id:
+            if protected_by_guard_id == target_player_data['obj'].id:
                 await self.send_dm(witch_player_data['obj'].id, f"Aksimu gagal karena **{target_player_data['obj'].display_name}** dijaga oleh Penjaga Malam.")
                 self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} mencoba aksi '{action['command_type']}' pada {target_player_data['obj'].display_name}, tapi gagal karena dijaga.")
                 continue
@@ -1476,7 +1484,7 @@ class GamesGlobalEvents(commands.Cog):
             # Ramuan Racun
             if action['command_type'] == 'racun':
                 if not witch_player_data['poison_potion_used']:
-                    if target_player_data and target_player_data['status'] == 'alive': # Hanya racuni yang masih hidup
+                    if target_player_data['status'] == 'alive': # Hanya racuni yang masih hidup
                         witch_player_data['poison_potion_used'] = True # Tandai ramuan racun sudah dipakai
                         game_state['players'][target_player_data['obj'].id]['status'] = 'dead'
                         game_state['players'][target_player_data['obj'].id]['death_reason'] = 'witch_poison'
@@ -1493,13 +1501,13 @@ class GamesGlobalEvents(commands.Cog):
             elif action['command_type'] == 'penawar':
                 if not witch_player_data['healing_potion_used']:
                     # Cek apakah target adalah korban Werewolf malam itu DAN masih mati
-                    if game_state['killed_this_night'] and game_state['killed_this_night'] == target_player_data['obj'].id and target_player_data['status'] == 'dead':
+                    if game_state['killed_this_night'] == target_player_data['obj'].id and target_player_data['status'] == 'dead':
                         witch_player_data['healing_potion_used'] = True # Tandai ramuan penawar sudah dipakai
                         game_state['players'][target_player_data['obj'].id]['status'] = 'alive' # Hidupkan kembali
                         game_state['players'][target_player_data['obj'].id]['death_reason'] = None # Hapus alasan mati
                         
                         # Hapus dari killed_this_night karena target WW sudah dihidupkan
-                        game_state['killed_this_night'] = None 
+                        game_state['killed_this_night'] = None # Korban WW malam ini batal
                         self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} menghidupkan kembali {target_player_data['obj'].display_name}.")
                         await self.send_dm(witch_player_data['obj'].id, f"Kamu telah berhasil menghidupkan kembali **{target_player_data['obj'].display_name}**.")
                     else:
@@ -2142,7 +2150,7 @@ class GamesGlobalEvents(commands.Cog):
             {'type': 'protection', 'description': "🛡️ Kamu mendapatkan Perlindungan Absurd! Kebal dari 1 efek negatif berikutnya.", 'color': (173, 216, 230), 'weight': 7},
             {'type': 'tax', 'description': "💸 Roda menarik Pajak Takdir! Kamu kehilangan RSWN.", 'color': (139, 0, 0), 'weight': 15},
             {'type': 'nickname_transform', 'description': "✨ Wajahmu berubah! Nickname-mu jadi aneh selama 1 jam.", 'color': (147, 112, 219), 'weight': 10},
-            {'type': 'message_mishap', 'description': "🗣️ Kata-katamu tersangkut! Pesanmu jadi aneh selama 30 menit.", 'color': (255, 69, 0), 'weight': 8},
+            {'type': 'message_mishap', 'description': "🗣️ Kata-katamu tersangkut! Pesanmu jadi aneh selama 30 menit. (Efek ini tidak diimplementasikan penuh tanpa message listener).", 'color': (255, 69, 0), 'weight': 8},
             {'type': 'bless_random_user', 'description': "🎁 Sebuah Berkat Random! User acak mendapatkan RSWN.", 'color': (255, 192, 203), 'weight': 10, 'amount': 750},
             {'type': 'curse_mute_random', 'description': "🔇 Kutukan Mute Kilat! User acak kena timeout 60 detik.", 'color': (75, 0, 130), 'weight': 7},
             {'type': 'ping_random_user', 'description': "🔔 Panggilan Darurat! User acak di-ping sampai nongol.", 'color': (255, 255, 0), 'weight': 5},
