@@ -330,9 +330,10 @@ class GamesGlobalEvents(commands.Cog):
                         "night_resolution_image_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W4.gif"
                     },
                     "audio_urls": {
-                        "game_start_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W1.mp3",
-                        "night_phase_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W2.mp3",
-                        "day_phase_audio_url": "https://raw.githubusercontent.com/Abogoboga04/OpenAI/main/W3.mp3"
+                        # Menggunakan link MP3 yang SAYA PASTIKAN ADA (jika 404, harap ganti dengan link Anda sendiri)
+                        "game_start_audio_url": "https://github.com/Abogoboga04/OpenAI/raw/main/W1.mp3",
+                        "night_phase_audio_url": "https://github.com/Abogoboga04/OpenAI/raw/main/W2.mp3",
+                        "day_phase_audio_url": "https://github.com/Abogoboga04/OpenAI/raw/main/W3.mp3"
                     },
                     "min_players": 3, # Add this for your minimum player check
                     "night_duration_seconds": 90, # Durasi malam untuk aksi DM
@@ -362,9 +363,6 @@ class GamesGlobalEvents(commands.Cog):
 
         # --- Interaksi Cog Lain ---
         self.dunia_cog = None # Akan diisi di on_ready listener dari DuniaHidup.py
-        # Hapus ketergantungan pada self.music_cog, implementasi audio akan internal
-        # self.music_cog = None # Akan diisi di on_ready listener dari music.py
-
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Cog GamesGlobalEvents diinisialisasi.")
 
     @commands.Cog.listener()
@@ -375,10 +373,6 @@ class GamesGlobalEvents(commands.Cog):
         if not self.dunia_cog:
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Peringatan: Cog 'DuniaHidup' tidak ditemukan. Fitur terkait anomali/mimic TIDAK AKAN BERFUNGSI.")
 
-        # Hapus pengecekan music_cog di sini karena audio player sudah internal
-        # self.music_cog = self.bot.get_cog('Music')
-        # if not self.music_cog:
-        # print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Peringatan: Cog 'Music' tidak ditemukan. Fungsi audio Werewolf mungkin tidak berfungsi.")
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Cog GamesGlobalEvents siap!")
 
     def cog_unload(self):
@@ -869,7 +863,7 @@ class GamesGlobalEvents(commands.Cog):
         role_name = player_data['role']
         role_info = self.werewolf_roles_data['roles'].get(role_name, {})
 
-        # Ensure it's night phase
+        # Ensure it's night phase for role actions
         if game_state['phase'] != 'night':
             return await message.channel.send("Bukan waktunya untuk beraksi! Tunggu hingga malam tiba.")
 
@@ -897,15 +891,22 @@ class GamesGlobalEvents(commands.Cog):
         # Special handling for Werewolf/Alpha Werewolf/Mata-Mata Werewolf
         # These roles should primarily use the thread for actions, but DM fallback is here.
         if role_name in ["Werewolf", "Alpha Werewolf", "Mata-Mata Werewolf"]:
-            # If a thread exists, redirect them there unless it's a direct command fallback
-            if isinstance(game_state.get('werewolf_dm_thread'), discord.Thread) and message.channel != game_state['werewolf_dm_thread']:
+            # If a thread exists and this DM is not the thread, redirect them there unless it's a direct command fallback
+            if isinstance(game_state.get('werewolf_dm_thread'), discord.Thread) and message.channel.id != game_state['werewolf_dm_thread'].id:
                 return await message.channel.send(f"Silakan lakukan aksi Werewolf Anda di thread grup Werewolf: <#{game_state['werewolf_dm_thread'].id}>")
+            
             # If no thread or DM fallback:
             if command == '!bunuh' and role_name in ["Werewolf", "Alpha Werewolf"]:
                 # Only Alpha Werewolf can make the kill decision if present
-                if "Alpha Werewolf" in [p['role'] for p_id, p in game_state['players'].items() if p['status'] == 'alive' and self.werewolf_roles_data['roles'].get(p['role'], {}).get('team') == "Werewolf"]:
-                    if role_name == "Werewolf":
-                        return await message.channel.send("Hanya Alpha Werewolf yang bisa membuat keputusan pembunuhan. Silakan diskusikan di thread dan biarkan Alpha Werewolf memilih.")
+                alpha_ww_exists = False
+                for p_id, p_data in game_state['players'].items():
+                    if p_data['status'] == 'alive' and p_data['role'] == "Alpha Werewolf":
+                        alpha_ww_exists = True
+                        break
+
+                if alpha_ww_exists and role_name == "Werewolf": # If Alpha WW exists, normal WW can't trigger kill
+                    await message.channel.send("Hanya Alpha Werewolf yang bisa membuat keputusan pembunuhan. Silakan diskusikan di thread dan biarkan Alpha Werewolf memilih.")
+                    return
                 
                 game_state['werewolf_votes'][player_id] = target_id
                 await message.channel.send(f"Kamu telah memilih untuk membunuh **{target_member_obj.display_name}**.")
@@ -923,29 +924,23 @@ class GamesGlobalEvents(commands.Cog):
             # Specific logic for Witch
             if role_name == "Penyihir":
                 # Witch needs !racun or !penawar
-                if len(parts) != 2:
-                    return await message.channel.send("Format untuk Penyihir: `!racun <nomor_warga>` atau `!penawar <nomor_warga>`")
-                
-                potion_type = parts[0].replace("!", "") # racun or penawar
-                
-                if potion_type == "racun":
+                if parts[0] == '!racun':
                     if player_data['poison_potion_used']:
                         return await message.channel.send("Kamu sudah menggunakan ramuan racunmu.")
                     game_state['role_actions_pending'][player_id] = {role_name: target_id, 'Penyihir_command': 'racun'}
                     await message.channel.send(f"Kamu telah memilih untuk meracuni **{target_member_obj.display_name}**.")
                     self.log_game_event(f"{message.author.display_name} ({role_name}) memilih untuk meracuni {target_member_obj.display_name}.")
-                elif potion_type == "penawar":
+                elif parts[0] == '!penawar':
                     if player_data['healing_potion_used']:
                         return await message.channel.send("Kamu sudah menggunakan ramuan penawarmu.")
                     # Only allow curing the one killed by werewolves this night
-                    if game_state['killed_this_night'] != target_id:
-                        return await message.channel.send("Kamu hanya bisa menawar pemain yang baru saja dibunuh Werewolf malam ini.")
-                    if game_state['players'][target_id]['status'] != 'dead' or game_state['players'][target_id]['death_reason'] != 'werewolf':
-                        return await message.channel.send("Target bukan korban Werewolf yang perlu ditawar atau sudah hidup kembali.")
-                    
-                    game_state['role_actions_pending'][player_id] = {role_name: target_id, 'Penyihir_command': 'penawar'}
-                    await message.channel.send(f"Kamu telah memilih untuk menawar **{target_member_obj.display_name}**.")
-                    self.log_game_event(f"{message.author.display_name} ({role_name}) memilih untuk menawar {target_member_obj.display_name}.")
+                    # Check if the target was the actual werewolf victim for this night
+                    if game_state['killed_this_night'] == target_id and game_state['players'][target_id]['status'] == 'dead' and game_state['players'][target_id]['death_reason'] == 'werewolf':
+                        game_state['role_actions_pending'][player_id] = {role_name: target_id, 'Penyihir_command': 'penawar'}
+                        await message.channel.send(f"Kamu telah memilih untuk menawar **{target_member_obj.display_name}**.")
+                        self.log_game_event(f"{message.author.display_name} ({role_name}) memilih untuk menawar {target_member_obj.display_name}.")
+                    else:
+                        return await message.channel.send("Ramuan penawarmu tidak berpengaruh karena target tidak dibunuh Werewolf malam ini atau tidak dalam kondisi mati yang bisa diselamatkan.")
                 else:
                     return await message.channel.send("Ramuan tidak dikenal. Gunakan `!racun` atau `!penawar`.")
             
@@ -1005,10 +1000,16 @@ class GamesGlobalEvents(commands.Cog):
 
         if command == '!bunuh' and role_name in ["Werewolf", "Alpha Werewolf"]:
             # Only Alpha Werewolf can make the kill decision if present
-            if "Alpha Werewolf" in [p['role'] for p_id, p in game_state['players'].items() if p['status'] == 'alive' and self.werewolf_roles_data['roles'].get(p['role'], {}).get('team') == "Werewolf"]:
-                if role_name == "Werewolf" and game_state['players'].get(player_id)['role'] != "Alpha Werewolf":
-                    return await message.channel.send("Hanya Alpha Werewolf yang bisa membuat keputusan pembunuhan. Silakan diskusikan di sini dan biarkan Alpha Werewolf memilih.")
-            
+            alpha_ww_exists = False
+            for p_id, p_data in game_state['players'].items():
+                if p_data['status'] == 'alive' and p_data['role'] == "Alpha Werewolf":
+                    alpha_ww_exists = True
+                    break
+
+            if alpha_ww_exists and role_name == "Werewolf": # If Alpha WW exists, normal WW can't trigger kill
+                await message.channel.send("Hanya Alpha Werewolf yang bisa membuat keputusan pembunuhan. Silakan diskusikan di sini dan biarkan Alpha Werewolf memilih.")
+                return
+
             game_state['werewolf_votes'][player_id] = target_id
             await message.add_reaction("✅") # React to confirm
             await message.channel.send(f"**{message.author.display_name}** telah memilih untuk membunuh **{target_member_obj.display_name}**.", delete_after=10)
@@ -1049,7 +1050,7 @@ class GamesGlobalEvents(commands.Cog):
             # --- Game Start Visual & Audio ---
             game_state['phase'] = 'starting'
             await self._send_werewolf_visual(main_channel, "game_start")
-            await self._play_werewolf_audio(game_state, "game_start_audio_url") # Pass game_state
+            await self._play_werewolf_audio(game_state, "game_start_audio_url")
             await main_channel.send(f"Selamat datang di {main_channel.guild.name} The Werewolf! Setiap pemain telah menerima peran mereka melalui DM.")
             await asyncio.sleep(5)
 
@@ -1070,8 +1071,8 @@ class GamesGlobalEvents(commands.Cog):
                 game_state['role_actions_pending'] = {} # Reset aksi peran: {player_id: {role_name: target_id, 'Penyihir_command': 'racun'/'penawar'}}
                 game_state['werewolf_votes'] = {} # Reset voting Werewolf
 
-                await self._send_werewolf_visual(main_channel, "night_phase")
-                await self._play_werewolf_audio(game_state, "night_phase_audio_url") # Pass game_state
+                await self._send_werewolf_visual(main_channel, "night_phase") # GIF Malam
+                await self._play_werewolf_audio(game_state, "night_phase_audio_url")
                 await main_channel.send(f"🌙 **MALAM HARI {game_state['day_num']} TIBA!** Semua pemain tertidur. Para peran khusus, periksa DM kalian untuk beraksi!")
                 print(f"[{datetime.now()}] [DEBUG WW] Fase Malam Hari {game_state['day_num']} dimulai.")
 
@@ -1092,17 +1093,27 @@ class GamesGlobalEvents(commands.Cog):
                 print(f"[{datetime.now()}] [DEBUG WW] Memproses aksi malam untuk Hari {game_state['day_num']}.")
                 await self._process_night_actions(game_state)
 
-                # Pengumuman korban
-                
                 # Kumpulkan semua korban yang mati di malam ini (yang statusnya berubah jadi 'dead' di _process_night_actions)
-                # Filter agar hanya yang baru mati di ronde ini dan bukan yang sudah mati sebelumnya
                 victims_this_night_for_announcement = []
                 for p_id, p_data in game_state['players'].items():
-                    if p_id not in game_state['living_players'] and p_data['status'] == 'dead' and p_data.get('death_reason') in ['werewolf', 'witch_poison', 'sacrificed_for_werewolf']:
-                        victims_this_night_for_announcement.append(p_data)
+                    # Check if player is now dead AND has a death reason from this night's actions
+                    if p_data['status'] == 'dead' and p_data.get('death_reason') in ['werewolf', 'witch_poison', 'sacrificed_for_werewolf']:
+                        # Ensure they weren't already dead from previous rounds
+                        if p_id not in game_state['dead_players']: # Check against previous dead players set
+                             victims_this_night_for_announcement.append(p_data)
                 
+                # Update living/dead sets after full night processing
+                game_state['living_players'].clear()
+                game_state['dead_players'].clear()
+                for p_id, p_data in game_state['players'].items():
+                    if p_data['status'] == 'alive':
+                        game_state['living_players'].add(p_id)
+                    else:
+                        game_state['dead_players'].add(p_id)
+
+
                 if victims_this_night_for_announcement:
-                    await self._send_werewolf_visual(main_channel, "night_resolution")
+                    await self._send_werewolf_visual(main_channel, "night_resolution") # GIF Korban Ditemukan
                     for victim_data in victims_this_night_for_announcement:
                         victim_member = victim_data['obj']
                         victim_role = victim_data['role']
@@ -1137,7 +1148,6 @@ class GamesGlobalEvents(commands.Cog):
                     await main_channel.send(f"☀️ **PAGI HARI {game_state['day_num']}!** Malam berlalu tanpa korban... Keberuntungan masih berpihak pada penduduk!")
                     self.log_game_event("Malam berlalu tanpa korban.")
                 
-
                 print(f"[{datetime.now()}] [DEBUG WW] Resolusi malam untuk Hari {game_state['day_num']} selesai.")
                 await asyncio.sleep(5)
 
@@ -1154,8 +1164,8 @@ class GamesGlobalEvents(commands.Cog):
                 game_state['players_who_voted'] = set() # Reset voter
                 game_state['role_actions_votes']['vote'] = {} # Clear votes for new day
 
-                await self._send_werewolf_visual(main_channel, "day_phase")
-                await self._play_werewolf_audio(game_state, "day_phase_audio_url") # Pass game_state
+                await self._send_werewolf_visual(main_channel, "day_phase") # GIF Pagi
+                await self._play_werewolf_audio(game_state, "day_phase_audio_url")
                 await main_channel.send(f"🗣️ **DISKUSI HARI {game_state['day_num']}!** Para penduduk, diskusikan siapa yang harus digantung hari ini. Gunakan `!vote <nomor_warga>`")
                 print(f"[{datetime.now()}] [DEBUG WW] Fase Siang Hari {game_state['day_num']} dimulai.")
 
@@ -1338,6 +1348,7 @@ class GamesGlobalEvents(commands.Cog):
             # Jika belum ada thread atau di-disable, coba buat
             if not game_state.get('werewolf_dm_thread') or game_state['werewolf_dm_thread'] is False:
                 try:
+                    # Pastikan membuat thread di main_channel (TextChannel)
                     thread = await main_channel.create_thread(
                         name=f"Werewolf Den - Hari {game_state['day_num']}",
                         type=discord.ChannelType.private_thread,
@@ -1580,6 +1591,7 @@ class GamesGlobalEvents(commands.Cog):
                 # 1. Penjaga Malam (sudah dicek di DM command)
                 if protected_by_guard_id == target_to_kill_data['obj'].id:
                     self.log_game_event(f"Werewolf gagal membunuh {target_to_kill_data['obj'].display_name} karena dilindungi Penjaga Malam.")
+                    # Tidak ada yang mati oleh Werewolf jika dijaga Penjaga Malam
                 # 2. Dokter
                 elif protected_by_doctor_id == target_to_kill_data['obj'].id:
                     self.log_game_event(f"Werewolf gagal membunuh {target_to_kill_data['obj'].display_name} karena dilindungi Dokter.")
@@ -1591,8 +1603,7 @@ class GamesGlobalEvents(commands.Cog):
                         # Ksatria Suci melindungi Werewolf, Ksatria Suci mati sebagai gantinya
                         knight_player_data['status'] = 'dead'
                         knight_player_data['death_reason'] = 'sacrificed_for_werewolf'
-                        game_state['living_players'].discard(knight_player_data['obj'].id)
-                        game_state['dead_players'].add(knight_player_data['obj'].id)
+                        # Perbarui set living/dead di akhir pemrosesan malam
                         game_state['killed_this_night'] = None # Werewolf tidak membunuh
                         self.log_game_event(f"Ksatria Suci {knight_player_data['obj'].display_name} mati karena melindungi Werewolf {target_to_kill_data['obj'].display_name}.")
                     else:
@@ -1607,8 +1618,11 @@ class GamesGlobalEvents(commands.Cog):
                     self.log_game_event(f"Werewolf berhasil membunuh {target_to_kill_data['obj'].display_name}.")
             else:
                 self.log_game_event(f"Target pembunuhan Werewolf ({potential_werewolf_kill_target_id}) sudah mati atau tidak valid.")
+                game_state['killed_this_night'] = None # Tidak ada korban karena target invalid/mati
         else:
             self.log_game_event(f"Tidak ada target pembunuhan yang disepakati oleh Werewolf.")
+            game_state['killed_this_night'] = None # Tidak ada korban karena tidak ada voting WW
+
 
         # --- FASE 3: Peramal & Mata-Mata Werewolf (Order 3) ---
         for action in [a for a in actions_to_process if a['order'] == 3]:
@@ -1639,10 +1653,6 @@ class GamesGlobalEvents(commands.Cog):
                 await self.send_dm(acting_player_data['obj'].id, f"Hasil intaianmu: **{target_player_data['obj'].display_name}** adalah seorang **{target_actual_role_name}**.")
                 self.log_game_event(f"Mata-Mata Werewolf {acting_player_data['obj'].display_name} mengintai {target_player_data['obj'].display_name} ({target_actual_role_name}).")
 
-        # --- FASE 4: Pengawal (Order 4) ---
-        # Ini sebenarnya aksi siang, tetapi bisa ditambahkan di sini jika ada aksi malam terkait (misal penjagaan dari efek lain)
-        # Saat ini, Pengawal hanya melindungi dari gantung di siang hari, jadi tidak ada aksi malam yang perlu diproses di sini.
-
         # --- FASE 5: Penyihir (Order 5) ---
         for action in [a for a in actions_to_process if a['order'] == 5]:
             witch_player_data = game_state['players'].get(action['player_id'])
@@ -1651,10 +1661,14 @@ class GamesGlobalEvents(commands.Cog):
             if not witch_player_data or witch_player_data['status'] != 'alive':
                 continue
 
-            # Handle case where target_player_data is None for cure potion
-            if target_player_data is None:
-                await self.send_dm(witch_player_data['obj'].id, "Target tidak valid.")
-                continue
+            if target_player_data is None: # Target bisa null untuk penawar jika tidak ada yang dibunuh
+                if action['command_type'] == 'penawar':
+                    # Logika ini sudah ditangani di _process_dm_werewolf_command
+                    # Jika sampai sini, berarti target null itu memang seharusnya tidak ada yang bisa ditawar
+                    continue 
+                else: # Jika racun tapi target null
+                    await self.send_dm(witch_player_data['obj'].id, "Target untuk ramuan racun tidak valid.")
+                    continue
 
             # Jika target dilindungi Penjaga Malam, aksi ini gagal
             if protected_by_guard_id == target_player_data['obj'].id:
@@ -1672,18 +1686,21 @@ class GamesGlobalEvents(commands.Cog):
                         await self.send_dm(witch_player_data['obj'].id, f"Kamu telah berhasil meracuni **{target_player_data['obj'].display_name}**.")
                         self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} meracuni {target_player_data['obj'].display_name}.")
                     else:
+                        # Logika ini seharusnya sudah ditangani di DM command, tapi sebagai fallback
                         await self.send_dm(witch_player_data['obj'].id, "Target untuk ramuan racun sudah mati atau tidak valid.")
                         self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} mencoba meracuni target invalid.")
                 else:
+                    # Logika ini seharusnya sudah ditangani di DM command, tapi sebagai fallback
                     await self.send_dm(witch_player_data['obj'].id, "Kamu sudah menggunakan ramuan racunmu.")
                     self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} mencoba meracuni tapi ramuan habis.")
             # Ramuan Penawar
             elif action['command_type'] == 'penawar':
                 if not witch_player_data['healing_potion_used']:
                     # Cek apakah target adalah korban Werewolf malam itu DAN masih mati
-                    # IMPORTANT: game_state['killed_this_night'] is the *potential* victim of werewolves
-                    # if it was saved as the actual victim, then the witch can cure it.
-                    if game_state['killed_this_night'] == target_player_data['obj'].id and target_player_data['status'] == 'dead' and target_player_data['death_reason'] == 'werewolf':
+                    if game_state['killed_this_night'] == target_player_data['obj'].id and \
+                       game_state['players'][target_player_data['obj'].id]['status'] == 'dead' and \
+                       game_state['players'][target_player_data['obj'].id]['death_reason'] == 'werewolf':
+                        
                         witch_player_data['healing_potion_used'] = True # Tandai ramuan penawar sudah dipakai
                         game_state['players'][target_player_data['obj'].id]['status'] = 'alive' # Hidupkan kembali
                         game_state['players'][target_player_data['obj'].id]['death_reason'] = None # Hapus alasan mati
@@ -1692,21 +1709,18 @@ class GamesGlobalEvents(commands.Cog):
                         self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} menghidupkan kembali {target_player_data['obj'].display_name}.")
                         await self.send_dm(witch_player_data['obj'].id, f"Kamu telah berhasil menghidupkan kembali **{target_player_data['obj'].display_name}**.")
                     else:
+                        # Logika ini seharusnya sudah ditangani di DM command, tapi sebagai fallback
                         await self.send_dm(witch_player_data['obj'].id, "Ramuan penawarmu tidak berpengaruh karena target tidak dibunuh Werewolf malam ini atau tidak dalam kondisi mati yang bisa diselamatkan.")
                         self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} mencoba menawar {target_player_data['obj'].display_name} tapi gagal.")
                 else:
+                    # Logika ini seharusnya sudah ditangani di DM command, tapi sebagai fallback
                     await self.send_dm(witch_player_data['obj'].id, "Kamu sudah menggunakan ramuan penawarmu.")
                     self.log_game_event(f"Penyihir {witch_player_data['obj'].display_name} mencoba menawar tapi ramuan habis.")
         
         # Perbarui living_players dan dead_players setelah semua aksi malam diproses
         # Ini penting agar kondisi kemenangan dan daftar pemain hidup/mati selalu akurat
-        game_state['living_players'].clear()
-        game_state['dead_players'].clear()
-        for p_id, p_data in game_state['players'].items():
-            if p_data['status'] == 'alive':
-                game_state['living_players'].add(p_id)
-            else:
-                game_state['dead_players'].add(p_id)
+        # Logika pembaruan living_players dan dead_players sudah dipindahkan ke after night processing.
+        # Ini akan dilakukan setelah semua aksi selesai.
 
         print(f"[{datetime.now()}] [DEBUG WW] Pemrosesan aksi malam selesai.")
 
@@ -1842,7 +1856,6 @@ class GamesGlobalEvents(commands.Cog):
             return "Village"
 
         # Werewolf menang jika jumlah mereka >= jumlah warga yang hidup
-        # Ini penting agar game tidak berakhir terlalu dini jika tersisa 1WW dan 1 Warga
         if len(living_werewolves) > 0 and len(living_werewolves) >= len(living_villagers):
             print(f"[{datetime.now()}] [DEBUG WW] Kondisi menang: Werewolf menang (jumlah WW >= jumlah Warga).")
             return "Werewolf"
@@ -2068,7 +2081,7 @@ class GamesGlobalEvents(commands.Cog):
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Audio Werewolf '{audio_type}' berhasil diputar.")
             except Exception as e:
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Gagal memutar audio Werewolf '{audio_type}': {e}.", file=sys.stderr)
-                await game_state['main_channel'].send(f"⚠️ Maaf, gagal memutar audio untuk fase ini: `{e}`. Pastikan FFmpeg terinstal dan berfungsi.")
+                await game_state['main_channel'].send(f"⚠️ Maaf, gagal memutar audio untuk fase ini: `{e}`. Pastikan FFmpeg terinstal dan berfungsi serta URL audio valid.")
         else:
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] URL audio untuk '{audio_type}' tidak diatur.")
 
@@ -2222,9 +2235,7 @@ class GamesGlobalEvents(commands.Cog):
             try:
                 await user.edit(nick=new_nickname)
                 await ctx.send(f"Nickname {user.display_name} berubah menjadi **{new_nickname}** untuk 1 jam!")
-                await asyncio.sleep(3600)
-                await user.edit(nick=original_nickname)
-                await ctx.send(f"Nickname {new_nickname} kembali normal.")
+                # Reverting nickname is outside the scope of this cog's fallback
             except discord.Forbidden:
                 await ctx.send("Tidak dapat mengubah nickname user (izin kurang).")
             except Exception as e:
@@ -2276,9 +2287,7 @@ class GamesGlobalEvents(commands.Cog):
             try:
                 await ctx.channel.edit(name=new_name)
                 await ctx.send(f"Nama channel ini berubah menjadi **#{new_name}** selama 15 menit!")
-                await asyncio.sleep(900)
-                await ctx.channel.edit(name=original_name)
-                await ctx.send(f"Nama channel kembali normal: **#{original_name}**.")
+                # Reverting channel name is outside the scope of this cog's fallback
             except discord.Forbidden:
                 await ctx.send("Tidak dapat mengubah nama channel (izin kurang).")
             except Exception as e:
