@@ -2,7 +2,7 @@
     "default_config": {
         "roles": {
             "Werewolf": 1,
-            "Dokter": 1,
+            "Dokter": 0,
             "Peramal": 1,
             "Pengawal": 0,
             "Pemburu": 0,
