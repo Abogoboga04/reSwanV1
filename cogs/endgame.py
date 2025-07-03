@@ -313,7 +313,7 @@ class GamesGlobalEvents(commands.Cog):
                 "default_config": {
                     "roles": { # Default roles and counts for a balanced small game (e.g., 5-7 players)
                         "Werewolf": 1,
-                        "Dokter": 0,
+                        "Dokter": 1,
                         "Peramal": 1,
                         "Pengawal": 0,
                         "Pemburu": 0,
