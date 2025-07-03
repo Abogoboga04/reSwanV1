@@ -7,6 +7,25 @@ import os
 import aiohttp
 from io import BytesIO
 
+# New DonationView - reusable for any game cog
+class DonationView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # Keep buttons active indefinitely
+
+        bagi_bagi_button = discord.ui.Button(
+            label="Dukung via Bagi-Bagi!",
+            style=discord.ButtonStyle.link,
+            url="https://bagibagi.co/Rh7155"
+        )
+        self.add_item(bagi_bagi_button)
+
+        saweria_button = discord.ui.Button(
+            label="Donasi via Saweria!",
+            style=discord.ButtonStyle.link,
+            url="https://saweria.co/RH7155"
+        )
+        self.add_item(saweria_button)
+
 class Hangman(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -30,51 +49,72 @@ class Hangman(commands.Cog):
     # ----------------------------------------------------------------------
 
     def load_bank_data(self):
-        with open('data/bank_data.json', 'r', encoding='utf-8') as f:
-            try:
+        try:
+            with open('data/bank_data.json', 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 if isinstance(data, dict):
                     return data
                 else:
                     raise ValueError("Data harus dalam format dictionary.")
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON from bank_data.json: {e}")
-                return {}
-            except Exception as e:
-                print(f"Error loading bank data: {e}")
-                return {}
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error decoding JSON from bank_data.json: {e}")
+            return {}
+        except Exception as e:
+            print(f"Error loading bank data: {e}")
+            return {}
 
     def load_level_data(self):
-        with open('data/level_data.json', 'r', encoding='utf-8') as f:
-            try:
+        try:
+            with open('data/level_data.json', 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 if isinstance(data, dict):
                     return data
                 else:
                     raise ValueError("Data harus dalam format dictionary.")
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON from level_data.json: {e}")
-                return {}
-            except Exception as e:
-                print(f"Error loading level data: {e}")
-                return {}
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error decoding JSON from level_data.json: {e}")
+            return {}
+        except Exception as e:
+            print(f"Error loading level data: {e}")
+            return {}
 
     def load_hangman_data(self):
         current_dir = os.path.dirname(__file__)  # Folder cogs/
         file_path = os.path.join(current_dir, "..", "data", "questions_hangman.json")
-        with open(file_path, "r", encoding="utf-8") as f:
-            try:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, list) and len(data) > 0:
                     return data
                 else:
                     raise ValueError("Data harus berupa list dan tidak kosong.")
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON from questions_hangman.json: {e}")
-                return []
-            except Exception as e:
-                print(f"Error loading hangman data: {e}")
-                return []
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error decoding JSON from questions_hangman.json: {e}")
+            return []
+        except Exception as e:
+            print(f"Error loading hangman data: {e}")
+            return []
+    
+    # --- FUNGSI PENANGANAN AKHIR GAME UNTUK DONASI ---
+    async def end_game_cleanup(self, channel_id, channel_obj=None):
+        """
+        Membersihkan status game Hangman yang aktif dan menampilkan tombol donasi.
+        """
+        if channel_id in self.active_games:
+            self.active_games.pop(channel_id, None)
+            print(f"Game Hangman di channel {channel_id} telah selesai.")
+        
+        if channel_obj:
+            donation_message = (
+                "🎮 **Permainan Telah Usai!** Terima kasih sudah bermain bersama kami.\n\n"
+                "Apakah kamu menikmati ketegangan Hangman yang kami hadirkan?\n"
+                "Dukung terus pengembangan bot ini agar kami bisa terus berinovasi dan "
+                "memberikan pengalaman bermain yang lebih seru lagi!\n\n"
+                "Donasi sekecil apa pun sangat berarti untuk kami! 🙏"
+            )
+            donation_view = DonationView()
+            await channel_obj.send(donation_message, view=donation_view)
+
 
     @commands.command(name="resman", help="Mulai permainan Hangman.")
     async def hangman(self, ctx):
@@ -84,6 +124,7 @@ class Hangman(commands.Cog):
 
         if ctx.channel.id in self.active_games:
             await ctx.send("Permainan sudah sedang berlangsung di channel ini. Silakan tunggu hingga selesai.")
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel) # Cleanup if already active
             return
 
         self.scores = {}
@@ -145,9 +186,12 @@ class Hangman(commands.Cog):
         user_data['balance'] -= self.bantuan_price
         final_balance = user_data['balance']
 
-        current_question_index = game_data["current_question"] - 1
+        # Pastikan game_data["question"] adalah list dan current_question adalah indeks yang valid
+        # current_question di game_data adalah hitungan soal ke-, jadi dikurangi 1 untuk indeks
+        current_question_index = game_data["current_question"] - 1 
         
-        if 0 <= current_question_index < len(game_data["question"]):
+        # Tambahan pengecekan untuk menghindari IndexError jika pertanyaan belum ada atau sudah lewat
+        if game_data["question"] and 0 <= current_question_index < len(game_data["question"]):
             correct_word = game_data["question"][current_question_index]['word']
             try:
                 await ctx.author.send(f"🔐 Jawaban untuk pertanyaan Hangman saat ini adalah: **{correct_word}**")
@@ -157,14 +201,14 @@ class Hangman(commands.Cog):
                     json.dump(self.bank_data, f, indent=4)
             except discord.Forbidden:
                 await ctx.send(f"{ctx.author.mention}, saya tidak bisa mengirim DM. Mohon aktifkan izin DM dari server ini.")
-                user_data['balance'] += self.bantuan_price
+                user_data['balance'] += self.bantuan_price # Kembalikan uang
                 with open('data/bank_data.json', 'w', encoding='utf-8') as f:
                     json.dump(self.bank_data, f, indent=4)
         else:
-            await ctx.send("Tidak bisa mendapatkan pertanyaan saat ini. Mungkin game sedang berganti soal.")
-            user_data['balance'] += self.bantuan_price
+            await ctx.send("Tidak bisa mendapatkan pertanyaan saat ini. Mungkin game sedang berganti soal atau telah berakhir.")
+            user_data['balance'] += self.bantuan_price # Kembalikan uang
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
-                    json.dump(self.bank_data, f, indent=4)
+                json.dump(self.bank_data, f, indent=4)
 
 
     async def play_game(self, ctx):
@@ -173,7 +217,7 @@ class Hangman(commands.Cog):
 
         if not self.questions or len(self.questions) < 10:
             await ctx.send("Tidak cukup pertanyaan untuk memulai permainan. Hubungi admin.")
-            self.active_games.pop(ctx.channel.id, None)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel) # Cleanup on insufficient questions
             return
 
         game_data["question"] = random.sample(self.questions, 10)
@@ -272,7 +316,7 @@ class Hangman(commands.Cog):
                 level_data[guild_id][user_id_str]['exp'] += exp_gain
                 level_data[guild_id][user_id_str].setdefault('weekly_exp', 0)
                 level_data[guild_id][user_id_str]['weekly_exp'] += exp_gain
-            
+                
             with open('data/bank_data.json', 'w', encoding='utf-8') as f:
                 json.dump(bank_data, f, indent=4)
             with open('data/level_data.json', 'w', encoding='utf-8') as f:
@@ -280,6 +324,7 @@ class Hangman(commands.Cog):
             # --------------------------------------------------------------------
             
             await self.display_leaderboard(ctx)
+            await self.end_game_cleanup(ctx.channel.id, ctx.channel) # Call cleanup after leaderboard
 
     async def display_leaderboard(self, ctx):
         if not self.scores:
@@ -315,4 +360,3 @@ class Hangman(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Hangman(bot))
-
