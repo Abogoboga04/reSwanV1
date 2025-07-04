@@ -855,7 +855,7 @@ class GamesGlobalEvents(commands.Cog):
                 player_id = user.id
                 player_data = game_state['players'].get(player_id)
 
-                # Only allow living Werewolves or Alpha Werewolves to vote via reactions
+                # Only allow living Werewolves or Alpha Werewolves to vote
                 if not player_data or player_data['status'] != 'alive' or player_data['role_info'].get('team') != "Werewolf":
                     try: # Remove reaction if not allowed
                         await reaction.remove(user)
@@ -959,11 +959,14 @@ class GamesGlobalEvents(commands.Cog):
                                  if p_data['status'] == 'alive' and p_data['role'] in ["Werewolf", "Alpha Werewolf"]]
             
             # If there's more than 1 living werewolf, they should use reactions/thread
+            # Redirect to thread if voting message exists there (meaning thread creation succeeded and voting is via reactions)
             if len(living_werewolves_for_vote) > 1 and isinstance(game_state.get('werewolf_dm_thread'), discord.Thread) and game_state.get('werewolf_vote_message'):
-                # Redirect to thread if voting message exists there
                 return await message.channel.send(f"Untuk Werewolf, silakan pilih target dengan memberikan reaksi pada daftar di thread Werewolf: <#{game_state['werewolf_dm_thread'].id}>")
             
-            # If 1 living werewolf OR thread creation failed/no voting message was sent, allow !bunuh command in DM
+            # This path is executed if:
+            # 1. Only 1 living Werewolf (or Alpha) is left
+            # OR
+            # 2. Thread creation failed, so there's no werewolf_dm_thread or werewolf_vote_message for reactions
             target_num = int(parts[1])
             target_member_obj = game_state['player_map'].get(target_num)
             if not target_member_obj or target_member_obj.id not in game_state['living_players']:
@@ -976,6 +979,9 @@ class GamesGlobalEvents(commands.Cog):
 
         # Other roles' commands (Doctor, Seer, Guard, Hunter, Witch, Night Guard, Holy Knight)
         # This part remains similar to before as they use DM commands
+        if len(parts) != 2 or not parts[1].isdigit(): # General check for non-WW roles
+            return await message.channel.send("Format perintah tidak valid. Gunakan: `!<peran> <nomor_warga>`")
+
         command = parts[0]
         target_num = int(parts[1])
 
@@ -1580,14 +1586,14 @@ class GamesGlobalEvents(commands.Cog):
                 alpha_ww_alive_id = p_id
                 break
 
-        # If Alpha Werewolf is alive and has voted
+        # If Alpha Werewolf is alive and has voted (check both werewolf_votes and if reaction message was used)
         if alpha_ww_alive_id and game_state['werewolf_votes'].get(alpha_ww_alive_id):
             potential_werewolf_kill_target_id = game_state['werewolf_votes'][alpha_ww_alive_id]
             print(f"[{datetime.now()}] [DEBUG WW] Alpha Werewolf ({game_state['players'][alpha_ww_alive_id]['obj'].display_name}) memilih target: {game_state['players'].get(potential_werewolf_kill_target_id, {}).get('obj', 'N/A')}.")
         else:
             # If no Alpha Werewolf or Alpha didn't vote, count votes from all living Werewolves (including Alpha if they didn't vote)
             living_werewolves_for_vote = [p_id for p_id, p_data in game_state['players'].items() 
-                                          if p_data['status'] == 'alive' and p_data['role'] in ["Werewolf", "Alpha Werewolf"]] # Filter for actual Werewolves, not spies
+                                          if p_data['status'] == 'alive' and p_data['role'] in ["Werewolf", "Alpha Werewolf"]]
             
             # Filter votes to only include those from currently living Werewolves (not spies)
             valid_ww_votes = {voter_id: target_id for voter_id, target_id in game_state['werewolf_votes'].items() if voter_id in living_werewolves_for_vote}
@@ -2004,6 +2010,7 @@ class GamesGlobalEvents(commands.Cog):
 
         print(f"[{datetime.now()}] [DEBUG WW] Game berakhir di channel {game_state['main_channel'].name}. Pemenang: {winner}.")
 
+        # --- Tambahkan Bagian Donasi di Sini ---
         donasi_embed = discord.Embed(
             title="✨ Suka dengan permainannya? Dukung kami! ✨",
             description=(
@@ -2019,7 +2026,7 @@ class GamesGlobalEvents(commands.Cog):
         donasi_view.add_item(discord.ui.Button(label="Saweria (All Payment Method)", style=discord.ButtonStyle.url, url="https://saweria.co/RH7155"))
 
         await main_channel.send(embed=donasi_embed, view=donasi_view)
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan donasi dikirim di akhir game Werewolf.")
+        print(f"[{datetime.now()}] [DEBUG WW] Pesan donasi dikirim di akhir game Werewolf.")
 
 
     # --- GAME: RODA TAKDIR GILA! ---
@@ -2234,7 +2241,7 @@ class GamesGlobalEvents(commands.Cog):
         donasi_view.add_item(discord.ui.Button(label="Saweria (All Payment Method)", style=discord.ButtonStyle.url, url="https://saweria.co/RH7155"))
 
         await ctx.send(embed=donasi_embed, view=donasi_view)
-        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan donasi dikirim di akhir game Roda Takdir Gila (fallback).")
+        print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan donasi dikirim di akhir game Balapan Kuda.")
 
 
     def _get_default_wheel_segments(self):
@@ -2281,43 +2288,46 @@ class GamesGlobalEvents(commands.Cog):
 
         self.horse_racing_states[channel_id] = {
             'status': 'betting',
-            'bets': {},
-            'horses': [],
-            'race_message': None,
+            'bets': {}, # {user_id: {'amount': int, 'horse_id': int}}
+            'horses': [], # List of horse dictionaries
+            'race_message': None, # Message object for race updates
             'betting_timer': None,
             'race_timer': None,
             'game_task': None,
-            'track_length': 20,
-            'betting_duration': 30,
-            'odds': {}
+            'track_length': 20, # Panjang lintasan (dalam 'langkah')
+            'betting_duration': 30, # Durasi fase taruhan dalam detik
+            'odds': {} # Odds untuk setiap kuda {horse_id: float}
         }
         race_state = self.horse_racing_states[channel_id]
 
+        # Ambil daftar kuda dari JSON atau gunakan default
         horses_data = load_json_from_root('data/horse_racing_data.json', default_value={"horses": self._get_default_horses()})['horses']
 
+        # Pilih 5 kuda acak untuk balapan ini
         if len(horses_data) < 5:
-            horses_to_race = horses_data
+            horses_to_race = horses_data # Jika kurang dari 5, pakai semua
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Data kuda kurang dari 5, menggunakan semua yang ada ({len(horses_data)} kuda).")
         else:
             horses_to_race = random.sample(horses_data, 5)
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Memilih 5 kuda acak.")
 
+        # Inisialisasi kuda dan hitung odds
         total_speed_mod = sum(h.get('speed_mod', 1.0) for h in horses_to_race)
-        base_odds_multiplier = 4.0
+        base_odds_multiplier = 4.0 # Sesuaikan ini untuk mengontrol rentang odds
 
         for i, horse in enumerate(horses_to_race):
-            horse['id'] = i + 1
-            horse['position'] = 0.0
-            horse['emoji'] = horse.get('emoji', '🐎')
+            horse['id'] = i + 1 # Beri ID 1-based
+            horse['position'] = 0.0 # Posisi awal (float untuk pergerakan akurat)
+            horse['emoji'] = horse.get('emoji', '🐎') # Pastikan ada emoji default
             race_state['horses'].append(horse)
 
             speed_mod = horse.get('speed_mod', 1.0)
-            if speed_mod == 0: speed_mod = 0.1
+            if speed_mod == 0: speed_mod = 0.1 # Hindari pembagian nol
 
             calculated_odds = (total_speed_mod / speed_mod) / (len(horses_to_race) / base_odds_multiplier)
 
-            min_odds = 1.2
-            max_odds = 5.0
+            min_odds = 1.2 # Odds minimum (misal: 1.2x)
+            max_odds = 5.0 # Odds maksimum (misal: 5.0x)
             race_state['odds'][horse['id']] = max(min_odds, min(max_odds, calculated_odds))
 
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Inisialisasi state untuk channel {channel_id} dengan odds dinamis.")
@@ -2325,17 +2335,18 @@ class GamesGlobalEvents(commands.Cog):
         betting_embed = discord.Embed(
             title="🐎 Balapan Kuda Dimulai!🐎",
             description=f"Waktunya memasang taruhan! Kamu punya **{race_state['betting_duration']} detik** untuk bertaruh.\n\n"
-                        f"**Taruhan Saat Ini:**\n" + self._get_current_bets_text(race_state['bets'], race_state['horses']),
+                        f"**Taruhan Saat Ini:**\n" + self._get_current_bets_text(race_state['bets'], race_state['horses']), # Tambah ringkasan taruhan awal
             color=discord.Color.blue()
         )
         betting_embed.add_field(name="Kuda yang Berkompetisi", value=self._get_horse_list_text(race_state['horses'], race_state['odds']), inline=False)
         betting_embed.add_field(name="Cara Bertaruh", value="Gunakan `!taruhan <jumlah_rsw> <nomor_kuda>`\nContoh: `!taruhan 100 3` (bertaruh 100 RSWN pada Kuda #3)", inline=False)
         betting_embed.set_footer(text="Taruhan ditutup dalam...")
-        betting_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
+        betting_embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif") # GIF taruhan
 
         race_state['race_message'] = await ctx.send(embed=betting_embed)
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Pesan taruhan dikirim.")
 
+        # Start betting timer
         race_state['betting_timer'] = self.bot.loop.create_task(self._betting_countdown(ctx, channel_id))
         race_state['game_task'] = self.bot.loop.create_task(self._horse_race_flow(ctx, channel_id))
 
@@ -2369,18 +2380,18 @@ class GamesGlobalEvents(commands.Cog):
         if not race_state: return
 
         for i in range(race_state['betting_duration'], 0, -5):
-            if race_state.get('race_message') and i % 5 == 0:
+            if race_state.get('race_message') and i % 5 == 0: # Pastikan pesan masih ada
                 try:
                     await race_state['race_message'].edit(embed=race_state['race_message'].embeds[0].set_footer(text=f"Taruhan ditutup dalam {i} detik!"))
                 except discord.NotFound:
                     print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan balapan tidak ditemukan saat update countdown.")
-                    break
+                    break # Exit loop if message is gone
                 except Exception as e:
                     print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Error updating betting countdown message: {e}")
                     break
             await asyncio.sleep(5)
 
-        if race_state.get('race_message'):
+        if race_state.get('race_message'): # Pastikan pesan masih ada
             try:
                 await race_state['race_message'].edit(embed=race_state['race_message'].embeds[0].set_footer(text="Taruhan DITUTUP!"))
             except discord.NotFound:
@@ -2394,7 +2405,7 @@ class GamesGlobalEvents(commands.Cog):
         if not race_state: return
 
         try:
-            await asyncio.sleep(race_state['betting_duration'])
+            await asyncio.sleep(race_state['betting_duration']) # Tunggu fase taruhan selesai
 
             if not race_state['bets']:
                 await ctx.send("Tidak ada yang bertaruh! Balapan dibatalkan.", delete_after=15)
@@ -2405,12 +2416,14 @@ class GamesGlobalEvents(commands.Cog):
             race_state['status'] = 'racing'
             await ctx.send("🏁 **BALAPAN DIMULAI!** 🏁")
 
+            # Update pesan balapan secara berkala
             race_state['race_message'] = await ctx.send(embed=self._get_race_progress_embed(race_state))
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Pesan progres balapan dikirim.")
 
             while True:
-                await asyncio.sleep(2)
+                await asyncio.sleep(2) # Update setiap 2 detik
 
+                # Gerakkan kuda
                 for horse in race_state['horses']:
                     move_distance = random.uniform(0.5, 2.5) * horse.get('speed_mod', 1.0)
                     horse['position'] += move_distance
@@ -2419,13 +2432,13 @@ class GamesGlobalEvents(commands.Cog):
 
                 race_state['horses'].sort(key=lambda h: h['position'], reverse=True)
 
-                if race_state.get('race_message'):
+                if race_state.get('race_message'): # Pastikan pesan masih ada
                     try:
                         await race_state['race_message'].edit(embed=self._get_race_progress_embed(race_state))
                         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Progres balapan diperbarui.")
                     except discord.NotFound:
                         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Pesan balapan tidak ditemukan saat update progres.")
-                        break
+                        break # Exit loop if message is gone
 
                 winner = None
                 for horse in race_state['horses']:
@@ -2460,17 +2473,19 @@ class GamesGlobalEvents(commands.Cog):
         track_length = race_state['track_length']
         progress_text = ""
         for horse in race_state['horses']:
+            # Calculate integer position for display, ensuring it doesn't exceed track length
             progress_int = min(int(horse['position']), track_length)
 
+            # Create the track segments (ensure no negative length)
             track_segment = "─" * progress_int
-            remaining_segment = "─" * max(0, track_length - progress_int - 1)
+            remaining_segment = "─" * max(0, track_length - progress_int - 1) # -1 for horse emoji space
 
             progress_bar = f"[{track_segment}{horse['emoji']}{remaining_segment}]"
 
             progress_text += f"**{horse['id']}. {horse['name']}**\n`{progress_bar}` {progress_int}/{track_length}\n\n"
 
         embed.add_field(name="Lintasan", value=progress_text, inline=False)
-        embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif")
+        embed.set_image(url="https://media.giphy.com/media/l4FGJm7hXG1r0J0I/giphy.gif") # GIF balapan
         return embed
 
     async def _distribute_winnings(self, ctx, channel_id, winning_horse_id):
@@ -2492,10 +2507,11 @@ class GamesGlobalEvents(commands.Cog):
                 winnings = int(bet_info['amount'] * odds)
                 bank_data.setdefault(user_id_str, {'balance': 0, 'debt': 0})['balance'] += winnings
                 winners.append(f"{user.mention} (Menang: **{winnings} RSWN**)")
-                await self.give_rewards_with_bonus_check(user, ctx.guild.id, custom_rsw=winnings, custom_exp=50)
+                await self.give_rewards_with_bonus_check(user, ctx.guild.id, custom_rsw=winnings, custom_exp=50) # Assuming 50 exp for winning a bet
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: {user.display_name} menang {winnings} RSWN.")
             else:
                 losers.append(f"{user.mention} (Kalah: {bet_info['amount']} RSWN)")
+                # No reward for losers, their money is already deducted
                 print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: {user.display_name} kalah {bet_info['amount']} RSWN.")
 
         save_json_to_root(bank_data, 'data/bank_data.json')
@@ -2519,6 +2535,7 @@ class GamesGlobalEvents(commands.Cog):
         await ctx.send(embed=result_embed)
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Hasil balapan dikirim.")
 
+        # --- Tambahkan Bagian Donasi di Sini ---
         donasi_embed = discord.Embed(
             title="✨ Suka dengan Balapan Kudanya? Dukung kami! ✨",
             description=(
@@ -2559,12 +2576,16 @@ class GamesGlobalEvents(commands.Cog):
         if not target_horse:
             return await ctx.send(f"Nomor kuda `{horse_num}` tidak valid. Pilih dari daftar kuda yang berpartisipasi.", ephemeral=True)
 
+        # Cek apakah user sudah bertaruh di balapan ini
         if user_id_str in race_state['bets']:
             old_bet = race_state['bets'][user_id_str]
+            # Kembalikan saldo taruhan lama
             bank_data[user_id_str]['balance'] += old_bet['amount']
             await ctx.send(f"Taruhanmu sebelumnya ({old_bet['amount']} RSWN pada kuda #{old_bet['horse_id']}) telah dikembalikan. Memasang taruhan baru...", delete_after=5)
             print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: Taruhan {ctx.author.display_name} diperbarui (saldo dikembalikan).")
 
+
+        # Kurangi saldo dan simpan taruhan baru
         bank_data[user_id_str]['balance'] -= amount
         race_state['bets'][user_id_str] = {'amount': amount, 'horse_id': horse_num}
         save_json_to_root(bank_data, 'data/bank_data.json')
@@ -2572,6 +2593,7 @@ class GamesGlobalEvents(commands.Cog):
         await ctx.send(f"✅ **{ctx.author.display_name}** berhasil bertaruh **{amount} RSWN** pada **{target_horse['name']}** (Kuda #{horse_num}).", delete_after=5)
         print(f"[{datetime.now()}] [DEBUG GLOBAL EVENTS] Balapan Kuda: {ctx.author.display_name} berhasil bertaruh.")
 
+        # Update betting message to show new bets
         if race_state.get('race_message'):
             updated_embed = race_state['race_message'].embeds[0]
             updated_embed.description = (f"Waktunya memasang taruhan! Kamu punya **{race_state['betting_duration']} detik** untuk bertaruh.\n\n"
