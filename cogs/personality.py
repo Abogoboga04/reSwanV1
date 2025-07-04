@@ -32,7 +32,7 @@ class PersonalityTest(commands.Cog): # Nama kelas cog baru
             print(f"[{self.__class__.__name__}] Error: Pastikan format JSON valid di file data. Detail: {e}")
             raise json.JSONDecodeError(f"Invalid JSON in data files: {e}")
 
-    @commands.command(name='testkepribadian') # Nama perintah baru
+    @commands.command(name='reskepribadian') # Nama perintah baru
     async def start_quiz(self, ctx):
         """Memulai tes kepribadian interaktif dengan tombol."""
         user_id = ctx.author.id
@@ -56,7 +56,7 @@ class PersonalityTest(commands.Cog): # Nama kelas cog baru
         
         await self._send_question(ctx, user_id, ctx.channel)
 
-    @commands.command(name='batalkantest') # Nama perintah baru
+    @commands.command(name='cancelkpb') # Nama perintah baru
     async def cancel_quiz(self, ctx):
         """Membatalkan sesi tes kepribadian."""
         user_id = ctx.author.id
