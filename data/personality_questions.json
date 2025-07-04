@@ -1,0 +1,522 @@
+{
+    "q1_start": {
+        "text": "Setelah seminggu yang sibuk dan melelahkan, bagaimana cara favoritmu untuk mengisi ulang energi?",
+        "options": {
+            "menghabiskan_waktu_dengan_teman_teman_atau_pesta_ramai": {
+                "next_question_id": "q2_extro_sosial",
+                "traits_impact": {"Ekstrovert": 2, "Introvert": -1, "Optimis": 1, "Sosial": 1, "Spontan": 0.5, "Rapi": -0.5}
+            },
+            "menikmati_kesendirian_di_rumah_dengan_hobi_favorit": {
+                "next_question_id": "q2_intro_sendiri",
+                "traits_impact": {"Introvert": 2, "Ekstrovert": -1, "Kontemplatif": 1, "Fokus": 0.5, "Spontan": -0.5}
+            },
+            "mencari_petualangan_baru_atau_mempelajari_sesuatu_yang_menarik": {
+                "next_question_id": "q2_openness_eksplorasi",
+                "traits_impact": {"Terbuka": 2, "Kreatif": 1, "Inovatif": 1, "Spontan": 1, "Tradisional": -1}
+            },
+            "menyelesaikan_tugas_tugas_yang_tertunda_untuk_merasa_lebih_produktif": {
+                "next_question_id": "q2_conscient_produktif",
+                "traits_impact": {"Terorganisir": 2, "Disiplin": 1, "Ambisius": 0.5, "Spontan": -1, "Berantakan": -0.5}
+            }
+        }
+    },
+    "q2_extro_sosial": {
+        "text": "Di sebuah pertemuan sosial baru, kamu cenderung:",
+        "options": {
+            "langsung_memperkenalkan_diri_dan_berinteraksi_dengan_banyak_orang": {
+                "next_question_id": "q3_extro_inisiatif",
+                "traits_impact": {"Ekstrovert": 1.5, "PercayaDiri": 1, "Proaktif": 1, "Reaktif": -0.5}
+            },
+            "menunggu_diajak_bicara_atau_mengamati_dulu_sebelum_terlibat": {
+                "next_question_id": "q3_intro_observasi",
+                "traits_impact": {"Introvert": 0.5, "Pengamat": 1, "Akomodatif": 0.5, "Proaktif": -0.5}
+            },
+            "mencari_beberapa_orang_yang_menarik_lalu_berinteraksi_lebih_dalam": {
+                "next_question_id": "q3_ambivert_sosial",
+                "traits_impact": {"Ambivert": 1, "Fleksibel": 0.5, "Empati": 0.5}
+            }
+        }
+    },
+    "q2_intro_sendiri": {
+        "text": "Saat bekerja atau belajar, kamu lebih produktif di lingkungan seperti apa?",
+        "options": {
+            "lingkungan_yang_tenang_dan_bebas_gangguan": {
+                "next_question_id": "q3_intro_fokus",
+                "traits_impact": {"Introvert": 1.5, "Fokus": 1, "Analitis": 0.5, "Ekstrovert": -0.5}
+            },
+            "tempat_dengan_sedikit_kebisingan_atau_aktivitas_latar_yang_tidak_mengganggu": {
+                "next_question_id": "q3_ambivert_fokus",
+                "traits_impact": {"Introvert": 0.5, "Ambivert": 0.5, "Fleksibel": 0.5}
+            },
+            "lingkungan_yang_ramai_dengan_banyak_orang_di_sekitar": {
+                "next_question_id": "q3_extro_fokus",
+                "traits_impact": {"Ekstrovert": 0.5, "Sosial": 0.5, "Introvert": -0.5}
+            }
+        }
+    },
+    "q2_openness_eksplorasi": {
+        "text": "Ketika dihadapkan pada ide atau konsep yang belum pernah kamu dengar, reaksi pertamamu adalah?",
+        "options": {
+            "antusias_untuk_menjelajahinya_dan_mencari_tahu_lebih_banyak": {
+                "next_question_id": "q3_open_antusias",
+                "traits_impact": {"Terbuka": 2, "Kreatif": 1, "Inovatif": 1, "Tradisional": -1}
+            },
+            "agak_skeptis_tapi_bersedia_mempertimbangkan_jika_ada_bukti_kuat": {
+                "next_question_id": "q3_open_skeptis",
+                "traits_impact": {"Realis": 1, "Analitis": 1, "Terbuka": 0.5, "Intuitif": -0.5}
+            },
+            "cenderung_berpegang_pada_apa_yang_sudah_diketahui_dan_terbukti": {
+                "next_question_id": "q3_open_konvensional",
+                "traits_impact": {"Tradisional": 2, "Terbuka": -1.5, "Kaku": 1, "Inovatif": -1}
+            }
+        }
+    },
+    "q2_conscient_produktif": {
+        "text": "Saat memulai sebuah proyek besar, pendekatanmu adalah?",
+        "options": {
+            "membuat_rencana_detail_dan_mengikuti_jadwal_ketat_dari_awal": {
+                "next_question_id": "q3_conscient_perencana",
+                "traits_impact": {"Terorganisir": 2, "Disiplin": 1.5, "Perencana": 1, "Spontan": -1, "Berantakan": -1}
+            },
+            "memulai_dengan_garis_besar_lalu_mengisi_detailnya_saat_berjalan": {
+                "next_question_id": "q3_conscient_fleksibel",
+                "traits_impact": {"Fleksibel": 1, "Praktis": 1, "Spontan": 0.5, "Terorganisir": -0.5}
+            },
+            "langsung_terjun_dan_menyelesaikan_secepatnya_tanpa_banyak_rencana_awal": {
+                "next_question_id": "q3_conscient_impulsif",
+                "traits_impact": {"Impulsif": 1.5, "Proaktif": 0.5, "Terorganisir": -1, "DetailOriented": -1}
+            }
+        }
+    },
+
+    "q3_extro_inisiatif": {
+        "text": "Setelah memperkenalkan diri ke banyak orang di pertemuan, kamu merasa:",
+        "options": {
+            "semakin_bersemangat_dan_ingin_terlibat_lebih_banyak": {
+                "next_question_id": "q4_extro_semangat_tinggi",
+                "traits_impact": {"Ekstrovert": 1, "Optimis": 0.5, "Energetik": 0.5}
+            },
+            "puas_telah_berinteraksi_lalu_mencari_diskusi_yang_lebih_dalam": {
+                "next_question_id": "q4_ambivert_interaksi_dalam",
+                "traits_impact": {"Ambivert": 0.5, "Empati": 0.5, "Sosial": 0.5}
+            }
+        }
+    },
+    "q3_intro_observasi": {
+        "text": "Sebagai pengamat di pertemuan sosial, kamu lebih sering:",
+        "options": {
+            "menganalisis_dinamika_kelompok_dan_kepribadian_orang_orang": {
+                "next_question_id": "q4_intro_analisis",
+                "traits_impact": {"Introvert": 1, "Analitis": 1, "Pengamat": 0.5}
+            },
+            "mencari_satu_atau_dua_orang_yang_terlihat_menarik_untuk_diajak_bicara_pelan_pelan": {
+                "next_question_id": "q4_intro_selektif",
+                "traits_impact": {"Introvert": 0.5, "Empati": 0.5, "Penyabar": 0.5}
+            }
+        }
+    },
+    "q3_intro_fokus": {
+        "text": "Saat fokus pada tugas pribadi di tempat tenang, bagaimana reaksimu jika ada gangguan kecil?",
+        "options": {
+            "merasa_frustrasi_dan_sulit_kembali_fokus": {
+                "next_question_id": "q4_intro_sensitif_gangguan",
+                "traits_impact": {"Sensitif": 1, "Pemarah": 0.5, "Fokus": 0.5}
+            },
+            "bisa_mengabaikannya_dan_tetap_konsentrasi": {
+                "next_question_id": "q4_intro_resilien_fokus",
+                "traits_impact": {"Resilien": 1, "Fokus": 1, "Penyabar": 0.5}
+            }
+        }
+    },
+    "q3_ambivert_fokus": {
+        "text": "Jika dihadapkan pada tugas yang membutuhkan konsentrasi tinggi, kamu:",
+        "options": {
+            "bisa_beradaptasi_di_lingkungan_apa_pun_tapi_lebih_suka_sedikit_stimulus": {
+                "next_question_id": "q4_ambivert_adaptif_fokus",
+                "traits_impact": {"Ambivert": 1, "Fleksibel": 0.5, "Praktis": 0.5}
+            },
+            "mencari_lingkungan_yang_benar_benar_optimal_untuk_fokus_mutlak": {
+                "next_question_id": "q4_intro_preferensi_mutlak",
+                "traits_impact": {"Introvert": 0.5, "Perfeksionis": 0.5, "Analitis": 0.5}
+            }
+        }
+    },
+    "q3_extro_fokus": {
+        "text": "Saat bekerja di lingkungan yang ramai, kamu merasa:",
+        "options": {
+            "lebih_bersemangat_dan_terinspirasi_oleh_energi_sekitar": {
+                "next_question_id": "q4_extro_inspirasi_ramai",
+                "traits_impact": {"Ekstrovert": 1, "Kreatif": 0.5, "Optimis": 0.5}
+            },
+            "kadang_terdistraksi_tapi_secara_keseluruhan_tetap_produktif": {
+                "next_question_id": "q4_ambivert_distraksi_produktif",
+                "traits_impact": {"Ambivert": 0.5, "Fleksibel": 0.5, "CukupBaik": 0.5}
+            }
+        }
+    },
+    "q3_open_antusias": {
+        "text": "Setelah mempelajari ide baru yang menarik, apa yang ingin kamu lakukan?",
+        "options": {
+            "segera_mencoba_menerapkannya_atau_bereksperimen": {
+                "next_question_id": "q4_open_terapkan",
+                "traits_impact": {"Terbuka": 1, "Inovatif": 1, "Proaktif": 0.5}
+            },
+            "membagikannya_kepada_orang_lain_untuk_diskusi_dan_mendapatkan_perspektif_lain": {
+                "next_question_id": "q4_open_bagikan",
+                "traits_impact": {"Terbuka": 0.5, "Sosial": 0.5, "Kolaboratif": 0.5}
+            }
+        }
+    },
+    "q3_open_skeptis": {
+        "text": "Jika ide baru terasa terlalu 'gila' atau tidak praktis, kamu cenderung:",
+        "options": {
+            "mencari_bukti_konkret_atau_studi_kasus_untuk_meyakinkanmu": {
+                "next_question_id": "q4_open_bukti",
+                "traits_impact": {"Analitis": 1, "Logis": 1, "HatiHati": 0.5}
+            },
+            "bersedia_mencoba_dengan_risiko_terukur_untuk_melihat_potensinya": {
+                "next_question_id": "q4_open_risiko",
+                "traits_impact": {"Terbuka": 0.5, "Berani": 0.5, "Fleksibel": 0.5}
+            }
+        }
+    },
+    "q3_open_konvensional": {
+        "text": "Dalam menghadapi perubahan besar yang tak terhindarkan, kamu:",
+        "options": {
+            "merasa_tidak_nyaman_tapi_mencoba_beradaptasi_pelan_pelan": {
+                "next_question_id": "q4_trad_adaptasi",
+                "traits_impact": {"Tradisional": 0.5, "Resilien": 0.5, "Akomodatif": 0.5}
+            },
+            "mencari_cara_untuk_mempertahankan_sebanyak_mungkin_hal_yang_sudah_ada": {
+                "next_question_id": "q4_trad_pertahankan",
+                "traits_impact": {"Tradisional": 1, "Perencana": 0.5, "Kaku": 0.5}
+            }
+        }
+    },
+    "q3_conscient_perencana": {
+        "text": "Jika rencana awalmu terganggu di tengah jalan, reaksimu adalah:",
+        "options": {
+            "merasa_frustrasi_tapi_cepat_menyusun_rencana_cadangan_yang_efisien": {
+                "next_question_id": "q4_conscient_cadangan",
+                "traits_impact": {"Terorganisir": 0.5, "Resilien": 1, "Logis": 0.5, "Pemarah": 0.5}
+            },
+            "kesal_dan_butuh_waktu_untuk_menerima_perubahan_itu": {
+                "next_question_id": "q4_conscient_kesal",
+                "traits_impact": {"Terorganisir": 0.5, "Pemarah": 1, "Kaku": 0.5, "Penyabar": -0.5}
+            }
+        }
+    },
+    "q3_conscient_fleksibel": {
+        "text": "Dalam bekerja dengan orang lain, kamu lebih suka:",
+        "options": {
+            "mengikuti_alur_dan_menyesuaikan_diri_dengan_gaya_mereka": {
+                "next_question_id": "q4_conscient_ikut_alur",
+                "traits_impact": {"Fleksibel": 1, "Akomodatif": 1, "Spontan": 0.5}
+            },
+            "menyumbangkan_ide_tetapi_tetap_memastikan_prosesnya_efisien": {
+                "next_question_id": "q4_conscient_sumbang_efisien",
+                "traits_impact": {"Praktis": 1, "Terorganisir": 0.5, "Proaktif": 0.5}
+            }
+        }
+    },
+    "q3_conscient_impulsif": {
+        "text": "Setelah menyelesaikan tugas secara impulsif, kamu merasa:",
+        "options": {
+            "puas_karena_cepat_selesai_meski_mungkin_ada_kekurangan_kecil": {
+                "next_question_id": "q4_conscient_cepat_puas",
+                "traits_impact": {"Impulsif": 1, "CukupBaik": 1, "Spontan": 0.5, "Perfeksionis": -1}
+            },
+            "agak_khawatir_tentang_kualitasnya_dan_berpikir_untuk_memeriksa_ulang": {
+                "next_question_id": "q4_conscient_khawatir_ulang",
+                "traits_impact": {"DetailOriented": 0.5, "Perfeksionis": 0.5, "Analitis": 0.5, "CukupBaik": -0.5}
+            }
+        }
+    },
+
+    "q4_extro_semangat_tinggi": {
+        "text": "Saat di tengah keramaian, apa yang paling kamu sukai?",
+        "options": {
+            "menjadi_pusat_perhatian_dan_menghibur_orang_lain": {
+                "final_result_key": "extro_performer",
+                "traits_impact": {"Ekstrovert": 1, "PercayaDiri": 1, "Pemimpin": 0.5}
+            },
+            "berinteraksi_dengan_berbagai_macam_orang_dan_mendapatkan_energi_dari_mereka": {
+                "final_result_key": "extro_socializer",
+                "traits_impact": {"Ekstrovert": 1.5, "Sosial": 1, "Optimis": 0.5}
+            }
+        }
+    },
+    "q4_ambivert_interaksi_dalam": {
+        "text": "Setelah berinteraksi dengan banyak orang, kamu merasa:",
+        "options": {
+            "puas_tapi_membutuhkan_waktu_untuk_memproses_interaksi_itu_sendirian": {
+                "final_result_key": "ambivert_reflector",
+                "traits_impact": {"Ambivert": 1, "Kontemplatif": 0.5, "Analitis": 0.5}
+            },
+            "siap_untuk_diskusi_yang_lebih_mendalam_dengan_kelompok_lebih_kecil": {
+                "final_result_key": "ambivert_deep_diver",
+                "traits_impact": {"Ambivert": 1, "Empati": 0.5, "Sosial": 0.5}
+            }
+        }
+    },
+    "q4_intro_analisis": {
+        "text": "Setelah menganalisis dinamika kelompok, kamu cenderung...",
+        "options": {
+            "menyimpan_wawasan_itu_untuk_diri_sendiri_atau_mencatatnya_secara_pribadi": {
+                "final_result_key": "intro_private_analyst",
+                "traits_impact": {"Introvert": 1, "Analitis": 1, "Fokus": 0.5}
+            },
+            "membagikan_wawasan_itu_dengan_beberapa_orang_terpercaya_nanti": {
+                "final_result_key": "intro_selective_sharer",
+                "traits_impact": {"Introvert": 0.5, "Empati": 0.5, "Penyabar": 0.5}
+            }
+        }
+    },
+    "q4_intro_selektif": {
+        "text": "Ketika kamu memutuskan untuk berbicara di keramaian, itu karena:",
+        "options": {
+            "topik_diskusi_sangat_menarik_dan_kamu_punya_pengetahuan_spesifik": {
+                "final_result_key": "intro_specific_contributor",
+                "traits_impact": {"Introvert": 0.5, "Analitis": 0.5, "Fokus": 0.5}
+            },
+            "kamu_merasa_ada_suasana_yang_nyaman_untuk_berbicara_meski_tidak_langsung_terlibat": {
+                "final_result_key": "intro_comfortable_speaker",
+                "traits_impact": {"Introvert": 0.5, "Empati": 0.5, "Akomodatif": 0.5}
+            }
+        }
+    },
+    "q4_intro_sensitif_gangguan": {
+        "text": "Gangguan kecil saat fokus membuatmu:",
+        "options": {
+            "agak_kesal_dan_membutuhkan_waktu_untuk_kembali_fokus": {
+                "final_result_key": "intro_easily_distracted",
+                "traits_impact": {"Sensitif": 1, "Pemarah": 0.5, "Fokus": -0.5}
+            },
+            "merasa_bahwa_lingkungan_ideal_itu_penting_untuk_produktivitas": {
+                "final_result_key": "intro_environment_dependent",
+                "traits_impact": {"Introvert": 1, "Terorganisir": 0.5, "Perfeksionis": 0.5}
+            }
+        }
+    },
+    "q4_intro_resilien_fokus": {
+        "text": "Jika kamu bisa mengabaikan gangguan, itu karena:",
+        "options": {
+            "kamu_sangat_fokus_pada_tugas_dan_tujuanmu": {
+                "final_result_key": "intro_laser_focused",
+                "traits_impact": {"Fokus": 1.5, "Resilien": 1, "Disiplin": 0.5}
+            },
+            "kamu_punya_strategi_internal_untuk_memblokir_gangguan": {
+                "final_result_key": "intro_self_regulated",
+                "traits_impact": {"Introvert": 1, "Mandiri": 0.5, "Analitis": 0.5}
+            }
+        }
+    },
+    "q4_ambivert_adaptif_fokus": {
+        "text": "Ketika kamu perlu fokus, kamu:",
+        "options": {
+            "bisa_beradaptasi_dengan_lingkungan_apapun_tapi_tetap_menjaga_keseimbangan_energi_sosial": {
+                "final_result_key": "ambivert_balanced_adaptor",
+                "traits_impact": {"Ambivert": 1.5, "Fleksibel": 1, "Praktis": 0.5}
+            },
+            "mencari_stimulasi_minimal_yang_membantumu_tetap_terhubung_namun_fokus": {
+                "final_result_key": "ambivert_connected_focuser",
+                "traits_impact": {"Ambivert": 1, "Sosial": 0.5, "Fokus": 0.5}
+            }
+        }
+    },
+    "q4_intro_preferensi_mutlak": {
+        "text": "Untuk mencapai fokus mutlak, kamu:",
+        "options": {
+            "menuntut_lingkungan_yang_benar_benar_tanpa_gangguan_sama_sekali": {
+                "final_result_key": "intro_absolute_focuser",
+                "traits_impact": {"Introvert": 1.5, "Perfeksionis": 1, "Fokus": 1}
+            },
+            "bisa_fokus_mutlak_tapi_membutuhkan_usaha_ekstra_dan_pemulihan_energi": {
+                "final_result_key": "intro_draining_focuser",
+                "traits_impact": {"Introvert": 1, "Resilien": 0.5, "Sensitif": 0.5}
+            }
+        }
+    },
+    "q4_extro_inspirasi_ramai": {
+        "text": "Energi dari lingkungan ramai membuatmu:",
+        "options": {
+            "terinspirasi_untuk_menciptakan_sesuatu_yang_baru_dan_berbagi_dengan_dunia": {
+                "final_result_key": "extro_creative_inspirer",
+                "traits_impact": {"Ekstrovert": 1, "Kreatif": 1, "Inovatif": 0.5}
+            },
+            "lebih_bersemangat_untuk_berkomunikasi_dan_mempengaruhi_orang_lain": {
+                "final_result_key": "extro_charismatic_communicator",
+                "traits_impact": {"Ekstrovert": 1.5, "Pemimpin": 1, "PercayaDiri": 0.5}
+            }
+        }
+    },
+    "q4_ambivert_distraksi_produktif": {
+        "text": "Dalam lingkungan ramai, kamu:",
+        "options": {
+            "tetap_produktif_dengan_menemukan_caramu_sendiri_untuk_mengelola_distraksi": {
+                "final_result_key": "ambivert_efficient_worker",
+                "traits_impact": {"Ambivert": 1, "Terorganisir": 0.5, "Praktis": 0.5}
+            },
+            "menikmati_gangguan_sebagai_bagian_dari_proses_tapi_tetap_menjaga_tujuan": {
+                "final_result_key": "ambivert_flexible_enjoyer",
+                "traits_impact": {"Ambivert": 1, "Fleksibel": 1, "CukupBaik": 0.5}
+            }
+        }
+    },
+    "q4_open_terapkan": {
+        "text": "Setelah mencoba ide baru, kamu lebih tertarik pada:",
+        "options": {
+            "hasil_dan_dampak_nyatanya_meskipun_perlu_penyesuaian_terus_menerus": {
+                "final_result_key": "open_practical_innovator",
+                "traits_impact": {"Terbuka": 0.5, "Inovatif": 1, "Praktis": 1}
+            },
+            "proses_pembelajaran_dan_pengembangan_yang_terjadi_selama_eksperimen": {
+                "final_result_key": "open_learning_experimenter",
+                "traits_impact": {"Terbuka": 1, "Pembelajar": 1, "Kreatif": 0.5}
+            }
+        }
+    },
+    "q4_open_bagikan": {
+        "text": "Ketika berbagi ide, kamu berharap:",
+        "options": {
+            "mendapatkan_masukan_untuk_mengembangkan_ide_itu_lebih_jauh_lagi": {
+                "final_result_key": "open_collaborative_explorer",
+                "traits_impact": {"Terbuka": 1, "Kolaboratif": 1, "Sosial": 0.5}
+            },
+            "menginspirasi_orang_lain_untuk_juga_bereksplorasi_dengan_ide_serupa": {
+                "final_result_key": "open_inspirational_thinker",
+                "traits_impact": {"Terbuka": 1, "Kreatif": 0.5, "Pemimpin": 0.5}
+            }
+        }
+    },
+    "q4_open_bukti": {
+        "text": "Jika ide baru yang 'gila' memiliki bukti kuat, kamu:",
+        "options": {
+            "akan_langsung_tertarik_dan_siap_untuk_mencoba": {
+                "final_result_key": "open_skeptic_convinced",
+                "traits_impact": {"Terbuka": 1, "Analitis": 0.5, "Berani": 0.5}
+            },
+            "tetap_berhati_hati_tapi_mulai_merencanakan_langkah_langkah_uji_coba": {
+                "final_result_key": "open_cautious_planner",
+                "traits_impact": {"HatiHati": 1, "Perencana": 0.5, "Realis": 0.5}
+            }
+        }
+    },
+    "q4_open_risiko": {
+        "text": "Jika ada risiko dalam mencoba ide baru, kamu akan:",
+        "options": {
+            "menerima_risiko_dan_mencoba_dengan_antusias": {
+                "final_result_key": "open_risk_taker",
+                "traits_impact": {"Berani": 1, "Inovatif": 0.5, "Optimis": 0.5}
+            },
+            "mencoba_memitigasi_risiko_sebanyak_mungkin_sebelum_melangkah": {
+                "final_result_key": "open_risk_manager",
+                "traits_impact": {"HatiHati": 1, "Analitis": 0.5, "Perencana": 0.5}
+            }
+        }
+    },
+    "q4_trad_adaptasi": {
+        "text": "Saat beradaptasi dengan perubahan, kamu cenderung:",
+        "options": {
+            "mencari_cara_untuk_mengintegrasikan_hal_baru_dengan_apa_yang_sudah_ada": {
+                "final_result_key": "trad_flexible_integrator",
+                "traits_impact": {"Tradisional": 0.5, "Fleksibel": 1, "Praktis": 0.5}
+            },
+            "merasa_stres_dan_perlu_dukungan_untuk_melewati_masa_transisi": {
+                "final_result_key": "trad_stressed_adapter",
+                "traits_impact": {"Sensitif": 1, "Tradisional": 0.5, "Resilien": -0.5}
+            }
+        }
+    },
+    "q4_trad_pertahankan": {
+        "text": "Jika dihadapkan pada inovasi yang bertentangan dengan tradisi kuat, kamu akan:",
+        "options": {
+            "tetap_teguh_pada_tradisi_dan_mempertahankannya": {
+                "final_result_key": "trad_staunch_defender",
+                "traits_impact": {"Tradisional": 1.5, "Kaku": 1, "Pemarah": 0.5}
+            },
+            "mempertimbangkan_dengan_hati_hati_apakah_inovasi_itu_benar_benar_lebih_baik": {
+                "final_result_key": "trad_cautious_evaluator",
+                "traits_impact": {"Tradisional": 1, "Analitis": 0.5, "HatiHati": 0.5}
+            }
+        }
+    },
+    "q4_conscient_cadangan": {
+        "text": "Setelah menyusun rencana cadangan, kamu merasa:",
+        "options": {
+            "lebih_tenang_dan_percaya_diri_bahwa_masalah_bisa_diatasi": {
+                "final_result_key": "conscient_resilient_planner",
+                "traits_impact": {"Resilien": 1, "Perencana": 0.5, "Optimis": 0.5}
+            },
+            "masih_sedikit_khawatir_tapi_merasa_sudah_melakukan_yang_terbaik": {
+                "final_result_key": "conscient_anxious_planner",
+                "traits_impact": {"Sensitif": 0.5, "Perfeksionis": 0.5, "HatiHati": 0.5}
+            }
+        }
+    },
+    "q4_conscient_kesal": {
+        "text": "Jika rencanamu terus-menerus terganggu, kamu akan:",
+        "options": {
+            "menjadi_sangat_frustrasi_dan_mungkin_kehilangan_motivasi": {
+                "final_result_key": "conscient_frustrated_rigid",
+                "traits_impact": {"Pemarah": 1.5, "Kaku": 1, "Impulsif": 0.5}
+            },
+            "mencoba_beradaptasi_tetapi_dengan_perasaan_tidak_nyaman_yang_jelas": {
+                "final_result_key": "conscient_reluctant_adapter",
+                "traits_impact": {"Tradisional": 0.5, "Sensitif": 0.5, "Penyabar": -0.5}
+            }
+        }
+    },
+    "q4_conscient_ikut_alur": {
+        "text": "Ketika mengikuti alur orang lain, kamu merasa:",
+        "options": {
+            "nyaman_dan_mudah_beradaptasi_dengan_tim": {
+                "final_result_key": "conscient_agreeable_follower",
+                "traits_impact": {"Fleksibel": 1, "Akomodatif": 1, "Pengikut": 0.5}
+            },
+            "terkadang_agak_frustrasi_jika_tidak_sesuai_dengan_caramu": {
+                "final_result_key": "conscient_frustrated_collaborator",
+                "traits_impact": {"Kritis": 0.5, "Pemarah": 0.5, "DetailOriented": 0.5}
+            }
+        }
+    },
+    "q4_conscient_sumbang_efisien": {
+        "text": "Saat menyumbangkan ide untuk efisiensi, kamu:",
+        "options": {
+            "fokus_pada_langkah_langkah_konkret_yang_bisa_langsung_diterapkan": {
+                "final_result_key": "conscient_practical_improver",
+                "traits_impact": {"Praktis": 1, "Terorganisir": 0.5, "Logis": 0.5}
+            },
+            "berharap_idemu_dipertimbangkan_secara_serius_demi_kemajuan_bersama": {
+                "final_result_key": "conscient_proactive_contributor",
+                "traits_impact": {"Proaktif": 1, "Ambisius": 0.5, "Pemimpin": 0.5}
+            }
+        }
+    },
+    "q4_conscient_cepat_puas": {
+        "text": "Bagaimana kamu memastikan pekerjaan yang diselesaikan secara cepat tetap memenuhi standar?",
+        "options": {
+            "percaya_pada_kemampuan_diri_untuk_menghasilkan_cukup_baik_dengan_cepat": {
+                "final_result_key": "conscient_efficient_sufficient",
+                "traits_impact": {"CukupBaik": 1, "Impulsif": 0.5, "Praktis": 0.5}
+            },
+            "melakukan_pengecekan_cepat_untuk_memastikan_tidak_ada_kesalahan_fatal": {
+                "final_result_key": "conscient_quick_checker",
+                "traits_impact": {"DetailOriented": 0.5, "Fokus": 0.5, "Analitis": 0.5}
+            }
+        }
+    },
+    "q4_conscient_khawatir_ulang": {
+        "text": "Setelah memeriksa ulang pekerjaanmu yang diselesaikan secara impulsif, kamu merasa:",
+        "options": {
+            "lega_karena_telah_memperbaiki_kekurangan_dan_menjamin_kualitas": {
+                "final_result_key": "conscient_diligent_corrector",
+                "traits_impact": {"Perfeksionis": 1, "DetailOriented": 1, "Terorganisir": 0.5}
+            },
+            "terlalu_lama_memeriksa_tapi_hasilnya_memuaskan": {
+                "final_result_key": "conscient_overthinker",
+                "traits_impact": {"Analitis": 1, "HatiHati": 0.5, "Sabar": 0.5}
+            }
+        }
+    }
+}
