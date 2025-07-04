@@ -1,0 +1,240 @@
+{
+    "trait_descriptions": {
+        "Ekstrovert": "Seseorang yang mendapatkan energi dari interaksi sosial dan cenderung aktif serta ramah.",
+        "Introvert": "Seseorang yang mendapatkan energi dari waktu sendiri dan cenderung reflektif serta pendiam.",
+        "Analitis": "Berpikir secara logis, sistematis, dan suka memecah masalah menjadi bagian-bagian kecil.",
+        "Intuitif": "Mengandalkan insting, firasat, dan melihat gambaran besar atau potensi tersembunyi.",
+        "Empati": "Mampu memahami dan berbagi perasaan orang lain, peka terhadap emosi dan kebutuhan interpersonal.",
+        "Logis": "Membuat keputusan berdasarkan fakta, data, dan penalaran rasional tanpa dipengaruhi emosi.",
+        "Terbuka": "Terbuka terhadap ide, pengalaman, dan perubahan baru, senang bereksplorasi.",
+        "Tradisional": "Menghargai cara-cara yang sudah terbukti, rutinitas, dan nilai-nilai lama.",
+        "Terorganisir": "Suka keteraturan, perencanaan, dan menjalankan tugas dengan disiplin.",
+        "Spontan": "Cenderung bertindak impulsif, fleksibel, dan menikmati kebebasan tanpa banyak perencanaan.",
+        "Ambisius": "Memiliki dorongan kuat untuk mencapai tujuan besar, sukses, dan melampaui batas.",
+        "PuasDiri": "Cenderung merasa cukup dengan apa yang ada, tidak terlalu terdorong untuk mengejar hal besar.",
+        "Proaktif": "Mengambil inisiatif, bertindak sebelum masalah muncul, dan bertanggung jawab.",
+        "Reaktif": "Cenderung menunggu situasi terjadi sebelum bertindak, merespons daripada memulai.",
+        "Resilien": "Memiliki daya tahan tinggi terhadap tekanan, mampu bangkit dari kegagalan dengan cepat.",
+        "Sensitif": "Peka terhadap lingkungan dan emosi (diri sendiri dan orang lain), mudah tersentuh.",
+        "Pemimpin": "Memiliki kemampuan mengarahkan, mempengaruhi, dan mengambil keputusan untuk kelompok.",
+        "Pengikut": "Cenderung mengikuti arahan, mendukung keputusan kelompok, dan bekerja dalam struktur.",
+        "DetailOriented": "Memperhatikan hal-hal kecil, akurat, dan cermat dalam setiap tugas.",
+        "BigPicture": "Mampu melihat gambaran besar, tujuan akhir, dan strategi global tanpa terlalu fokus detail.",
+        "Kritis": "Cenderung menganalisis dan menemukan kekurangan atau area untuk perbaikan.",
+        "Akomodatif": "Cenderung mencari keselarasan, menghindari konflik, dan menerima pendapat orang lain.",
+        "Kreatif": "Memiliki imajinasi tinggi, menghasilkan ide-ide orisinal, dan berpikir di luar kotak.",
+        "Praktis": "Berorientasi pada solusi nyata, efisien, dan efektif dalam tindakan.",
+        "Sabar": "Mampu menahan emosi, menunggu dengan tenang, dan memiliki toleransi tinggi terhadap penundaan.",
+        "Impulsif": "Cenderung bertindak tanpa banyak berpikir, cepat mengambil keputusan, dan kurang sabar.",
+        "Optimis": "Memiliki pandangan positif terhadap masa depan dan percaya pada hasil yang baik.",
+        "Realis": "Memiliki pandangan objektif dan membumi terhadap situasi, mempertimbangkan pro dan kontra.",
+        "Berani": "Tidak takut mengambil risiko, menghadapi tantangan, dan melangkah maju.",
+        "HatiHati": "Cenderung mempertimbangkan risiko, merencanakan dengan cermat, dan menghindari bahaya.",
+        "Pemarah": "Cenderung mudah marah, frustrasi, atau menunjukkan emosi negatif dengan cepat.",
+        "Penyabar": "Memiliki toleransi tinggi terhadap kesulitan, mampu menahan diri dari kemarahan atau kekesalan.",
+        "Rapi": "Menyukai keteraturan, kebersihan, dan memiliki kebiasaan terorganisir secara fisik.",
+        "Berantakan": "Cenderung kurang peduli dengan keteraturan fisik, lebih fokus pada hal lain daripada kerapian.",
+        "Perfeksionis": "Selalu berusaha mencapai standar sempurna, sangat teliti dan kritis terhadap hasil.",
+        "CukupBaik": "Mampu menerima hasil yang tidak sempurna, fokus pada fungsionalitas dan efisiensi daripada kesempurnaan."
+    },
+    "personality_types": [
+        {
+            "name": "Sang Pemecah Masalah Pragmatis yang Tegas",
+            "required_traits": {"Pragmatis": 2, "Fokus": 1, "Ketegasan": 1, "Proaktif": 1},
+            "excluded_traits": {"Empati": 1, "Sensitif": 1, "Penyabar": 1},
+            "kesimpulan": "Kamu adalah seorang **Pemecah Masalah Pragmatis yang Tegas**, yang fokus pada hasil, efisien, dan tidak ragu mengambil keputusan sulit demi kemajuan. Kamu adalah individu yang sangat berorientasi pada aksi.",
+            "pujian": "Kekuatanmu adalah kemampuanmu melihat masalah sebagai tantangan, dan kamu cepat menemukan solusi praktis. Ketegasanmu memastikan tindakan segera, membuatmu sangat efektif dalam mencapai tujuan. Kamu adalah orang yang bisa diandalkan untuk 'getting things done'.",
+            "evaluasi": "Terkadang kamu mungkin terlalu fokus pada tujuan dan kecepatan, mengabaikan detail kecil atau perasaan orang lain. Keinginanmu untuk maju bisa membuatmu kurang sabar dengan proses yang lambat atau birokrasi, atau terkesan kurang peka.",
+            "saran": "Latih dirimu untuk meluangkan waktu sejenak untuk refleksi dan mendengarkan masukan. Berikan ruang untuk fleksibilitas dalam rencana, dan pertimbangkan risiko dengan lebih cermat. Ketegasan dengan sentuhan kelembutan akan membuatmu lebih efektif dan disukai."
+        },
+        {
+            "name": "Sang Penjaga Harmoni yang Kolaboratif",
+            "required_traits": {"Empati": 2, "Kolaboratif": 1, "Sosial": 1, "Penyabar": 1},
+            "excluded_traits": {"Ketegasan": 1, "Pemarah": 1, "Pragmatis": 1},
+            "kesimpulan": "Kamu adalah seorang **Penjaga Harmoni yang Kolaboratif**, yang memiliki empati tinggi, selalu mendengarkan, dan berusaha keras untuk menjaga kedamaian serta kebersamaan dalam setiap kelompok.",
+            "pujian": "Kamu adalah perekat dalam kelompok, dengan kemampuan luar biasa untuk meredakan ketegangan dan menciptakan suasana yang menyenangkan. Kesabaran dan akomodatifmu membuatmu sangat disukai. Kamu adalah orang yang bisa diandalkan untuk menenangkan suasana dan mencari kompromi yang adil.",
+            "evaluasi": "Kamu mungkin kesulitan dalam membuat keputusan yang tegas atau menghadapi konflik, cenderung menghindari konfrontasi demi menjaga kedamaian. Terkadang kamu bisa mengorbankan kualitas atau efisiensi demi harmoni, yang bisa menghambat pertumbuhan proyek.",
+            "saran": "Beranilah untuk menyuarakan pendapatmu, bahkan jika itu berbeda, dan hadapi konflik yang sehat. Ingat, konflik yang diatasi dengan baik bisa membawa inovasi dan pertumbuhan yang lebih kuat. Keseimbangan antara harmoni dan ketegasan sangat penting."
+        },
+        {
+            "name": "Sang Negosiator Logis yang Adil",
+            "required_traits": {"Empati": 1, "Logis": 1, "Sabar": 1, "Pragmatis": 1},
+            "excluded_traits": {"Akomodatif": 1, "Sensitif": 1},
+            "kesimpulan": "Kamu adalah seorang **Negosiator Logis yang Adil**, yang mendekati kompromi dengan pikiran jernih, mencari solusi yang didasarkan pada fakta dan prinsip keadilan, namun tetap memahami perasaan.",
+            "pujian": "Kamu memiliki kemampuan luar biasa untuk melihat situasi secara objektif dan menemukan titik temu yang logis dan adil bagi semua pihak. Kesabaran dan pragmatisme-mu memastikan keputusan yang efisien dan berdasarkan alasan kuat, tanpa mengabaikan sisi kemanusiaan.",
+            "evaluasi": "Meskipun kamu adil, terkadang kamu bisa terlalu fokus pada aturan dan fakta hingga melewatkan nuansa emosional yang penting dalam sebuah negosiasi. Mungkin kamu juga kurang berani mengambil risiko yang lebih fleksibel.",
+            "saran": "Latih dirimu untuk mengembangkan empati dan mempertimbangkan perasaan orang lain dalam setiap negosiasi. Keseimbangan antara logika dan kepekaan akan membuatmu menjadi negosiator yang lebih persuasif dan efektif. Sesekali, beranikan diri untuk keluar dari zona nyaman logis."
+        },
+        {
+            "name": "Sang Pendengar Empati yang Harmonis",
+            "required_traits": {"Empati": 2, "Sosial": 1, "Kontemplatif": 1, "Akomodatif": 1},
+            "excluded_traits": {"Ketegasan": 1, "Pragmatis": 1},
+            "kesimpulan": "Kamu adalah seorang **Pendengar Empati yang Harmonis**, yang sangat menghargai kebersamaan, memiliki empati tinggi, dan selalu memastikan semua pihak merasa didengar dan dihargai.",
+            "pujian": "Kamu adalah perekat dalam kelompok, dengan kemampuan luar biasa untuk meredakan ketegangan dan menciptakan suasana yang menyenangkan. Empati dan akomodatifmu membuatmu sangat disukai dan kamu selalu memprioritaskan semangat tim. Kamu adalah sumber kedamaian.",
+            "evaluasi": "Kamu mungkin cenderung mengorbankan kebutuhan atau pendapatmu sendiri demi menjaga kedamaian. Terkadang kamu bisa menghindari konflik penting, yang bisa menunda penyelesaian masalah inti atau menghambat pertumbuhan individu. Ada kecenderungan untuk terlalu mengakomodasi orang lain.",
+            "saran": "Belajarlah untuk menetapkan batasan yang sehat dan menyuarakan pendapatmu dengan asertif. Ingat, menjaga harmoni juga berarti memastikan keadilan dan penyelesaian masalah yang tuntas, meskipun itu berarti menghadapi ketidaknyamanan sementara. Prioritaskan dirimu juga."
+        },
+        {
+            "name": "Sang Inovator Resilien yang Proaktif",
+            "required_traits": {"Inovatif": 2, "Resilien": 2, "Optimis": 1, "Proaktif": 1},
+            "excluded_traits": {"Sensitif": 1, "Reaktif": 1, "Tradisional": 1},
+            "kesimpulan": "Kamu adalah seorang **Inovator Resilien yang Proaktif**, yang penuh semangat, kreatif, dan tidak akan menyerah sampai ide-ide barumu terwujud, selalu mengambil inisiatif.",
+            "pujian": "Kamu memiliki kombinasi unik antara kreativitas tak terbatas dan resiliensi yang luar biasa. Setiap penolakan adalah bahan bakar bagimu untuk mencari solusi baru. Kamu adalah pelopor yang gigih dan tidak takut akan kegagalan, selalu proaktif dalam menciptakan masa depan.",
+            "evaluasi": "Terkadang kamu bisa terlalu keras kepala dalam mewujudkan idemu, bahkan jika itu tidak realistis atau membutuhkan sumber daya berlebihan. Kamu mungkin mengabaikan tanda-tanda untuk pivot atau menyerah, atau kurang teliti pada detail eksekusi.",
+            "saran": "Belajarlah untuk mengevaluasi ide-idemu secara objektif dan tahu kapan harus melakukan pivot. Fleksibilitas juga merupakan bagian dari inovasi. Cari masukan dari orang yang memiliki perspektif berbeda, terutama yang berorientasi pada detail."
+        },
+        {
+            "name": "Sang Adaptor Fleksibel yang Kreatif",
+            "required_traits": {"Kreatif": 2, "Fleksibel": 2, "Empati": 1, "Akomodatif": 1},
+            "excluded_traits": {"Resilien": 1, "Tradisional": 1, "Kritis": 1},
+            "kesimpulan": "Kamu adalah seorang **Adaptor Fleksibel yang Kreatif**, yang mudah beradaptasi, memiliki pemikiran terbuka, dan mampu menemukan solusi kreatif di tengah perubahan.",
+            "pujian": "Kekuatanmu adalah kemampuanmu untuk menemukan cara baru dalam menghadapi situasi yang berubah, dengan ide-ide yang segar dan adaptif. Kamu tidak takut keluar dari zona nyaman dan melihat berbagai perspektif. Empati dan akomodatifmu membuatmu menjadi kolaborator yang hebat.",
+            "evaluasi": "Karena terlalu fleksibel, kamu mungkin kesulitan untuk fokus pada satu hal dalam jangka waktu panjang atau menyelesaikan sesuatu sampai tuntas. Kamu bisa jadi terlalu mudah terdistraksi oleh ide baru yang menarik.",
+            "saran": "Latih dirimu untuk mendalami suatu topik sebelum beralih ke yang lain. Coba terapkan disiplin dalam belajarmu, meskipun semangatmu adalah tentang eksplorasi. Temukan cara untuk mengintegrasikan pembelajaran baru ke dalam tujuan yang lebih besar."
+        },
+        {
+            "name": "Sang Pemecah Masalah Adaptif yang Proaktif",
+            "required_traits": {"PemecahMasalah": 2, "Adaptif": 2, "Praktis": 1, "Proaktif": 1},
+            "excluded_traits": {"Perencana": 1, "Reaktif": 1, "DetailOriented": 1},
+            "kesimpulan": "Kamu adalah seorang **Pemecah Masalah Adaptif yang Proaktif**, yang fokus pada tindakan, praktis, dan sangat cekatan dalam mengatasi hambatan serta menemukan solusi alternatif dengan cepat.",
+            "pujian": "Kemampuanmu untuk merespons dengan cepat, menemukan solusi inovatif di bawah tekanan, dan beradaptasi dengan perubahan adalah aset berhargamu. Kamu adalah pemadam kebakaran yang hebat dalam masalah dan selalu mencari cara paling efisien. Proaktifmu membuatmu selalu selangkah di depan.",
+            "evaluasi": "Terkadang kamu mungkin terburu-buru dalam mengambil keputusan tanpa pertimbangan yang cukup mendalam, atau kurang sabar dengan proses yang membutuhkan waktu. Kamu bisa melewatkan detail penting atau mengabaikan potensi risiko jika terlalu fokus pada kecepatan.",
+            "saran": "Latih dirimu untuk melambat sedikit dan melakukan evaluasi risiko yang lebih cermat sebelum bertindak. Padukan kecepatanmu dengan analisis yang mendalam untuk hasil yang lebih berkelanjutan. Ingat, efisiensi bukan berarti mengorbankan kualitas atau keamanan."
+        },
+        {
+            "name": "Sang Perencana Gigih yang Detail",
+            "required_traits": {"Perencana": 1, "Disiplin": 1, "DetailOriented": 1, "Terorganisir": 1, "Fokus": 1},
+            "excluded_traits": {"Spontan": 1, "Fleksibel": 1, "Impulsif": 1},
+            "kesimpulan": "Kamu adalah seorang **Perencana Gigih yang Detail**, sangat teliti, disiplin, dan memiliki ketahanan tinggi untuk memastikan setiap detail rencana tercapai.",
+            "pujian": "Kamu adalah ahli dalam merencanakan, mengorganisir, dan memastikan setiap detail terlaksana dengan sempurna. Ketekunan dan disiplinmu membuatmu sangat diandalkan dalam proyek kompleks. Fokusmu memastikan tidak ada yang terlewat.",
+            "evaluasi": "Kamu mungkin terlalu kaku dengan rencana awal atau kesulitan beradaptasi dengan perubahan mendadak. Perfeksionismu bisa menunda penyelesaian atau membuatmu stres berlebihan karena tuntutan pribadi yang tinggi.",
+            "saran": "Belajarlah untuk menerima bahwa kesempurnaan itu musuh kebaikan. Latih dirimu untuk lebih fleksibel dan berani mengambil risiko yang terukur. Sesekali, delegasikan tugas yang detail untuk mengurangi bebanmu dan berikan kepercayaan pada tim."
+        },
+        {
+            "name": "Sang Penjaga Kualitas Tradisional",
+            "required_traits": {"Tradisional": 2, "DetailOriented": 1, "Analitis": 1, "Terorganisir": 1},
+            "excluded_traits": {"Inovatif": 1, "Terbuka": 1, "Spontan": 1},
+            "kesimpulan": "Kamu adalah seorang **Penjaga Kualitas Tradisional**, sangat teliti, detail-oriented, dan menjunjung tinggi standar yang sudah terbukti untuk memastikan kualitas terbaik.",
+            "pujian": "Kamu adalah pilar stabilitas dan keandalan dalam hal kualitas. Kemampuanmu untuk memastikan segala sesuatu sesuai standar dan terbukti efektif membuatmu sangat diandalkan dalam menjaga mutu. Kamu adalah orang yang memastikan fondasi selalu kuat.",
+            "evaluasi": "Kamu mungkin merasa cemas dengan perubahan atau metode baru yang belum teruji. Kamu bisa jadi terlalu kaku dalam mengikuti prosedur, yang bisa menghambat inovasi atau efisiensi baru yang berpotensi lebih baik.",
+            "saran": "Latih dirimu untuk lebih fleksibel dan terbuka terhadap ide-ide baru, meskipun itu berarti melanggar kebiasaan lama. Terkadang, keluar dari zona nyaman bisa membawa pelajaran dan pengalaman baru yang berharga. Cobalah untuk menemukan cara mengintegrasikan tradisi dengan inovasi yang terukur."
+        },
+        {
+            "name": "Sang Inovator Kualitas Kreatif",
+            "required_traits": {"Inovatif": 2, "Kreatif": 1, "Analitis": 1, "Terbuka": 1},
+            "excluded_traits": {"Tradisional": 1, "Perfeksionis": 1},
+            "kesimpulan": "Kamu adalah seorang **Inovator Kualitas Kreatif**, selalu mencari cara baru dan lebih baik untuk meningkatkan standar, dengan pendekatan yang cerdas dan terbuka.",
+            "pujian": "Kamu memiliki kombinasi unik antara keinginan untuk inovasi dan komitmen terhadap kualitas. Kamu tidak takut menantang status quo untuk mencapai hasil yang lebih baik, dan selalu mencari cara cerdas untuk melakukannya. Kreativitasmu adalah mesin pendorongmu.",
+            "evaluasi": "Kamu mungkin kadang terlalu fokus pada hal baru hingga mengabaikan efisiensi dari metode yang sudah ada. Terkadang kamu bisa terjebak dalam proses 'perbaikan tanpa henti' yang menunda peluncuran, atau kurang memperhatikan detail kecil yang penting.",
+            "saran": "Belajarlah untuk mengidentifikasi kapan sebuah metode sudah 'cukup baik' dan fokus pada eksekusi. Keseimbangan antara inovasi dan implementasi akan membuatmu lebih efektif. Ingat, tidak semua hal perlu diubah, dan detail seringkali membuat perbedaan."
+        },
+        {
+            "name": "Sang Reflektor Sensitif yang Introvert",
+            "required_traits": {"Introvert": 2, "Sensitif": 2, "Kontemplatif": 1, "Mandiri": 1},
+            "excluded_traits": {"Ekstrovert": 1, "Sosial": 1, "Resilien": 1, "Praktis": 1},
+            "kesimpulan": "Kamu adalah seorang **Reflektor Sensitif yang Introvert**, yang menemukan pemahaman sejati melalui refleksi pribadi, menikmati kesendirian, dan memiliki kepekaan emosional yang tinggi.",
+            "pujian": "Kamu memiliki kemampuan luar biasa untuk mendalami setiap masalah atau konsep melalui refleksi pribadi. Lingkungan yang tenang adalah tempatmu berkembang, di mana kamu bisa menyerap pengetahuan tanpa gangguan. Kepekaanmu memungkinkanmu merasakan dan memahami dunia secara mendalam.",
+            "evaluasi": "Kamu mungkin kesulitan dalam lingkungan yang membutuhkan banyak interaksi sosial atau diskusi kelompok. Terkadang kamu bisa melewatkan perspektif berharga dari orang lain karena terlalu fokus pada refleksi mandiri, atau menjadi terlalu larut dalam perasaan negatif.",
+            "saran": "Ciptakan batasan yang sehat untuk melindungi energimu. Coba libatkan dirimu dalam diskusi atau kelompok belajar kecil sesekali. Belajarlah untuk membagikan apa yang kamu ketahui dengan orang lain. Interaksi bisa memperkaya pemahamanmu dan membuka wawasan baru."
+        },
+        {
+            "name": "Sang Pencari Dukungan Sosial yang Resilien",
+            "required_traits": {"Sosial": 2, "Empati": 1, "Resilien": 1, "Akomodatif": 1},
+            "excluded_traits": {"Introvert": 1, "Mandiri": 1, "Logis": 1},
+            "kesimpulan": "Kamu adalah seorang **Pencari Dukungan Sosial yang Resilien**, yang memiliki daya tahan tinggi terhadap tekanan, dan bangkit kembali dengan dukungan serta motivasi dari lingkungan sosialmu.",
+            "pujian": "Kamu adalah individu yang kuat dan mampu melewati masa sulit berkat jaringan sosial yang solid. Optimisme dan kemampuanmu membangun hubungan yang mendukung membuatmu menjadi sumber inspirasi bagi orang lain. Kamu tahu bagaimana mencari kekuatan dari kebersamaan.",
+            "evaluasi": "Kamu mungkin terlalu bergantung pada validasi atau dukungan dari orang lain untuk memulihkan diri dari kegagalan. Terkadang kamu bisa mengabaikan refleksi pribadi yang mendalam demi interaksi eksternal, atau kesulitan mengambil keputusan sendiri.",
+            "saran": "Meskipun dukungan sosial itu penting, belajarlah juga untuk membangun kekuatan internal dan resiliensi pribadi. Latih diri untuk merenung dan memahami sumber kekuatan dari dalam dirimu sendiri. Keseimbangan antara dukungan eksternal dan kekuatan internal akan membuatmu lebih tangguh dan mandiri."
+        },
+        {
+            "name": "Sang Pemikir Logis yang Kritis",
+            "required_traits": {"Logis": 2, "Analitis": 2, "DetailOriented": 1, "Fokus": 1, "Kritis": 1},
+            "excluded_traits": {"Empati": 1, "Intuitif": 1, "Sensitif": 1, "Akomodatif": 1},
+            "kesimpulan": "Kamu adalah seorang **Pemikir Logis yang Kritis**, yang rasional, analitis, dan selalu mencari fakta serta bukti kuat untuk membuat keputusan atau memahami situasi, tidak takut menemukan kekurangan.",
+            "pujian": "Kamu memiliki pikiran yang jernih dan tajam, mampu menganalisis situasi kompleks, serta membuat keputusan yang logis dan objektif. Detail dan kebenaran adalah prioritasmu, membuatmu sangat diandalkan dalam memecahkan masalah. Kemampuanmu untuk mengidentifikasi kekurangan adalah aset berharga.",
+            "evaluasi": "Kamu mungkin terkesan dingin atau kurang peka terhadap perasaan orang lain. Terlalu fokus pada logika dan kritik bisa membuatmu mengabaikan aspek emosional atau dinamika interpersonal yang kompleks. Kamu mungkin kesulitan dalam situasi yang tidak memiliki jawaban pasti.",
+            "saran": "Latih dirimu untuk lebih berempati dan mempertimbangkan dampak emosional dari keputusanmu. Belajarlah untuk mengekspresikan dirimu dengan cara yang lebih lembut saat berinteraksi. Ingat, dunia tidak selalu logis, dan manusia juga memiliki hati dan perasaan yang penting untuk dipahami."
+        },
+        {
+            "name": "Sang Pembelajar Terbuka yang Adaptif",
+            "required_traits": {"Terbuka": 2, "Inovatif": 1, "Fleksibel": 1, "Pembelajar": 1},
+            "excluded_traits": {"Tradisional": 1, "Kritis": 1, "Kaku": 1},
+            "kesimpulan": "Kamu adalah seorang **Pembelajar Terbuka yang Adaptif**, yang selalu mencari ide baru, siap beradaptasi, dan sangat terbuka terhadap perubahan serta perspektif yang berbeda.",
+            "pujian": "Kamu memiliki pikiran yang terbuka lebar dan selalu haus akan pengetahuan baru. Kemampuanmu untuk melihat berbagai sudut pandang dan beradaptasi dengan informasi baru adalah kekuatanmu. Kamu adalah pribadi yang inovatif dan siap berubah demi kebaikan.",
+            "evaluasi": "Karena selalu mencari hal baru, kamu mungkin kesulitan untuk fokus pada satu hal dalam jangka waktu panjang atau menyelesaikan sesuatu sampai tuntas. Kamu bisa jadi terlalu mudah terdistraksi oleh ide baru yang menarik dan melupakan komitmen awal.",
+            "saran": "Latih dirimu untuk mendalami suatu topik sebelum beralih ke yang lain. Coba terapkan disiplin dalam belajarmu, meskipun semangatmu adalah tentang eksplorasi. Temukan cara untuk mengintegrasikan pembelajaran baru ke dalam tujuan yang lebih besar dan membangun fondasi yang kuat."
+        },
+        {
+            "name": "Sang Perencana Analitis yang Hati-hati",
+            "required_traits": {"Analitis": 2, "Perencana": 1, "HatiHati": 1, "Fokus": 1},
+            "excluded_traits": {"Spontan": 1, "Berani": 1, "Impulsif": 1},
+            "kesimpulan": "Kamu adalah seorang **Perencana Analitis yang Hati-hati**, yang mampu menganalisis situasi dengan cermat, namun tetap hati-hati dalam merencanakan setiap langkah untuk mengurangi risiko.",
+            "pujian": "Kamu memiliki pikiran yang tajam, mampu menganalisis situasi kompleks, dan menyusun rencana yang solid serta memitigasi risiko. Kehati-hatianmu memastikan setiap langkah terukur dan aman. Kamu adalah arsitek keamanan dalam setiap proyek.",
+            "evaluasi": "Kamu mungkin cenderung terlalu banyak berpikir dan menganalisis, yang bisa menyebabkan 'paralysis by analysis' atau lambat dalam bertindak. Terkadang kamu bisa terlalu berhati-hati dan melewatkan peluang yang membutuhkan kecepatan atau keberanian lebih.",
+            "saran": "Percayalah pada intuisimu sesekali dan berani mengambil langkah tanpa semua informasi. Latih dirimu untuk mengambil keputusan dalam situasi yang tidak pasti. Temukan keseimbangan antara analisis mendalam dan aksi cepat."
+        },
+        {
+            "name": "Sang Konservator Tradisional yang Terorganisir",
+            "required_traits": {"Tradisional": 2, "Terorganisir": 1, "Disiplin": 1, "Rapi": 1},
+            "excluded_traits": {"Terbuka": 1, "Inovatif": 1, "Spontan": 1},
+            "kesimpulan": "Kamu adalah seorang **Konservator Tradisional yang Terorganisir**, yang sangat menghargai nilai-nilai, metode, dan kebiasaan yang sudah terbukti serta memberikan stabilitas dan ketertiban.",
+            "pujian": "Kamu adalah pilar stabilitas dan keandalan. Kemampuanmu untuk memastikan segala sesuatu teratur dan sesuai aturan yang sudah mapan adalah aset berharga. Kamu sangat bertanggung jawab dan menjaga kualitas dengan disiplin.",
+            "evaluasi": "Kamu mungkin merasa cemas dengan perubahan mendadak atau inovasi yang terlalu radikal. Kamu bisa jadi terlalu kaku dalam aturan dan sulit beradaptasi dengan situasi yang tidak terduga, yang bisa menghambat pertumbuhan.",
+            "saran": "Latih dirimu untuk lebih fleksibel dan terbuka terhadap ide-ide baru, meskipun itu berarti melanggar kebiasaan lama. Terkadang, keluar dari zona nyaman bisa membawa pelajaran dan pengalaman baru yang berharga. Cobalah untuk menemukan cara mengintegrasikan tradisi dengan inovasi yang terukur."
+        },
+        {
+            "name": "Sang Pemimpin Struktur yang Tegas",
+            "required_traits": {"Perencana": 2, "Terorganisir": 1, "DetailOriented": 1, "Ketegasan": 1},
+            "excluded_traits": {"Akomodatif": 1, "Empati": 1, "Spontan": 1},
+            "kesimpulan": "Kamu adalah seorang **Pemimpin Struktur yang Tegas**, yang sangat terorganisir, teliti, dan berperan penting dalam menciptakan sistem yang efisien dan tertib dengan kepemimpinan yang kuat.",
+            "pujian": "Kamu adalah ahli dalam merencanakan, mengorganisir, dan memastikan segala sesuatu berjalan sesuai prosedur. Kemampuanmu untuk melihat detail dan menciptakan ketertiban adalah aset berharga bagi setiap tim. Kamu sangat diandalkan dan mampu membuat keputusan tegas.",
+            "evaluasi": "Kamu mungkin cenderung kaku terhadap perubahan atau kurang fleksibel saat rencana tidak berjalan sempurna. Terkadang kamu bisa terlalu fokus pada aturan hingga mengabaikan kebutuhan individu atau kreativitas spontan.",
+            "saran": "Latih dirimu untuk lebih fleksibel dan beradaptasi dengan perubahan. Berikan ruang bagi spontanitas dan ide-ide di luar rencana. Ingat, terkadang hasil terbaik muncul dari sedikit kekacauan yang terencana."
+        },
+        {
+            "name": "Sang Kreator Bebas yang Inovatif",
+            "required_traits": {"Kreatif": 2, "Inovatif": 2, "Independen": 1, "Terbuka": 1, "Spontan": 1},
+            "excluded_traits": {"Terorganisir": 1, "Praktis": 1, "Tradisional": 1, "Perencana": 1},
+            "kesimpulan": "Kamu adalah seorang **Kreator Bebas yang Inovatif**, yang mencintai kemandirian, spontanitas, dan selalu mencari pengalaman baru serta kebebasan berkreasi tanpa batas.",
+            "pujian": "Kamu sangat mandiri, berani mengambil risiko, dan selalu siap untuk tantangan baru. Kebebasan adalah napasmu, dan kamu tidak takut menjelajahi hal-hal yang tidak diketahui. Kamu adalah pribadi yang spontan dan penuh ide orisinal!",
+            "evaluasi": "Terkadang kamu mungkin kurang memperhatikan detail atau perencanaan, yang bisa menyebabkan masalah tak terduga. Komitmen jangka panjang bisa terasa berat bagimu, dan kamu mungkin kesulitan dengan rutinitas atau aturan yang ketat.",
+            "saran": "Cobalah untuk menemukan struktur dalam kebebasanmu. Belajarlah untuk sedikit merencanakan ke depan untuk menghindari masalah yang tidak perlu, tanpa mengorbankan semangat petualangmu. Temukan keindahan dalam konsistensi sesekali."
+        },
+        {
+            "name": "Sang Pekerja Fokus yang Disiplin",
+            "required_traits": {"Terorganisir": 1, "Fokus": 1, "Disiplin": 1, "Praktis": 1},
+            "excluded_traits": {"Berantakan": 1, "Spontan": 1, "Kreatif": 1},
+            "kesimpulan": "Kamu adalah seorang **Pekerja Fokus yang Disiplin**, yang nyaman dan sangat produktif dalam lingkungan yang terstruktur, menjaga konsentrasi tinggi untuk mencapai tugas.",
+            "pujian": "Kamu adalah individu yang sangat berdedikasi dan terorganisir, mampu menetapkan tujuan yang jelas dan melaksanakannya dengan disiplin tinggi. Fokusmu memastikan bahwa pekerjaan selalu selesai tepat waktu dan berkualitas. Kamu adalah mesin produktivitas yang rapi.",
+            "evaluasi": "Kamu mungkin kesulitan beradaptasi dengan perubahan mendadak atau situasi yang tidak memiliki pedoman jelas. Inovasi atau ide-ide di luar kebiasaan mungkin membuatmu merasa tidak nyaman atau cemas.",
+            "saran": "Latih dirimu untuk lebih fleksibel dan terbuka terhadap pendekatan baru. Berani mengambil risiko kecil dan mencoba cara-cara yang berbeda. Ingat, terkadang keluar dari zona nyaman bisa membuka peluang tak terduga."
+        },
+        {
+            "name": "Sang Inovator Strategis yang Hati-hati",
+            "required_traits": {"Analitis": 2, "BigPicture": 1, "Perencana": 1, "HatiHati": 1},
+            "excluded_traits": {"Impulsif": 1, "Berani": 1, "Spontan": 1},
+            "kesimpulan": "Kamu adalah seorang **Inovator Strategis yang Hati-hati**, mampu menghasilkan ide-ide baru, namun selalu mempertimbangkan risiko dan merencanakan dengan cermat sebelum bertindak.",
+            "pujian": "Kamu adalah seorang inovator yang cerdas dan bijaksana. Kemampuanmu untuk memadukan kreativitas dengan kehati-hatian memastikan bahwa ide-idemu tidak hanya baru tetapi juga layak diimplementasikan dengan risiko minimal. Kamu adalah pemikir yang cermat.",
+            "evaluasi": "Kamu mungkin cenderung terlalu banyak berpikir dan menganalisis, yang bisa menyebabkan 'paralysis by analysis' atau lambat dalam bertindak. Terkadang kamu bisa melewatkan peluang yang membutuhkan kecepatan atau keberanian lebih.",
+            "saran": "Belajarlah untuk mengambil risiko yang diperhitungkan. Percayai intuisimu sesekali dan beranilah melangkah keluar dari zona nyaman. Keseimbangan antara kehati-hatian dan aksi akan mendorong inovasimu lebih jauh."
+        },
+        {
+            "name": "Sang Intuitif Percaya Diri yang Mandiri",
+            "required_traits": {"Intuitif": 2, "PercayaDiri": 1, "Independen": 1},
+            "excluded_traits": {"Logis": 1, "Analitis": 1, "Sensitif": 1},
+            "kesimpulan": "Kamu adalah seorang **Intuitif Percaya Diri yang Mandiri**, mengandalkan instingmu sepenuhnya, dan memiliki kemandirian serta ketegasan dalam setiap keputusan pribadi.",
+            "pujian": "Kamu memiliki intuisi yang sangat tajam dan mampu mengambil keputusan berdasarkan kata hatimu tanpa perlu validasi eksternal. Kemandirian dan ketegasanmu adalah kekuatan utamamu. Kamu adalah pribadi yang teguh dan autentik.",
+            "evaluasi": "Kamu mungkin terkesan menyendiri atau sulit didekati jika orang lain tidak memahami cara kerjamu. Terkadang kamu bisa kurang peka terhadap pandangan orang lain yang berbeda, atau kesulitan menjelaskan dasar keputusanmu.",
+            "saran": "Belajarlah untuk membuka diri sedikit lebih banyak agar orang lain bisa memahamimu. Pertimbangkan perspektif lain, meskipun itu tidak sejalan dengan intuisimu. Ini bisa memperkaya keputusanmu dan membangun jembatan komunikasi."
+        },
+        {
+            "name": "Sang Rasional Tenang Pemecah Masalah",
+            "required_traits": {"Logis": 2, "Analitis": 1, "Pragmatis": 1, "Fokus": 1, "Penyabar": 1},
+            "excluded_traits": {"Empati": 1, "Sensitif": 1, "Impulsif": 1, "Pemarah": 1},
+            "kesimpulan": "Kamu adalah seorang **Rasional Tenang Pemecah Masalah**, yang logis, analitis, dan mampu menghadapi situasi yang sangat emosional dengan kepala dingin serta fokus pada solusi.",
+            "pujian": "Kamu memiliki pikiran yang jernih dan kemampuan untuk tetap tenang di bawah tekanan, terutama dalam situasi emosional. Kamu mampu menganalisis masalah secara objektif dan mencari solusi yang paling logis dan praktis. Kamu adalah penenang dalam kekacauan, dan sangat bisa diandalkan.",
+            "evaluasi": "Kamu mungkin terkesan dingin atau kurang peka terhadap perasaan orang lain. Terlalu fokus pada logika bisa membuatmu mengabaikan aspek emosional atau dinamika interpersonal yang kompleks. Kamu mungkin kesulitan dalam situasi yang tidak memiliki jawaban pasti.",
+            "saran": "Latih dirimu untuk lebih berempati dan mempertimbangkan dampak emosional dari keputusanmu. Belajarlah untuk mengekspresikan dirimu dengan cara yang lebih lembut saat berinteraksi. Ingat, dunia tidak selalu logis, dan manusia juga memiliki hati dan perasaan yang penting untuk dipahami."
+        }
+    ]
+}
