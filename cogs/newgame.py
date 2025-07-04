@@ -17,19 +17,16 @@ def load_json_from_root(file_path):
     except FileNotFoundError:
         print(f"[{datetime.now()}] [DEBUG HELPER] Peringatan: File {full_path} tidak ditemukan. Mengembalikan nilai default.")
         # Mengembalikan struktur data kosong yang sesuai berdasarkan nama file
-        if 'questions_resacak' in file_path or 'questions_resipa' in file_path:
-            return [] # Untuk soal kuis dengan format list of dicts
-        elif 'sambung_kata_words' in file_path:
-            return [] # Untuk sambung kata dengan format list of strings
+        # untuk questions_hangman.json, questions_resipa.json, dan sambung_kata_words.json kita harapkan list
+        if 'questions_hangman' in file_path or 'questions_resipa' in file_path or 'sambung_kata_words' in file_path:
+            return []
+        # Untuk data pengguna seperti bank_data atau level_data kita harapkan dictionary
         elif any(name in file_path for name in ['bank_data', 'level_data']):
-            return {} # Untuk data pengguna (dictionary)
+            return {}
         return [] # Default fallback
     except json.JSONDecodeError as e:
         print(f"[{datetime.now()}] [DEBUG HELPER] Peringatan: File {full_path} rusak (JSON tidak valid). Error: {e}. Mengembalikan nilai default.")
-        # Mengembalikan struktur data kosong yang sesuai jika JSON rusak
-        if 'questions_resacak' in file_path or 'questions_resipa' in file_path:
-            return []
-        elif 'sambung_kata_words' in file_path:
+        if 'questions_hangman' in file_path or 'questions_resipa' in file_path or 'sambung_kata_words' in file_path:
             return []
         elif any(name in file_path for name in ['bank_data', 'level_data']):
             return {}
@@ -72,8 +69,8 @@ class GameLanjutan(commands.Cog):
         self.active_sambung_games = {}
         
         # Load Data
-        # questions_resacak.json sekarang akan berisi list of dicts (word, category, clue)
-        self.resacak_questions = load_json_from_root('data/questions_resacak.json') 
+        # questions_hangman.json sekarang akan berisi list of dicts (word, category, clue)
+        self.resacak_questions = load_json_from_root('data/questions_hangman.json') 
         # questions_resipa.json juga akan berisi list of dicts (word, category, clue)
         self.resipa_questions = load_json_from_root('data/questions_resipa.json') 
         self.sambung_kata_words = load_json_from_root('data/sambung_kata_words.json')
@@ -162,7 +159,7 @@ class GameLanjutan(commands.Cog):
         embed.description = (
             "Uji kecepatan berpikir dan kosakatamu dalam game seru ini!\n\n"
             "**Aturan Main:**\n"
-            "1. Bot akan memberikan kata yang hurufnya diacak, dilengkapi kategori dan kisi-kisi.\n"
+            "1. Bot akan memberikan kata yang hurufnya diacak, dilengkapi **kategori** dan **kisi-kisi**.\n"
             "2. Tebak kata aslinya secepat mungkin.\n"
             f"3. Jawaban benar pertama mendapat **{self.resacak_reward['rsw']} RSWN** & **{self.resacak_reward['exp']} EXP**.\n"
             "4. Permainan terdiri dari 10 ronde.\n\n"
@@ -190,7 +187,7 @@ class GameLanjutan(commands.Cog):
     async def play_resacak_game(self, ctx):
         # Memastikan bank soal cukup
         if not self.resacak_questions or len(self.resacak_questions) < 10:
-            await ctx.send("Maaf, bank soal Resacak tidak ditemukan atau tidak cukup. Pastikan ada minimal 10 soal di `data/questions_resacak.json`.")
+            await ctx.send("Maaf, bank soal Resacak tidak ditemukan atau tidak cukup. Pastikan ada minimal 10 soal di `data/questions_hangman.json` dengan format `word`, `category`, `clue`.")
             await self.end_game_cleanup(ctx.channel.id, 'resacak', ctx.channel)
             return
             
@@ -200,15 +197,15 @@ class GameLanjutan(commands.Cog):
         for i, question_data in enumerate(questions_for_game):
             word = question_data['word']
             category = question_data['category']
-            clue = question_data['clue'] # Mengambil clue dari JSON
+            clue = question_data['clue'] 
             
             correct_answer = word.lower()
             scrambled_word = "".join(random.sample(word, len(word)))
 
             embed = discord.Embed(title=f"📝 Soal #{i+1} - Tebak Kata Acak!", color=0x2ecc71)
-            embed.add_field(name="Kategori", value=category, inline=True) # Menampilkan kategori
+            embed.add_field(name="Kategori", value=category, inline=True) 
             embed.add_field(name="Kata Teracak", value=f"## `{scrambled_word.upper()}`", inline=False)
-            embed.add_field(name="Kisi-kisi", value=clue, inline=False) # Menampilkan kisi-kisi
+            embed.add_field(name="Kisi-kisi", value=clue, inline=False) 
             embed.set_footer(text=f"Waktu terbatas: {self.resacak_time_limit} detik!")
             
             question_msg = await ctx.send(embed=embed)
@@ -242,7 +239,7 @@ class GameLanjutan(commands.Cog):
         embed.description = (
             "Uji kecepatan berpikir dan kosakatamu dalam game seru ini!\n\n"
             "**Aturan Main:**\n"
-            "1. Bot akan memberikan **kata yang hurufnya diacak**, dilengkapi kategori dan kisi-kisi.\n"
+            "1. Bot akan memberikan **kata yang hurufnya diacak**, dilengkapi **kategori** dan **kisi-kisi**.\n"
             "2. Tebak kata aslinya secepat mungkin.\n"
             f"3. Jawaban benar pertama mendapat **{self.resipa_reward['rsw']} RSWN** & **{self.resipa_reward['exp']} EXP**.\n"
             "4. Permainan terdiri dari 10 ronde.\n\n"
@@ -270,7 +267,7 @@ class GameLanjutan(commands.Cog):
     async def play_resipa_game(self, ctx):
         # Memastikan bank soal cukup
         if not self.resipa_questions or len(self.resipa_questions) < 10:
-            await ctx.send("Maaf, bank soal Kuis Resipa tidak ditemukan atau tidak cukup. Pastikan ada minimal 10 soal di `data/questions_resipa.json`.")
+            await ctx.send("Maaf, bank soal Kuis Resipa tidak ditemukan atau tidak cukup. Pastikan ada minimal 10 soal di `data/questions_resipa.json` dengan format `word`, `category`, `clue`.")
             await self.end_game_cleanup(ctx.channel.id, 'resipa', ctx.channel)
             return
             
@@ -286,9 +283,9 @@ class GameLanjutan(commands.Cog):
             scrambled_word = "".join(random.sample(word, len(word)))
 
             embed = discord.Embed(title=f"📝 Soal #{i+1} - Tebak Kata!", color=0x2ecc71)
-            embed.add_field(name="Kategori", value=category, inline=True) # Menampilkan kategori
+            embed.add_field(name="Kategori", value=category, inline=True) 
             embed.add_field(name="Kata Teracak", value=f"## `{scrambled_word.upper()}`", inline=False)
-            embed.add_field(name="Kisi-kisi", value=clue, inline=False) # Menampilkan kisi-kisi
+            embed.add_field(name="Kisi-kisi", value=clue, inline=False) 
             embed.set_footer(text=f"Waktu terbatas: {self.resipa_time_limit} detik!")
             
             question_msg = await ctx.send(embed=embed)
