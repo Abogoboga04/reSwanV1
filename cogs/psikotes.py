@@ -76,52 +76,58 @@ class JiwaBot(commands.Cog):
         # Cancel any running tasks when the cog is unloaded
         if self._cleanup_threads_task:
             self._cleanup_threads_task.cancel()
-        print(f"[{datetime.now()}] [JIWABOT] Cog JiwaBot dibongkar. Tugas cleanup dihentikan.")
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Cog JiwaBot dibongkar. Tugas cleanup dihentikan.")
 
 
     @tasks.loop(minutes=30) # Run cleanup every 30 minutes
     async def cleanup_stale_threads(self):
-        print(f"[{datetime.now()}] [JIWABOT] Menjalankan tugas pembersihan thread yang macet.")
-        # Identify sessions that might be stuck or whose threads exist but bot lost track
-        # This is a basic cleanup. More robust would involve saving session state to file.
-        guilds_to_check = {} # {guild_id: [channel_id, ...]} to avoid fetching channels multiple times
-
-        # Collect threads that are managed by JiwaBot
-        for user_id, session in list(self.active_sessions.items()):
-            if session.get('thread') and session['thread'].id:
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Menjalankan tugas pembersihan thread yang macet.")
+        # This task aims to clean up any remaining threads if the bot restarted mid-session
+        # or if a session somehow got stuck.
+        
+        # This simple cleanup iterates through active sessions and tries to delete their threads
+        # A more robust cleanup might involve checking if the thread is still active on Discord
+        # and if the user is still in the guild, etc.
+        sessions_to_clean = list(self.active_sessions.keys()) # Create a copy to iterate safely
+        for user_id in sessions_to_clean:
+            session = self.active_sessions.get(user_id)
+            if session and session.get('thread'):
                 try:
-                    # Attempt to fetch the thread to see if it's still alive or valid
-                    fetched_thread = await self.bot.fetch_channel(session['thread'].id)
-                    # If it's a private thread and the participant is no longer in guild/bot restarted mid-session
-                    # You might need more complex logic based on your specific 'stuck' criteria.
-                    pass # If fetch is successful, thread is still alive and we leave it.
+                    # Attempt to fetch the thread. If it's not found, it means it's gone from Discord.
+                    await self.bot.fetch_channel(session['thread'].id)
+                    # If found, check if it should be deleted (e.g., if session is too old,
+                    # or if user is no longer in the guild, which is more complex to check here.)
+                    # For now, we only clean up explicitly completed/cancelled sessions.
+                    # This loop primarily ensures we don't hold references to deleted threads.
                 except discord.NotFound:
-                    print(f"[{datetime.now()}] [JIWABOT] Menghapus sesi macet untuk {user_id} karena thread tidak ditemukan.")
+                    print(f"[{datetime.now()}] [DEBUG JIWABOT] Menghapus sesi macet untuk user ID {user_id} karena thread {session['thread'].id} tidak ditemukan di Discord.")
                     del self.active_sessions[user_id]
                 except Exception as e:
-                    print(f"[{datetime.now()}] [JIWABOT ERROR] Error saat membersihkan thread untuk {user_id}: {e}")
-                    # Potentially remove session if too many errors
-
+                    print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Error saat membersihkan thread {session['thread'].id} untuk user ID {user_id}: {e}")
 
     @cleanup_stale_threads.before_loop
     async def before_cleanup_threads(self):
         await self.bot.wait_until_ready()
-        print(f"[{datetime.now()}] [JIWABOT] Menunggu bot siap sebelum memulai tugas pembersihan thread.")
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Menunggu bot siap sebelum memulai tugas pembersihan thread.")
 
 
     @commands.command(name="jiwaku", help="Mulai sesi tes kepribadian JiwaBot.")
     @commands.guild_only() # Pastikan hanya bisa di guild (server)
     async def start_personality_test(self, ctx):
         user_id = ctx.author.id
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Command !jiwaku dipanggil oleh {ctx.author.display_name} ({user_id}).")
 
         if user_id in self.active_sessions:
             thread_id = self.active_sessions[user_id]['thread'].id
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] {ctx.author.display_name} sudah punya sesi aktif di thread {thread_id}.")
             return await ctx.send(f"Anda sudah memiliki sesi tes yang sedang berjalan di <#{thread_id}>. Selesaikan sesi Anda saat ini atau tunggu hingga berakhir.", ephemeral=True)
 
         if not self.questions:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Bank pertanyaan jiwabot_questions.json kosong atau tidak ditemukan.")
             return await ctx.send("Maaf, bank pertanyaan tes kepribadian tidak ditemukan atau kosong. Silakan hubungi admin bot.", ephemeral=True)
         # Jumlah pertanyaan di JSON harus sama dengan jumlah yang akan diambil (50)
         if len(self.questions) < 50:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Jumlah pertanyaan di jiwabot_questions.json kurang dari 50. Hanya {len(self.questions)} ditemukan.")
             return await ctx.send(f"Maaf, tes membutuhkan minimal 50 pertanyaan. Saat ini hanya ada {len(self.questions)} pertanyaan. Silakan hubungi admin bot.", ephemeral=True)
 
         # Buat thread privat
@@ -132,31 +138,31 @@ class JiwaBot(commands.Cog):
                 invitable=False, # Tidak bisa di-invite sembarangan
                 auto_archive_duration=60 # Arsip setelah 1 jam tidak aktif
             )
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Thread privat '{thread.name}' ({thread.id}) dibuat untuk {ctx.author.display_name}.")
             await thread.add_user(ctx.author) # Tambahkan peserta
             if self.admin_role_id: # Tambahkan admin jika ID role tersedia
                 admin_role = ctx.guild.get_role(self.admin_role_id)
                 if admin_role:
                     for member in admin_role.members:
                         try:
-                            # Check if bot can actually add this user to private thread.
-                            # It needs "Manage Threads" permission.
-                            # Also, user must allow DMs from server members.
                             await thread.add_user(member)
+                            print(f"[{datetime.now()}] [DEBUG JIWABOT] Admin {member.display_name} ditambahkan ke thread {thread.name}.")
                         except discord.HTTPException as e:
-                            print(f"[{datetime.now()}] [JIWABOT WARNING] Gagal menambahkan admin {member.display_name} ke thread {thread.name}: {e}")
-                            # This is a warning, not fatal. Continue.
+                            print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Gagal menambahkan admin {member.display_name} ke thread {thread.name}: {e}")
             
             await ctx.send(f"Tes kepribadian Anda telah dimulai! Silakan lanjutkan di thread privat: <#{thread.id}>", ephemeral=False)
             
         except discord.Forbidden:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Bot tidak memiliki izin membuat thread di channel {ctx.channel.name}. Error: Forbidden.")
             return await ctx.send("Saya tidak memiliki izin untuk membuat private thread. Pastikan saya punya izin 'Manage Threads' dan 'Send Messages in Threads'.", ephemeral=True)
         except Exception as e:
-            print(f"[{datetime.now()}] [JIWABOT ERROR] Gagal membuat thread untuk {ctx.author.name}: {e}")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Gagal membuat thread untuk {ctx.author.name}: {e}")
             return await ctx.send(f"Terjadi kesalahan saat memulai sesi: `{e}`. Silakan coba lagi nanti.", ephemeral=True)
 
         # Inisialisasi semua dimensi skor yang mungkin ada di questions.json
         all_possible_dimensions = self._get_all_dimensions()
         initial_scores = {dim: 0 for dim in all_possible_dimensions}
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Dimensi yang diinisialisasi: {all_possible_dimensions}")
 
         self.active_sessions[user_id] = {
             'thread': thread,
@@ -167,18 +173,16 @@ class JiwaBot(commands.Cog):
             'message_for_reaction_vote': None, # Pesan untuk reaksi jawaban
             'answered_this_question': False # Flag untuk mencegah double answer
         }
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Sesi baru dimulai untuk {ctx.author.display_name} ({user_id}).")
         
         await self._send_question(user_id)
 
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # Ignore bots and messages outside active session threads (unless it's the command to start)
-        # This listener is for general messages. Answers are handled by reactions.
         if message.author.bot or not isinstance(message.channel, discord.Thread):
             return
         
-        # Check if the message is in a JiwaBot session thread
         user_id_from_session = None
         for uid, s in self.active_sessions.items():
             if s.get('thread') and s['thread'].id == message.channel.id:
@@ -186,63 +190,66 @@ class JiwaBot(commands.Cog):
                 break
 
         if not user_id_from_session or message.author.id != user_id_from_session:
-            return # Not the session owner, or not a JiwaBot thread
+            return
 
-        # If the user sends any text message during a question, it's just general chat.
-        # Answers are handled by reactions. We don't process text input as answer here.
-        pass
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Pesan teks diterima di thread sesi {message.channel.name} dari {message.author.display_name}: '{message.content}'.")
+        pass # Answers are handled by reactions.
 
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
-        # Ignore bots and reactions not from the session owner
         if user.bot or user.id not in self.active_sessions:
             return
 
         session = self.active_sessions[user.id]
 
-        # Ensure reaction is in the correct thread and on the current question message
         if reaction.message.channel.id != session['thread'].id or \
            not session.get('message_for_reaction_vote') or \
            reaction.message.id != session['message_for_reaction_vote'].id:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Reaksi diabaikan dari {user.display_name} (bukan di pesan kuis aktif).")
             return
 
-        # Ensure it's a valid choice reaction (1 or 2)
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Reaksi '{reaction.emoji}' ditambahkan oleh {user.display_name} ({user.id}) di thread {session['thread'].name}.")
+
         chosen_option_key = self.number_emojis.get(str(reaction.emoji))
         if chosen_option_key is None:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Reaksi tidak valid dari {user.display_name}. Menghapus reaksi.")
             try:
-                await reaction.remove(user) # Remove invalid reaction
+                await reaction.remove(user)
+            except discord.Forbidden:
+                print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Bot tidak bisa menghapus reaksi tidak valid dari {user.display_name} karena izin.")
+            return
+
+        if session['answered_this_question']:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] {user.display_name} mencoba menjawab ulang pertanyaan. Reaksi diabaikan.")
+            try:
+                await reaction.remove(user)
             except discord.Forbidden:
                 pass
             return
 
-        # Only process if this is the user's first choice for this question
-        if session['answered_this_question']: # Prevents multiple answers for one question
-             try:
-                 await reaction.remove(user)
-             except discord.Forbidden:
-                 pass
-             return
-
-        # Mark as answered
         session['answered_this_question'] = True
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Jawaban {chosen_option_key} diterima dari {user.display_name} untuk pertanyaan #{session['current_q_idx'] + 1}.")
 
-        # Process the answer
         await self._process_answer(user.id, chosen_option_key, reaction.message, user)
 
 
     async def _send_question(self, user_id):
         session = self.active_sessions.get(user_id)
-        if not session: return
+        if not session:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Sesi tidak ditemukan untuk user ID {user_id} saat mencoba mengirim pertanyaan.")
+            return
 
         thread = session['thread']
         q_idx = session['current_q_idx']
         
         if q_idx >= len(session['questions_for_session']):
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Semua pertanyaan telah dikirim untuk user ID {user_id}. Mengakhiri sesi.")
             await self._end_session(user_id)
             return
 
         question_data = session['questions_for_session'][q_idx]
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Mengirim Pertanyaan #{q_idx + 1} ke thread {thread.name} untuk {session['user_obj'].display_name}.")
         
         embed = discord.Embed(
             title=f"❓ Pertanyaan #{q_idx + 1}/50",
@@ -254,48 +261,48 @@ class JiwaBot(commands.Cog):
         if 'category' in question_data:
             embed.add_field(name="Kategori", value=question_data['category'], inline=True) 
 
-        # Add reaction instructions
         embed.set_footer(text=f"Silakan bereaksi dengan 1️⃣ atau 2️⃣ untuk memilih jawaban Anda.")
 
         try:
             question_msg = await thread.send(embed=embed)
-            session['message_for_reaction_vote'] = question_msg # Store message for reaction listener
-
-            # Add reactions for options
+            session['message_for_reaction_vote'] = question_msg
             await question_msg.add_reaction("1️⃣")
             await question_msg.add_reaction("2️⃣")
-
-            # Reset answered flag for the next question
-            session['answered_this_question'] = False
+            session['answered_this_question'] = False # Reset for new question
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Pertanyaan #{q_idx + 1} berhasil dikirim.")
         except discord.Forbidden:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Bot tidak memiliki izin mengirim atau bereaksi di thread {thread.name}.")
             await thread.send("Saya tidak bisa mengirim atau bereaksi di thread ini. Pastikan izin saya sudah benar (Manage Threads, Send Messages in Threads, Add Reactions).")
             await self._end_session(user_id)
         except Exception as e:
-            print(f"[{datetime.now()}] [JIWABOT ERROR] Gagal mengirim pertanyaan ke {session['user_obj'].name}: {e}")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Gagal mengirim pertanyaan #{q_idx + 1} ke {session['user_obj'].display_name}: {e}")
             await thread.send(f"Terjadi kesalahan saat menampilkan pertanyaan: `{e}`. Sesi dihentikan.")
             await self._end_session(user_id)
 
     async def _process_answer(self, user_id, chosen_option_key, question_message, reacting_user):
         session = self.active_sessions.get(user_id)
-        if not session: return
+        if not session:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Sesi tidak ditemukan untuk user ID {user_id} saat memproses jawaban.")
+            return
 
         q_idx = session['current_q_idx']
         question_data = session['questions_for_session'][q_idx]
         
-        # Accumulate scores
         selected_scores = question_data['scores'].get(chosen_option_key, {})
         for dimension, points in selected_scores.items():
             session['scores'][dimension] = session['scores'].get(dimension, 0) + points
         
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Skor untuk pertanyaan #{q_idx + 1} dari {session['user_obj'].display_name}: Jawaban '{chosen_option_key}', Penambahan skor: {selected_scores}.")
+
         session['current_q_idx'] += 1
 
-        # Remove all reactions from the processed question message to prevent further interaction
         try:
             await question_message.clear_reactions()
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Reaksi dibersihkan dari pesan pertanyaan #{q_idx + 1}.")
         except discord.Forbidden:
-            print(f"[{datetime.now()}] [JIWABOT WARNING] Bot tidak bisa menghapus reaksi dari pesan pertanyaan di thread {question_message.id}.")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Bot tidak bisa menghapus reaksi dari pesan {question_message.id} karena izin.")
         except Exception as e:
-            print(f"[{datetime.now()}] [JIWABOT ERROR] Error menghapus reaksi dari pesan {question_message.id}: {e}")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Error menghapus reaksi dari pesan {question_message.id}: {e}")
 
         # Send next question or end session
         await self._send_question(user_id)
@@ -304,9 +311,11 @@ class JiwaBot(commands.Cog):
     def _get_all_dimensions(self):
         """Collects all unique dimension keys from questions to initialize scores."""
         dimensions = set()
+        if not self.questions: # Handle case where questions data might be empty
+            return []
         for q_data in self.questions:
-            for option_key in q_data['options']: # Iterate through A, B
-                if option_key in q_data['scores']: # Check if scores exist for this option key
+            for option_key in q_data['options']: 
+                if option_key in q_data['scores']: 
                     for dim in q_data['scores'][option_key].keys():
                         dimensions.add(dim)
         return list(dimensions)
@@ -314,11 +323,15 @@ class JiwaBot(commands.Cog):
 
     async def _end_session(self, user_id):
         session = self.active_sessions.pop(user_id, None)
-        if not session: return
+        if not session:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Sesi tidak ditemukan untuk user ID {user_id} saat mengakhiri sesi.")
+            return
 
         thread = session['thread']
         user_obj = session['user_obj']
         final_scores = session['scores']
+
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Tes selesai untuk {user_obj.display_name}. Total skor: {final_scores}")
 
         await thread.send(f"✅ Tes Kepribadian Anda telah selesai, {user_obj.mention}!\nMemproses hasil Anda...", embed=discord.Embed(title="Tes Selesai!", description="Terima kasih telah berpartisipasi!", color=discord.Color.green()))
         
@@ -333,32 +346,34 @@ class JiwaBot(commands.Cog):
         asyncio.create_task(self._delete_thread_after_delay(thread, 180, user_obj))
 
     async def _delete_thread_after_delay(self, thread, delay, user_obj):
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Menunggu {delay} detik sebelum menghapus thread {thread.name}.")
         await asyncio.sleep(delay)
         try:
             await thread.delete()
-            print(f"[{datetime.now()}] [JIWABOT] Thread tes kepribadian {thread.name} untuk {user_obj.display_name} dihapus.")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Thread tes kepribadian {thread.name} untuk {user_obj.display_name} dihapus.")
         except discord.NotFound:
-            print(f"[{datetime.now()}] [JIWABOT] Thread {thread.name} sudah tidak ditemukan (mungkin sudah dihapus manual).")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Thread {thread.name} sudah tidak ditemukan (mungkin sudah dihapus manual).")
         except discord.Forbidden:
-            print(f"[{datetime.now()}] [JIWABOT ERROR] Bot tidak memiliki izin untuk menghapus thread {thread.name} untuk {user_obj.display_name}.")
-            # Send a DM to the user if thread cannot be deleted
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Bot tidak memiliki izin untuk menghapus thread {thread.name} untuk {user_obj.display_name}. Izin 'Manage Threads' mungkin diperlukan.")
             try:
                 await user_obj.send(f"⚠️ Maaf, saya tidak bisa menghapus thread tes kepribadian Anda ({thread.mention}). Mohon hapus secara manual untuk menjaga privasi.")
             except discord.Forbidden:
-                print(f"[{datetime.now()}] [JIWABOT ERROR] Gagal mengirim DM ke {user_obj.display_name} tentang kegagalan hapus thread.")
+                print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Gagal mengirim DM ke {user_obj.display_name} tentang kegagalan hapus thread.")
         except Exception as e:
-            print(f"[{datetime.now()}] [JIWABOT ERROR] Error menghapus thread {thread.name} untuk {user_obj.display_name}: {e}")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Error menghapus thread {thread.name} untuk {user_obj.display_name}: {e}")
 
 
     async def _analyze_and_present_results(self, thread, user_obj, final_scores):
         """
         Menganalisis skor dan menyajikan hasil psikotes secara rinci ke thread dan DM user.
         """
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Memulai analisis hasil untuk {user_obj.display_name}.")
         if not self.results_config.get('dimensions'):
-            await thread.send("Maaf, konfigurasi hasil tes tidak ditemukan. Tidak bisa menganalisis hasil.")
-            # Attempt to send to user DM as well
+            error_msg_content = "Maaf, konfigurasi hasil tes tidak ditemukan atau rusak. Tidak bisa menganalisis hasil. Silakan hubungi admin bot untuk memeriksa file 'jiwabot_results.json'."
+            await thread.send(error_msg_content)
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Konfigurasi hasil tes (jiwabot_results.json) tidak ditemukan atau tidak valid. Final scores: {final_scores}")
             try:
-                await user_obj.send("Maaf, konfigurasi hasil tes tidak ditemukan. Tidak bisa menganalisis hasil.")
+                await user_obj.send(error_msg_content)
             except discord.Forbidden:
                 pass
             return
@@ -381,6 +396,7 @@ class JiwaBot(commands.Cog):
             f"• **Bergabung Server**: {joined_at}"
         )
         results_embed.add_field(name="📋 Identitas Diri", value=profile_value, inline=False)
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Bagian Identitas Diri selesai.")
 
 
         # --- Bagian 2: Kecenderungan Sosial (Introvert/Ekstrovert/Ambivert) ---
@@ -404,38 +420,40 @@ class JiwaBot(commands.Cog):
             inline=False
         )
         results_embed.add_field(name="Detail Skor Sosial", value=f"Poin Introvert: **{intro_score}** | Poin Ekstrovert: **{extro_score}**", inline=False)
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Kecenderungan Sosial: {social_type} (Skor Relatif: {intro_extro_relative_score}).")
 
 
         # --- Bagian 3: Profil Sifat & Sikap Mendalam ---
         sifat_texts = []
-        identified_traits_for_reco = [] # Collect names for recommendations later
+        identified_traits_for_reco = [] 
 
         if "sifat_dasar" in self.results_config['dimensions']:
             sorted_sifat_categories = sorted(
                 self.results_config['dimensions']['sifat_dasar']['categories'],
-                key=lambda cat: final_scores.get(cat['name'].lower().replace(" ", "_"), 0), # Score key is lowercase, snake_case
+                key=lambda cat: final_scores.get(cat['name'].lower().replace(" ", "_"), 0), 
                 reverse=True
             )
             for category in sorted_sifat_categories:
-                # Convert category name to score key format (e.g., "Percaya Diri" -> "percaya_diri")
                 dim_name_lower = category['name'].lower().replace(" ", "_") 
                 current_dim_score = final_scores.get(dim_name_lower, 0)
                 
                 if current_dim_score >= category.get('min_score', 0): 
                     sifat_texts.append(f"• **{category['name']}** (Skor: {current_dim_score}): {category['description']}")
-                    identified_traits_for_reco.append(category['name']) # Add to list for recommendations
+                    identified_traits_for_reco.append(category['name'])
         
         if sifat_texts:
             results_embed.add_field(name="3. Analisis Sifat & Sikap Dominan", value="\n".join(sifat_texts), inline=False)
         else:
             results_embed.add_field(name="3. Analisis Sifat & Sikap Dominan", value="Berdasarkan respons, Anda memiliki beragam sifat dan sikap yang cukup seimbang dan adaptif, tidak ada yang terlalu dominan menonjol. Ini menunjukkan fleksibilitas dalam menghadapi berbagai situasi.", inline=False)
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Sifat Dominan diidentifikasi: {identified_traits_for_reco}.")
+
 
         # --- Bagian 4: Gaya Interaksi / Bagaimana Anda Berinteraksi dengan Dunia ---
         gaya_interaksi_texts = []
         if "gaya_interaksi" in self.results_config['dimensions']:
             sorted_gaya_categories = sorted(
                 self.results_config['dimensions']['gaya_interaksi']['categories'],
-                key=lambda cat: final_scores.get(cat['name'].lower().replace(" ", "_"), 0), # Score key is lowercase, snake_case
+                key=lambda cat: final_scores.get(cat['name'].lower().replace(" ", "_"), 0), 
                 reverse=True
             )
             for category in sorted_gaya_categories:
@@ -450,30 +468,27 @@ class JiwaBot(commands.Cog):
             results_embed.add_field(name="4. Gaya Interaksi & Peran dalam Lingkungan", value="\n".join(gaya_interaksi_texts), inline=False)
         else:
             results_embed.add_field(name="4. Gaya Interaksi & Peran dalam Lingkungan", value="Gaya interaksi Anda cukup fleksibel dan unik, sehingga tidak masuk dalam satu kategori dominan berdasarkan tes ini. Anda dapat menyesuaikan diri dengan berbagai peran.", inline=False)
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Gaya Interaksi Dominan diidentifikasi: {identified_traits_for_reco}.")
 
 
         # --- Bagian 5: Rekomendasi Komprehensif ---
         
-        # Collect all relevant types/traits for recommendations
-        # This includes the primary social type AND all identified dominant traits/interaction styles
         all_relevant_types_for_reco = [social_type] + identified_traits_for_reco 
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Tipe dan sifat relevan untuk rekomendasi: {all_relevant_types_for_reco}.")
 
         recommendations_combined = {
-            'advice': set(),    # Use set to avoid duplicate recommendations if multiple traits match
+            'advice': set(),    
             'critique': set(),
             'evaluation': set(),
             'future_steps': set()
         }
 
-        # Iterate through each recommendation category (advice, critique, etc.)
         for rec_key in recommendations_combined.keys():
-            if self.results_config.get(rec_key): # Check if the category exists in results_config
+            if self.results_config.get(rec_key): 
                 for rec_item in self.results_config[rec_key]:
-                    # If this recommendation item is relevant to any identified type/trait
                     if rec_item['for_type'] in all_relevant_types_for_reco:
-                        recommendations_combined[rec_key].add(rec_item['text']) # Add to set to maintain uniqueness
+                        recommendations_combined[rec_key].add(rec_item['text']) 
         
-        # Convert sets to sorted lists for final presentation
         advice_val = "\n".join(f"• {text}" for text in sorted(list(recommendations_combined['advice']))) if recommendations_combined['advice'] else "Tidak ada saran spesifik yang teridentifikasi dari tes ini."
         critique_val = "\n".join(f"• {text}" for text in sorted(list(recommendations_combined['critique']))) if recommendations_combined['critique'] else "Tidak ada area pengembangan spesifik yang teridentifikasi dari tes ini."
         evaluation_val = "\n".join(f"• {text}" for text in sorted(list(recommendations_combined['evaluation']))) if recommendations_combined['evaluation'] else "Evaluasi potensi diri memerlukan analisis lebih lanjut atau tes yang lebih komprehensif."
@@ -488,17 +503,23 @@ class JiwaBot(commands.Cog):
         results_embed.set_footer(text="Analisis ini bersifat indikatif dan tidak menggantikan asesmen profesional. Gunakan sebagai panduan awal untuk eksplorasi diri.")
 
         # Send to thread
-        await thread.send(embed=results_embed)
+        try:
+            await thread.send(embed=results_embed)
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Laporan hasil tes kepribadian berhasil dikirim ke thread {thread.name}.")
+        except Exception as e:
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Gagal mengirim laporan hasil ke thread {thread.name}: {e}")
 
         # Send to user DM
         try:
             await user_obj.send(embed=results_embed)
-            print(f"[{datetime.now()}] [JIWABOT] Laporan hasil tes kepribadian dikirim ke DM {user_obj.display_name}.")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT] Laporan hasil tes kepribadian berhasil dikirim ke DM {user_obj.display_name}.")
         except discord.Forbidden:
-            print(f"[{datetime.now()}] [JIWABOT WARNING] Gagal mengirim laporan hasil ke DM {user_obj.display_name} (DM ditutup).")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT WARNING] Gagal mengirim laporan hasil ke DM {user_obj.display_name} (DM ditutup).")
             await thread.send(f"⚠️ Maaf, saya tidak dapat mengirim laporan lengkap ke DM Anda, {user_obj.mention}, karena DM Anda mungkin tertutup. Laporan tetap tersedia di sini.", delete_after=30)
         except Exception as e:
-            print(f"[{datetime.now()}] [JIWABOT ERROR] Error mengirim laporan hasil ke DM {user_obj.display_name}: {e}")
+            print(f"[{datetime.now()}] [DEBUG JIWABOT ERROR] Error mengirim laporan hasil ke DM {user_obj.display_name}: {e}")
+
+        print(f"[{datetime.now()}] [DEBUG JIWABOT] Proses analisis dan penyajian hasil selesai untuk {user_obj.display_name}.")
 
 
 async def setup(bot):
