@@ -1,366 +1,505 @@
 import discord
-from discord.ext import commands
-from discord.ui import Button, View
+from discord.ext import commands, tasks
 import json
+import random
+import asyncio
 import os
+from datetime import datetime, time, timedelta
 
-# Tentukan PATH ke folder data relatif dari file cog ini
-# Pastikan nama file JSON yang kamu pakai sesuai dengan yang di sini
-DATA_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
-PSIKOTES_QUESTIONS_FILE = os.path.join(DATA_FOLDER, 'psikotes_questions.json') 
-PSIKOTES_RESULTS_FILE = os.path.join(DATA_FOLDER, 'psikotes_results.json')
+# --- Helper Functions (reusable from other cogs) ---
+def load_json_from_root(file_path, default_value=None):
+    """
+    Memuat data JSON dari file yang berada di root direktori proyek bot.
+    Menambahkan `default_value` yang lebih fleksibel.
+    """
+    try:
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        full_path = os.path.join(base_dir, file_path)
+        os.makedirs(os.path.dirname(os.path.abspath(full_path)), exist_ok=True) # Pastikan direktori ada
+        with open(full_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"[{datetime.now()}] [DEBUG HELPER] Peringatan: File {full_path} tidak ditemukan. Mengembalikan nilai default.")
+        if default_value is not None:
+            save_json_to_root(default_value, file_path)
+            return default_value
+        # Default value for common JSON types
+        if 'questions' in file_path or 'sambung_kata_words' in file_path: # Ini untuk jiwabot_questions.json juga
+            return []
+        if 'bank_data' in file_path or 'level_data' in file_path:
+            return {}
+        return {} # Fallback
+    except json.JSONDecodeError:
+        print(f"[{datetime.now()}] [DEBUG HELPER] Peringatan: File {full_path} rusak (JSON tidak valid). Mengembalikan nilai default.")
+        if default_value is not None:
+            save_json_to_root(default_value, file_path)
+            return default_value
+        if 'questions' in file_path or 'sambung_kata_words' in file_path:
+            return []
+        if 'bank_data' in file_path or 'level_data' in file_path:
+            return {}
+        return {}
 
-class PsikotesAssessment(commands.Cog): # Nama kelas cog
+
+def save_json_to_root(data, file_path):
+    """Menyimpan data ke file JSON di root direktori proyek."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    full_path = os.path.join(base_dir, file_path)
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    with open(full_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
+
+
+class JiwaBot(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.user_states = {}
-        self.questions_data = {}
-        self.results_data = {}
-        self._load_data()
+        # {user_id: {'thread': thread_obj, 'current_q_idx': int, 'scores': {}, 'user_obj': member_obj, 'questions_for_session': [], 'message_for_reaction_vote': msg_obj}}
+        self.active_sessions = {}  
+        self.questions = load_json_from_root('data/jiwabot_questions.json', default_value=[])
+        self.results_config = load_json_from_root('data/jiwabot_results.json', default_value={
+            "dimensions": {},
+            "advice": [], "critique": [], "evaluation": [], "future_steps": []
+        })
+        self.admin_role_id = 1255204693391441920 # GANTI DENGAN ID ROLE ADMIN (contoh: 123456789012345678) jika ingin admin diundang ke thread
+        
+        # Mapping numerical emojis to option keys (A, B)
+        self.number_emojis = {
+            "1️⃣": "A", 
+            "2️⃣": "B"
+        }
+        self.reverse_number_emojis = {v: k for k, v in self.number_emojis.items()}
 
-    def _load_data(self):
-        """Memuat data pertanyaan dan hasil dari file JSON."""
-        try:
-            with open(PSIKOTES_QUESTIONS_FILE, 'r', encoding='utf-8') as f:
-                self.questions_data = json.load(f)
-            with open(PSIKOTES_RESULTS_FILE, 'r', encoding='utf-8') as f:
-                self.results_data = json.load(f)
-            print(f"[{self.__class__.__name__}] Data pertanyaan dan hasil berhasil dimuat dari {PSIKOTES_QUESTIONS_FILE} dan {PSIKOTES_RESULTS_FILE}.")
-        except FileNotFoundError:
-            print(f"[{self.__class__.__name__}] Error: File tidak ditemukan. Pastikan '{PSIKOTES_QUESTIONS_FILE}' dan '{PSIKOTES_RESULTS_FILE}' ada di '{DATA_FOLDER}'.")
-            raise FileNotFoundError(f"Missing data files: {PSIKOTES_QUESTIONS_FILE} or {PSIKOTES_RESULTS_FILE}")
-        except json.JSONDecodeError as e:
-            print(f"[{self.__class__.__name__}] Error: Pastikan format JSON valid di file data. Detail: {e}")
-            raise json.JSONDecodeError(f"Invalid JSON in data files: {e}")
+        # Initiate cleanup task in case bot restarts unexpectedly
+        self._cleanup_threads_task = self.cleanup_stale_threads.start()
 
-    @commands.command(name='psikotes') # Perintah untuk memulai tes
-    async def start_quiz(self, ctx):
-        """Memulai tes psikotes dengan tombol."""
+    def cog_unload(self):
+        # Cancel any running tasks when the cog is unloaded
+        if self._cleanup_threads_task:
+            self._cleanup_threads_task.cancel()
+        print(f"[{datetime.now()}] [JIWABOT] Cog JiwaBot dibongkar. Tugas cleanup dihentikan.")
+
+
+    @tasks.loop(minutes=30) # Run cleanup every 30 minutes
+    async def cleanup_stale_threads(self):
+        print(f"[{datetime.now()}] [JIWABOT] Menjalankan tugas pembersihan thread yang macet.")
+        # Identify sessions that might be stuck or whose threads exist but bot lost track
+        # This is a basic cleanup. More robust would involve saving session state to file.
+        guilds_to_check = {} # {guild_id: [channel_id, ...]} to avoid fetching channels multiple times
+
+        # Collect threads that are managed by JiwaBot
+        for user_id, session in list(self.active_sessions.items()):
+            if session.get('thread') and session['thread'].id:
+                try:
+                    # Attempt to fetch the thread to see if it's still alive or valid
+                    fetched_thread = await self.bot.fetch_channel(session['thread'].id)
+                    # If it's a private thread and the participant is no longer in guild/bot restarted mid-session
+                    # You might need more complex logic based on your specific 'stuck' criteria.
+                    pass # If fetch is successful, thread is still alive and we leave it.
+                except discord.NotFound:
+                    print(f"[{datetime.now()}] [JIWABOT] Menghapus sesi macet untuk {user_id} karena thread tidak ditemukan.")
+                    del self.active_sessions[user_id]
+                except Exception as e:
+                    print(f"[{datetime.now()}] [JIWABOT ERROR] Error saat membersihkan thread untuk {user_id}: {e}")
+                    # Potentially remove session if too many errors
+
+
+    @cleanup_stale_threads.before_loop
+    async def before_cleanup_threads(self):
+        await self.bot.wait_until_ready()
+        print(f"[{datetime.now()}] [JIWABOT] Menunggu bot siap sebelum memulai tugas pembersihan thread.")
+
+
+    @commands.command(name="jiwaku", help="Mulai sesi tes kepribadian JiwaBot.")
+    @commands.guild_only() # Pastikan hanya bisa di guild (server)
+    async def start_personality_test(self, ctx):
         user_id = ctx.author.id
-        if user_id in self.user_states:
-            await ctx.send(f"{ctx.author.mention}, kamu sudah dalam sesi psikotes. Selesaikan dulu atau ketik `!batalpsikotes` untuk memulai ulang.", ephemeral=True)
-            return
 
-        # Inisialisasi semua trait yang mungkin ada dari data results atau questions
-        all_traits = set(self.results_data.get("trait_descriptions", {}).keys())
-        for q_id, q_data in self.questions_data.items():
-            for opt_key, opt_data in q_data.get("options", {}).items():
-                for trait in opt_data.get("traits_impact", {}).keys():
-                    all_traits.add(trait)
+        if user_id in self.active_sessions:
+            thread_id = self.active_sessions[user_id]['thread'].id
+            return await ctx.send(f"Anda sudah memiliki sesi tes yang sedang berjalan di <#{thread_id}>. Selesaikan sesi Anda saat ini atau tunggu hingga berakhir.", ephemeral=True)
 
-        self.user_states[user_id] = {
-            "current_question_id": list(self.questions_data.keys())[0], # Ambil ID pertanyaan pertama dari JSON
-            "scores": {trait: 0 for trait in all_traits},
-            "message_to_edit": None
+        if not self.questions:
+            return await ctx.send("Maaf, bank pertanyaan tes kepribadian tidak ditemukan atau kosong. Silakan hubungi admin bot.", ephemeral=True)
+        # Jumlah pertanyaan di JSON harus sama dengan jumlah yang akan diambil (50)
+        if len(self.questions) < 50:
+            return await ctx.send(f"Maaf, tes membutuhkan minimal 50 pertanyaan. Saat ini hanya ada {len(self.questions)} pertanyaan. Silakan hubungi admin bot.", ephemeral=True)
+
+        # Buat thread privat
+        try:
+            thread = await ctx.channel.create_thread(
+                name=f"Tes-Kepribadian-{ctx.author.name}",
+                type=discord.ChannelType.private_thread,
+                invitable=False, # Tidak bisa di-invite sembarangan
+                auto_archive_duration=60 # Arsip setelah 1 jam tidak aktif
+            )
+            await thread.add_user(ctx.author) # Tambahkan peserta
+            if self.admin_role_id: # Tambahkan admin jika ID role tersedia
+                admin_role = ctx.guild.get_role(self.admin_role_id)
+                if admin_role:
+                    for member in admin_role.members:
+                        try:
+                            # Check if bot can actually add this user to private thread.
+                            # It needs "Manage Threads" permission.
+                            # Also, user must allow DMs from server members.
+                            await thread.add_user(member)
+                        except discord.HTTPException as e:
+                            print(f"[{datetime.now()}] [JIWABOT WARNING] Gagal menambahkan admin {member.display_name} ke thread {thread.name}: {e}")
+                            # This is a warning, not fatal. Continue.
+            
+            await ctx.send(f"Tes kepribadian Anda telah dimulai! Silakan lanjutkan di thread privat: <#{thread.id}>", ephemeral=False)
+            
+        except discord.Forbidden:
+            return await ctx.send("Saya tidak memiliki izin untuk membuat private thread. Pastikan saya punya izin 'Manage Threads' dan 'Send Messages in Threads'.", ephemeral=True)
+        except Exception as e:
+            print(f"[{datetime.now()}] [JIWABOT ERROR] Gagal membuat thread untuk {ctx.author.name}: {e}")
+            return await ctx.send(f"Terjadi kesalahan saat memulai sesi: `{e}`. Silakan coba lagi nanti.", ephemeral=True)
+
+        # Inisialisasi semua dimensi skor yang mungkin ada di questions.json
+        all_possible_dimensions = self._get_all_dimensions()
+        initial_scores = {dim: 0 for dim in all_possible_dimensions}
+
+        self.active_sessions[user_id] = {
+            'thread': thread,
+            'current_q_idx': 0,
+            'scores': initial_scores, 
+            'user_obj': ctx.author,
+            'questions_for_session': random.sample(self.questions, 50), # Ambil 50 pertanyaan acak
+            'message_for_reaction_vote': None, # Pesan untuk reaksi jawaban
+            'answered_this_question': False # Flag untuk mencegah double answer
         }
         
-        await self._send_question(ctx, user_id, ctx.channel)
+        await self._send_question(user_id)
 
-    @commands.command(name='batalpsikotes') # Perintah untuk membatalkan tes
-    async def cancel_quiz(self, ctx):
-        """Membatalkan sesi tes psikotes."""
-        user_id = ctx.author.id
-        if user_id in self.user_states:
-            message_to_delete = self.user_states[user_id].get("message_to_edit")
-            if message_to_delete:
-                try:
-                    view = discord.View.from_message(message_to_delete)
-                    for item in view.children:
-                        item.disabled = True
-                    await message_to_delete.edit(view=view)
-                    await message_to_delete.delete(delay=3)
-                except discord.NotFound:
-                    pass
-            del self.user_states[user_id]
-            await ctx.send(f"✅ Sesi psikotesmu telah dibatalkan, {ctx.author.mention}. Sampai jumpa lagi!", ephemeral=True)
-        else:
-            await ctx.send(f"{ctx.author.mention}, kamu tidak sedang dalam sesi psikotes.", ephemeral=True)
 
-    async def _send_question(self, ctx_or_interaction, user_id, channel):
-        state = self.user_states[user_id]
-        q_id = state["current_question_id"]
-        question_data = self.questions_data.get(q_id)
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        # Ignore bots and messages outside active session threads (unless it's the command to start)
+        # This listener is for general messages. Answers are handled by reactions.
+        if message.author.bot or not isinstance(message.channel, discord.Thread):
+            return
+        
+        # Check if the message is in a JiwaBot session thread
+        user_id_from_session = None
+        for uid, s in self.active_sessions.items():
+            if s.get('thread') and s['thread'].id == message.channel.id:
+                user_id_from_session = uid
+                break
 
-        if not question_data:
-            await channel.send(f"Maaf, terjadi kesalahan pada pertanyaan psikotes. Mohon hubungi admin bot. (ID pertanyaan tidak ditemukan: {q_id})", ephemeral=True)
-            if user_id in self.user_states:
-                del self.user_states[user_id]
+        if not user_id_from_session or message.author.id != user_id_from_session:
+            return # Not the session owner, or not a JiwaBot thread
+
+        # If the user sends any text message during a question, it's just general chat.
+        # Answers are handled by reactions. We don't process text input as answer here.
+        pass
+
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        # Ignore bots and reactions not from the session owner
+        if user.bot or user.id not in self.active_sessions:
             return
 
+        session = self.active_sessions[user.id]
+
+        # Ensure reaction is in the correct thread and on the current question message
+        if reaction.message.channel.id != session['thread'].id or \
+           not session.get('message_for_reaction_vote') or \
+           reaction.message.id != session['message_for_reaction_vote'].id:
+            return
+
+        # Ensure it's a valid choice reaction (1 or 2)
+        chosen_option_key = self.number_emojis.get(str(reaction.emoji))
+        if chosen_option_key is None:
+            try:
+                await reaction.remove(user) # Remove invalid reaction
+            except discord.Forbidden:
+                pass
+            return
+
+        # Only process if this is the user's first choice for this question
+        if session['answered_this_question']: # Prevents multiple answers for one question
+             try:
+                 await reaction.remove(user)
+             except discord.Forbidden:
+                 pass
+             return
+
+        # Mark as answered
+        session['answered_this_question'] = True
+
+        # Process the answer
+        await self._process_answer(user.id, chosen_option_key, reaction.message, user)
+
+
+    async def _send_question(self, user_id):
+        session = self.active_sessions.get(user_id)
+        if not session: return
+
+        thread = session['thread']
+        q_idx = session['current_q_idx']
+        
+        if q_idx >= len(session['questions_for_session']):
+            await self._end_session(user_id)
+            return
+
+        question_data = session['questions_for_session'][q_idx]
+        
         embed = discord.Embed(
-            title="🧠 Tes Psikotes", # Judul yang berbeda dari cog kepribadian umum
-            description=f"**{question_data['text']}**",
-            color=discord.Color.dark_blue() # Warna yang berbeda dari cog kepribadian umum
+            title=f"❓ Pertanyaan #{q_idx + 1}/50",
+            description=f"**{question_data['question']}**\n\n"
+                        f"**1.** {question_data['options']['A']}\n"
+                        f"**2.** {question_data['options']['B']}",
+            color=discord.Color.blue()
         )
-        embed.set_footer(text=f"Progress: {self._get_progress(q_id)}")
+        if 'category' in question_data:
+            embed.add_field(name="Kategori", value=question_data['category'], inline=True) 
 
-        # Passing reference to this cog instance
-        view = PsikotesQuestionView(self, user_id, q_id, question_data["options"])
-        
-        if state["message_to_edit"]:
-            try:
-                # Jika ctx_or_interaction adalah Interaction yang belum direspons
-                if isinstance(ctx_or_interaction, discord.Interaction) and not ctx_or_interaction.response.is_done():
-                    await ctx_or_interaction.response.edit_message(embed=embed, view=view)
-                else: # Jika ini dipanggil dari command atau interaction yang sudah di-defer
-                    await state["message_to_edit"].edit(embed=embed, view=view)
-            except discord.NotFound:
-                # Pesan mungkin sudah dihapus, jadi kirim yang baru
-                state["message_to_edit"] = await channel.send(embed=embed, view=view)
-            except discord.HTTPException as e:
-                print(f"Error editing message: {e} - Attempting to send new message.")
-                state["message_to_edit"] = await channel.send(embed=embed, view=view)
-        else:
-            # Ini untuk pesan awal command !psikotes
-            if isinstance(ctx_or_interaction, commands.Context):
-                state["message_to_edit"] = await ctx_or_interaction.send(embed=embed, view=view)
-            else: # Fallback
-                state["message_to_edit"] = await channel.send(embed=embed, view=view)
+        # Add reaction instructions
+        embed.set_footer(text=f"Silakan bereaksi dengan 1️⃣ atau 2️⃣ untuk memilih jawaban Anda.")
 
-
-    def _get_progress(self, current_q_id):
-        all_q_ids = list(self.questions_data.keys())
         try:
-            current_index = all_q_ids.index(current_q_id)
-            progress_percent = (current_index / len(all_q_ids)) * 100
-            return f"Pertanyaan ke-{current_index + 1} dari {len(self.questions_data)} ({progress_percent:.0f}%)"
-        except ValueError:
-            return "Progress: N/A"
+            question_msg = await thread.send(embed=embed)
+            session['message_for_reaction_vote'] = question_msg # Store message for reaction listener
 
-    async def _process_answer(self, interaction: discord.Interaction, user_id, q_id, selected_option_key):
-        state = self.user_states.get(user_id)
-        if not state or state["current_question_id"] != q_id:
-            # Penting: Pastikan interaction direspons hanya sekali
-            if not interaction.response.is_done():
-                await interaction.response.send_message("Ini bukan pertanyaan psikotesmu saat ini atau tes sudah selesai.", ephemeral=True)
-            return
+            # Add reactions for options
+            await question_msg.add_reaction("1️⃣")
+            await question_msg.add_reaction("2️⃣")
 
-        question_data = self.questions_data.get(q_id)
-        if not question_data or selected_option_key not in question_data["options"]:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("Opsi tidak valid. Terjadi kesalahan internal pada psikotes.", ephemeral=True)
-            return
+            # Reset answered flag for the next question
+            session['answered_this_question'] = False
+        except discord.Forbidden:
+            await thread.send("Saya tidak bisa mengirim atau bereaksi di thread ini. Pastikan izin saya sudah benar (Manage Threads, Send Messages in Threads, Add Reactions).")
+            await self._end_session(user_id)
+        except Exception as e:
+            print(f"[{datetime.now()}] [JIWABOT ERROR] Gagal mengirim pertanyaan ke {session['user_obj'].name}: {e}")
+            await thread.send(f"Terjadi kesalahan saat menampilkan pertanyaan: `{e}`. Sesi dihentikan.")
+            await self._end_session(user_id)
 
-        selected_option = question_data["options"][selected_option_key]
+    async def _process_answer(self, user_id, chosen_option_key, question_message, reacting_user):
+        session = self.active_sessions.get(user_id)
+        if not session: return
 
-        # Nonaktifkan tombol di pesan yang sedang diinteraksi
-        if interaction.message:
+        q_idx = session['current_q_idx']
+        question_data = session['questions_for_session'][q_idx]
+        
+        # Accumulate scores
+        selected_scores = question_data['scores'].get(chosen_option_key, {})
+        for dimension, points in selected_scores.items():
+            session['scores'][dimension] = session['scores'].get(dimension, 0) + points
+        
+        session['current_q_idx'] += 1
+
+        # Remove all reactions from the processed question message to prevent further interaction
+        try:
+            await question_message.clear_reactions()
+        except discord.Forbidden:
+            print(f"[{datetime.now()}] [JIWABOT WARNING] Bot tidak bisa menghapus reaksi dari pesan pertanyaan di thread {question_message.id}.")
+        except Exception as e:
+            print(f"[{datetime.now()}] [JIWABOT ERROR] Error menghapus reaksi dari pesan {question_message.id}: {e}")
+
+        # Send next question or end session
+        await self._send_question(user_id)
+
+
+    def _get_all_dimensions(self):
+        """Collects all unique dimension keys from questions to initialize scores."""
+        dimensions = set()
+        for q_data in self.questions:
+            for option_key in q_data['options']: # Iterate through A, B
+                if option_key in q_data['scores']: # Check if scores exist for this option key
+                    for dim in q_data['scores'][option_key].keys():
+                        dimensions.add(dim)
+        return list(dimensions)
+
+
+    async def _end_session(self, user_id):
+        session = self.active_sessions.pop(user_id, None)
+        if not session: return
+
+        thread = session['thread']
+        user_obj = session['user_obj']
+        final_scores = session['scores']
+
+        await thread.send(f"✅ Tes Kepribadian Anda telah selesai, {user_obj.mention}!\nMemproses hasil Anda...", embed=discord.Embed(title="Tes Selesai!", description="Terima kasih telah berpartisipasi!", color=discord.Color.green()))
+        
+        # Give some processing time illusion
+        await asyncio.sleep(3)
+
+        # Generate and send results to thread and DM
+        await self._analyze_and_present_results(thread, user_obj, final_scores)
+
+        # Delete the thread after a delay
+        # Thread will be deleted after 3 minutes (180 seconds)
+        asyncio.create_task(self._delete_thread_after_delay(thread, 180, user_obj))
+
+    async def _delete_thread_after_delay(self, thread, delay, user_obj):
+        await asyncio.sleep(delay)
+        try:
+            await thread.delete()
+            print(f"[{datetime.now()}] [JIWABOT] Thread tes kepribadian {thread.name} untuk {user_obj.display_name} dihapus.")
+        except discord.NotFound:
+            print(f"[{datetime.now()}] [JIWABOT] Thread {thread.name} sudah tidak ditemukan (mungkin sudah dihapus manual).")
+        except discord.Forbidden:
+            print(f"[{datetime.now()}] [JIWABOT ERROR] Bot tidak memiliki izin untuk menghapus thread {thread.name} untuk {user_obj.display_name}.")
+            # Send a DM to the user if thread cannot be deleted
             try:
-                view = discord.View.from_message(interaction.message)
-                for item in view.children:
-                    item.disabled = True
-                await interaction.message.edit(view=view)
-            except discord.NotFound:
+                await user_obj.send(f"⚠️ Maaf, saya tidak bisa menghapus thread tes kepribadian Anda ({thread.mention}). Mohon hapus secara manual untuk menjaga privasi.")
+            except discord.Forbidden:
+                print(f"[{datetime.now()}] [JIWABOT ERROR] Gagal mengirim DM ke {user_obj.display_name} tentang kegagalan hapus thread.")
+        except Exception as e:
+            print(f"[{datetime.now()}] [JIWABOT ERROR] Error menghapus thread {thread.name} untuk {user_obj.display_name}: {e}")
+
+
+    async def _analyze_and_present_results(self, thread, user_obj, final_scores):
+        """
+        Menganalisis skor dan menyajikan hasil psikotes secara rinci ke thread dan DM user.
+        """
+        if not self.results_config.get('dimensions'):
+            await thread.send("Maaf, konfigurasi hasil tes tidak ditemukan. Tidak bisa menganalisis hasil.")
+            # Attempt to send to user DM as well
+            try:
+                await user_obj.send("Maaf, konfigurasi hasil tes tidak ditemukan. Tidak bisa menganalisis hasil.")
+            except discord.Forbidden:
                 pass
-            except discord.HTTPException:
-                pass
-
-        for trait, value in selected_option.get("traits_impact", {}).items():
-            if trait not in state["scores"]:
-                state["scores"][trait] = 0
-            state["scores"][trait] += value
-
-        if "next_question_id" in selected_option:
-            state["current_question_id"] = selected_option["next_question_id"]
-            if not interaction.response.is_done():
-                await interaction.response.defer() # Akui interaksi sebelum mengirim pertanyaan berikutnya
-            await self._send_question(interaction, user_id, interaction.channel)
-            
-        else: # Tes selesai
-            if not interaction.response.is_done():
-                await interaction.response.defer() # Akui interaksi sebelum menampilkan hasil
-            await self._display_final_results(interaction, user_id, interaction.channel)
-            
-            # Hapus pesan terakhir setelah hasil ditampilkan (jika belum dihapus)
-            if state["message_to_edit"]:
-                try:
-                    await state["message_to_edit"].delete(delay=5)
-                except discord.NotFound:
-                    pass
-
-    async def _display_final_results(self, interaction, user_id, channel):
-        state = self.user_states.get(user_id)
-        if not state:
             return
-        
-        final_scores = state["scores"]
-        trait_descriptions = self.results_data.get("trait_descriptions", {})
-        psikotes_result_types = self.results_data.get("psikotes_result_types", []) 
-        
-        best_match_type = None
-        highest_score_match = -1
 
-        if psikotes_result_types:
-            for p_type in psikotes_result_types:
-                match_score = 0
-                required_met = True
-                for req_trait, min_val in p_type.get("required_traits", {}).items():
-                    if final_scores.get(req_trait, 0) < min_val:
-                        required_met = False
-                        break
-                    match_score += final_scores.get(req_trait, 0)
-                
-                if required_met and match_score > highest_score_match:
-                    highest_score_match = match_score
-                    best_match_type = p_type
-        
-        if not best_match_type: # Fallback jika tidak ada yang cocok sempurna
-            # Bisa dibuat logika fallback yang lebih cerdas berdasarkan trait paling dominan
-            dominant_trait_name = None
-            max_score_overall = -1
-            if final_scores:
-                for trait, score in final_scores.items():
-                    if score > max_score_overall:
-                        max_score_overall = score
-                        dominant_trait_name = trait
-
-            if dominant_trait_name and max_score_overall > 0:
-                best_match_type = {
-                    "name": f"Gaya Psikotes: {dominant_trait_name.replace('_', ' ').title()}",
-                    "kesimpulan": f"Berdasarkan psikotes ini, trait **{dominant_trait_name.replace('_', ' ').title()}** sangat menonjol. Ini berarti {trait_descriptions.get(dominant_trait_name, 'kamu memiliki karakteristik unik dalam berpikir dan bertindak.')}",
-                    "keunggulan": f"Keunggulanmu adalah kemampuanmu dalam aspek **{dominant_trait_name.replace('_', ' ').title()}** yang membedakanmu.",
-                    "kekurangan": "Ada area yang bisa dikembangkan lebih lanjut untuk hasil yang optimal.",
-                    "saran": "Terus latih kemampuanmu di berbagai bidang dan eksplorasi potensi lainnya!"
-                }
-            else:
-                 best_match_type = {
-                    "name": "Gaya Psikotes: Potensial Tersembunyi",
-                    "kesimpulan": "Analisis psikotes ini menunjukkan kamu memiliki potensi yang besar, namun hasilnya belum sangat spesifik. Kamu adalah individu yang kompleks dan penuh kejutan!",
-                    "keunggulan": "Potensimu yang belum tergali sepenuhnya adalah keunggulan terbesarmu.",
-                    "kekurangan": "Mungkin ada beberapa area yang belum kamu eksplorasi secara penuh dalam dirimu.",
-                    "saran": "Jangan berhenti belajar dan mencoba hal baru. Setiap pengalaman akan membentuk dan mengungkapkan lebih banyak tentang gayamu!"
-                }
-
-
-        member = channel.guild.get_member(user_id) if channel.guild else interaction.user
-        member_name = member.display_name
-
-        result_embed = discord.Embed(
-            title=f"📊 Hasil Psikotesmu, {member_name}!", # Judul hasil yang berbeda
-            description=f"Analisis gaya berpikir dan pendekatanmu:\n\n**{best_match_type.get('name', 'Gaya Tidak Dikenal')}**",
-            color=discord.Color.dark_green() # Warna hasil yang berbeda
+        results_embed = discord.Embed(
+            title=f"📊 Laporan Psikotes: Profil Kepribadian Diri",
+            description=f"Berikut adalah hasil analisis kepribadian untuk **{user_obj.display_name}**:",
+            color=discord.Color.dark_teal()
         )
-        result_embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        results_embed.set_thumbnail(url=user_obj.avatar.url if user_obj.avatar else None)
+        results_embed.set_author(name=f"Oleh JiwaBot", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
 
-        result_embed.add_field(name="✨ Kesimpulan:", value=best_match_type.get('kesimpulan', 'Tidak ada kesimpulan.'), inline=False)
-        result_embed.add_field(name="👍 Keunggulan:", value=best_match_type.get('keunggulan', 'Tidak ada keunggulan.'), inline=False)
-        result_embed.add_field(name="🔍 Area Pengembangan:", value=best_match_type.get('kekurangan', 'Tidak ada kekurangan.'), inline=False)
-        result_embed.add_field(name="💡 Saran Lanjutan:", value=best_match_type.get('saran', 'Tidak ada saran.'), inline=False)
+        # --- Bagian 1: Identitas Diri (Profil Discord) ---
+        created_at = user_obj.created_at.strftime("%d %B %Y")
+        joined_at = user_obj.joined_at.strftime("%d %B %Y")
+        profile_value = (
+            f"• **Nama Lengkap Discord**: {user_obj.name} (ID: {user_obj.id})\n"
+            f"• **Display Name (Nickname)**: {user_obj.display_name}\n"
+            f"• **Bergabung Discord**: {created_at}\n"
+            f"• **Bergabung Server**: {joined_at}"
+        )
+        results_embed.add_field(name="📋 Identitas Diri", value=profile_value, inline=False)
+
+
+        # --- Bagian 2: Kecenderungan Sosial (Introvert/Ekstrovert/Ambivert) ---
+        intro_score = final_scores.get("introvert", 0)
+        extro_score = final_scores.get("ekstrovert", 0)
+        intro_extro_relative_score = intro_score - extro_score 
+
+        social_type = "Tidak Terdefinisi"
+        social_description = "Analisis lebih lanjut diperlukan untuk mengidentifikasi kecenderungan sosial Anda."
+
+        if "introvert_ekstrovert" in self.results_config['dimensions']:
+            for threshold in self.results_config['dimensions']['introvert_ekstrovert']['thresholds']:
+                if threshold['min_score'] <= intro_extro_relative_score <= threshold['max_score']:
+                    social_type = threshold['type']
+                    social_description = threshold['description']
+                    break
         
-        trait_data_text = "**Data Skor Trait Utama:**\n"
-        # Tampilkan detail skor trait seperti di cog sebelumnya (sesuaikan trait untuk psikotes)
-        if final_scores:
-            sorted_traits = sorted(final_scores.items(), key=lambda item: item[1], reverse=True)
-            sum_of_positive_scores = sum(score for score in final_scores.values() if score > 0)
+        results_embed.add_field(
+            name=f"2. Kecenderungan Sosial Utama: **{social_type}**",
+            value=f"Anda menunjukkan karakteristik yang dominan sebagai individu dengan kecenderungan **{social_type}**. \n_{social_description}_",
+            inline=False
+        )
+        results_embed.add_field(name="Detail Skor Sosial", value=f"Poin Introvert: **{intro_score}** | Poin Ekstrovert: **{extro_score}**", inline=False)
 
-            for trait, score in sorted_traits[:10]: # Batasi hingga 10 trait teratas untuk ringkasan
-                if score > 0: # Hanya tampilkan trait dengan skor positif
-                    percentage_of_sum = (score / sum_of_positive_scores * 100) if sum_of_positive_scores > 0 else 0
-                    trait_description_short = trait_descriptions.get(trait, "Tidak ada deskripsi.").split('.')[0]
-                    trait_data_text += f"- **{trait.replace('_', ' ').title()}**: {score:.1f} poin ({percentage_of_sum:.1f}% dari total positif).\n  *_{trait_description_short}._*\n"
+
+        # --- Bagian 3: Profil Sifat & Sikap Mendalam ---
+        sifat_texts = []
+        identified_traits_for_reco = [] # Collect names for recommendations later
+
+        if "sifat_dasar" in self.results_config['dimensions']:
+            sorted_sifat_categories = sorted(
+                self.results_config['dimensions']['sifat_dasar']['categories'],
+                key=lambda cat: final_scores.get(cat['name'].lower().replace(" ", "_"), 0), # Score key is lowercase, snake_case
+                reverse=True
+            )
+            for category in sorted_sifat_categories:
+                # Convert category name to score key format (e.g., "Percaya Diri" -> "percaya_diri")
+                dim_name_lower = category['name'].lower().replace(" ", "_") 
+                current_dim_score = final_scores.get(dim_name_lower, 0)
+                
+                if current_dim_score >= category.get('min_score', 0): 
+                    sifat_texts.append(f"• **{category['name']}** (Skor: {current_dim_score}): {category['description']}")
+                    identified_traits_for_reco.append(category['name']) # Add to list for recommendations
         
-        if not trait_data_text.strip():
-            trait_data_text = "Tidak ada trait menonjol yang terdeteksi."
+        if sifat_texts:
+            results_embed.add_field(name="3. Analisis Sifat & Sikap Dominan", value="\n".join(sifat_texts), inline=False)
+        else:
+            results_embed.add_field(name="3. Analisis Sifat & Sikap Dominan", value="Berdasarkan respons, Anda memiliki beragam sifat dan sikap yang cukup seimbang dan adaptif, tidak ada yang terlalu dominan menonjol. Ini menunjukkan fleksibilitas dalam menghadapi berbagai situasi.", inline=False)
 
-        result_embed.add_field(name="--- Detail Analisis Trait ---", value=trait_data_text, inline=False)
+        # --- Bagian 4: Gaya Interaksi / Bagaimana Anda Berinteraksi dengan Dunia ---
+        gaya_interaksi_texts = []
+        if "gaya_interaksi" in self.results_config['dimensions']:
+            sorted_gaya_categories = sorted(
+                self.results_config['dimensions']['gaya_interaksi']['categories'],
+                key=lambda cat: final_scores.get(cat['name'].lower().replace(" ", "_"), 0), # Score key is lowercase, snake_case
+                reverse=True
+            )
+            for category in sorted_gaya_categories:
+                dim_name_lower = category['name'].lower().replace(" ", "_")
+                current_dim_score = final_scores.get(dim_name_lower, 0)
 
-
-        result_embed.set_footer(text="Hasil psikotes ini adalah gambaran umum. Untuk analisis lebih dalam, konsultasikan dengan profesional.")
-
-        await channel.send(embed=result_embed)
-        del self.user_states[user_id] # Hapus state user setelah hasil ditampilkan
-
-
-class PsikotesQuestionView(View): # Kelas View yang berbeda untuk psikotes
-    def __init__(self, cog, user_id, question_id, options_data):
-        super().__init__(timeout=120)
-        self.cog = cog
-        self.user_id = user_id
-        self.question_id = question_id
-        self.options_data = options_data
-        self._add_buttons()
-
-    def _add_buttons(self):
-        for option_key, _ in self.options_data.items():
-            label = option_key.replace('_', ' ').title()
-            # Custom ID yang unik untuk psikotes: "psikotes_qID_optionKey"
-            button = Button(label=label, custom_id=f"psikotes_{self.question_id}_{option_key}") 
-            self.add_item(button)
-
-        # Tombol 'Batal' juga punya custom_id yang unik untuk psikotes
-        cancel_button = Button(label="Batalkan Psikotes", style=discord.ButtonStyle.red, custom_id=f"psikotes_cancel_{self.question_id}")
-        self.add_item(cancel_button)
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("Ini bukan psikotesmu! Silakan mulai psikotesmu sendiri dengan `!psikotes`.", ephemeral=True)
-            return False
-        return True
-
-    async def on_timeout(self):
-        if self.user_id in self.cog.user_states:
-            channel = self.cog.bot.get_channel(self.message.channel.id)
-            if not channel:
-                channel = self.message.channel
-            await channel.send(f"Psikotes dibatalkan karena tidak ada respons dari <@{self.user_id}> selama 2 menit. Silakan mulai lagi dengan `!psikotes`.", ephemeral=True)
-            del self.cog.user_states[self.user_id]
+                if current_dim_score >= category.get('min_score', 0):
+                    gaya_interaksi_texts.append(f"• **{category['name']}** (Skor: {current_dim_score}): {category['description']}")
+                    identified_traits_for_reco.append(category['name']) # Add to list for recommendations
         
-        for item in self.children:
-            item.disabled = True
-        await self.message.edit(view=self)
+        if gaya_interaksi_texts:
+            results_embed.add_field(name="4. Gaya Interaksi & Peran dalam Lingkungan", value="\n".join(gaya_interaksi_texts), inline=False)
+        else:
+            results_embed.add_field(name="4. Gaya Interaksi & Peran dalam Lingkungan", value="Gaya interaksi Anda cukup fleksibel dan unik, sehingga tidak masuk dalam satu kategori dominan berdasarkan tes ini. Anda dapat menyesuaikan diri dengan berbagai peran.", inline=False)
 
-    # Ini adalah metode generik untuk menangani semua klik tombol dalam View ini.
-    # @discord.ui.button DECORATOR HANYA BOLEH ADA SATU KALI PER VIEW UNTUK BUTTON DENGAN custom_id TERTENTU
-    # Atau jika ingin generik, jangan pakai custom_id di decorator, tapi cek custom_id di dalam handler
-    # Karena kita membuat custom_id secara dinamis, kita tidak bisa menaruh decorator di setiap tombol.
-    # Solusi: Pakai @discord.ui.button() tanpa argumen custom_id, yang akan menangkap semua tombol di View
-    @discord.ui.button(label="Generic Handler (Jangan munculkan)", style=discord.ButtonStyle.secondary, custom_id="generic_handler_for_psikotes_buttons_do_not_add_this_button") # Placeholder button for decorator, never actually added
-    async def handle_any_button_click(self, interaction: discord.Interaction, button: Button):
-        # Akui interaksi dengan cepat
-        if not interaction.response.is_done():
-            await interaction.response.defer() # Akui interaksi
-            
-        parts = button.custom_id.split('_')
-        # Format custom_id: "psikotes_{question_id}_{option_key}" atau "psikotes_cancel_{question_id}"
-        
-        # Contoh: custom_id = "psikotes_q1_start_berkumpul_dengan_teman_dan_bersosialisasi"
-        # parts[0] = "psikotes"
-        # parts[1] = "q1" (ini q_id) atau "cancel"
-        # parts[2] = "start" (ini bagian dari q_id) atau "q1_start" (jika question_id_from_button)
-        # parts[3:] = sisa dari option_key
 
-        if parts[1] == "cancel": # Cek apakah ini tombol batal
-            q_id_from_button = parts[2] # q_id setelah "psikotes_cancel_"
-            # Panggil fungsi cancel_quiz di cog
-            await self.cog.cancel_quiz(interaction) # ctx diubah ke interaction untuk consistency
-            return
+        # --- Bagian 5: Rekomendasi Komprehensif ---
         
-        # Jika bukan tombol batal, maka itu adalah tombol jawaban pertanyaan
-        q_id_from_button = parts[1] # "q1_start" atau sejenisnya
-        # option_key_start_index = 2 karena "psikotes_IDPERTANYAAN_OPSIJAWABAN"
-        # Contoh custom_id: "psikotes_q1_start_berkumpul_dengan_teman_dan_bersosialisasi"
-        # parts[0]="psikotes", parts[1]="q1", parts[2]="start", parts[3]="berkumpul", dst.
-        # Jadi q_id adalah parts[1] + "_" + parts[2] = "q1_start"
-        # Dan option_key adalah parts[3] + "_" + parts[4] + ... = "berkumpul_dengan_teman_dan_bersosialisasi"
-        
-        # Perbaiki parsing custom_id untuk mendapatkan q_id dan selected_option_key
-        # Custom ID: "{prefix}_{q_id}_{option_key}"
-        # Contoh: "psikotes_q1_start_berkumpul_dengan_teman_dan_bersosialisasi"
-        # prefix = parts[0]
-        # q_id = parts[1]
-        # option_key = parts[2] dan seterusnya
-        
-        # Ini akan membutuhkan penyesuaian pada format custom_id yang dibuat sebelumnya.
-        # Format custom_id kita adalah f"psikotes_{self.question_id}_{option_key}"
-        # Jadi: parts[0] = "psikotes"
-        #       parts[1] = self.question_id (misal "q1_start")
-        #       parts[2:] = option_key (misal "berkumpul_dengan_teman_dan_bersosialisasi")
+        # Collect all relevant types/traits for recommendations
+        # This includes the primary social type AND all identified dominant traits/interaction styles
+        all_relevant_types_for_reco = [social_type] + identified_traits_for_reco 
 
-        actual_q_id = parts[1]
-        actual_option_key = '_'.join(parts[2:]) # Gabungkan kembali sisa parts menjadi option_key
+        recommendations_combined = {
+            'advice': set(),    # Use set to avoid duplicate recommendations if multiple traits match
+            'critique': set(),
+            'evaluation': set(),
+            'future_steps': set()
+        }
+
+        # Iterate through each recommendation category (advice, critique, etc.)
+        for rec_key in recommendations_combined.keys():
+            if self.results_config.get(rec_key): # Check if the category exists in results_config
+                for rec_item in self.results_config[rec_key]:
+                    # If this recommendation item is relevant to any identified type/trait
+                    if rec_item['for_type'] in all_relevant_types_for_reco:
+                        recommendations_combined[rec_key].add(rec_item['text']) # Add to set to maintain uniqueness
         
-        await self.cog._process_answer(interaction, self.user_id, actual_q_id, actual_option_key)
+        # Convert sets to sorted lists for final presentation
+        advice_val = "\n".join(f"• {text}" for text in sorted(list(recommendations_combined['advice']))) if recommendations_combined['advice'] else "Tidak ada saran spesifik yang teridentifikasi dari tes ini."
+        critique_val = "\n".join(f"• {text}" for text in sorted(list(recommendations_combined['critique']))) if recommendations_combined['critique'] else "Tidak ada area pengembangan spesifik yang teridentifikasi dari tes ini."
+        evaluation_val = "\n".join(f"• {text}" for text in sorted(list(recommendations_combined['evaluation']))) if recommendations_combined['evaluation'] else "Evaluasi potensi diri memerlukan analisis lebih lanjut atau tes yang lebih komprehensif."
+        future_steps_val = "\n".join(f"• {text}" for text in sorted(list(recommendations_combined['future_steps']))) if recommendations_combined['future_steps'] else "Langkah ke depan dapat disesuaikan dengan tujuan personal Anda dan eksplorasi diri berkelanjutan."
+
+
+        results_embed.add_field(name="5. Rekomendasi: Saran Peningkatan Diri", value=advice_val, inline=False)
+        results_embed.add_field(name="6. Rekomendasi: Area Pengembangan & Tantangan", value=critique_val, inline=False)
+        results_embed.add_field(name="7. Rekomendasi: Potensi & Evaluasi Diri", value=evaluation_val, inline=False)
+        results_embed.add_field(name="8. Rekomendasi: Rencana Tindak Lanjut", value=future_steps_val, inline=False)
+
+        results_embed.set_footer(text="Analisis ini bersifat indikatif dan tidak menggantikan asesmen profesional. Gunakan sebagai panduan awal untuk eksplorasi diri.")
+
+        # Send to thread
+        await thread.send(embed=results_embed)
+
+        # Send to user DM
+        try:
+            await user_obj.send(embed=results_embed)
+            print(f"[{datetime.now()}] [JIWABOT] Laporan hasil tes kepribadian dikirim ke DM {user_obj.display_name}.")
+        except discord.Forbidden:
+            print(f"[{datetime.now()}] [JIWABOT WARNING] Gagal mengirim laporan hasil ke DM {user_obj.display_name} (DM ditutup).")
+            await thread.send(f"⚠️ Maaf, saya tidak dapat mengirim laporan lengkap ke DM Anda, {user_obj.mention}, karena DM Anda mungkin tertutup. Laporan tetap tersedia di sini.", delete_after=30)
+        except Exception as e:
+            print(f"[{datetime.now()}] [JIWABOT ERROR] Error mengirim laporan hasil ke DM {user_obj.display_name}: {e}")
 
 
 async def setup(bot):
-    await bot.add_cog(PsikotesAssessment(bot))
+    await bot.add_cog(JiwaBot(bot))
