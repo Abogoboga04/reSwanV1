@@ -58,7 +58,7 @@ def save_temp_channels(data):
 
 # --- Updated YTDL Options for Opus and FFMPEG Options for Stability ---
 ytdl_opts = {
-    'format': 'bestaudio[ext=opus]', # Prioritaskan opus, lalu m4a
+    'format': 'bestaudio[ext=opus]', # PRIORITAS PENUH KE OPUS. Jika tidak tersedia, yt-dlp akan gagal.
     'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
@@ -66,14 +66,15 @@ ytdl_opts = {
     'noplaylist': True,
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'opus', # Coba opus sebagai preferred codec
-        'preferredquality': '192', # Tetap 192, tapi pertimbangkan turunkan jika ffmpeg -9 muncul
+        'preferredcodec': 'opus', # Pastikan FFMPEG juga berusaha mengkonversi ke Opus jika diperlukan
+        'preferredquality': '192', 
     }],
 }
 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 192k -bufsize 64M -probesize 10M -analyzeduration 10M' # Tambahan: bufsize, probesize, analyzeduration
+    # Menyesuaikan bufsize ke 1MB (1024K) yang lebih standar, dan menambahkan fflags/flags
+    'options': '-vn -b:a 192k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header'
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_opts)
@@ -462,11 +463,11 @@ class ReswanBot(commands.Cog):
             logging.warning("GENIUS_API_TOKEN is not set in environment variables.")
             logging.warning("Lyrics feature might not work without it.")
 
-        # --- PERBAIKAN: Menggunakan SPOTIFY_CLIENT_ID dan SPOTIFY_CLIENT_SECRET ---
+        # --- PERBAIKAN: Menggunakan SPOTIFY_CLIENT_ID dan SPOTIFY_CLIENT_SECRET yang benar ---
         SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-        SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET") # Nama variabel diperbaiki
+        SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
         self.spotify = None
-        if SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET: # Pengecekan menggunakan variabel yang benar
+        if SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET:
             try:
                 self.spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
                     client_id=SPOTIFY_CLIENT_ID,
@@ -571,6 +572,11 @@ class ReswanBot(commands.Cog):
                 is_queue_empty = not self.queues.get(guild.id) or len(self.queues.get(guild.id)) == 0
 
                 log.info(f"  Human members: {num_human_members}, Playing/Paused: {is_playing_or_paused}, Queue Empty: {is_queue_empty}")
+                
+                # --- LOG DEBUG DETAIL MEMBER ---
+                log.debug(f"  Members in {vc.channel.name}:")
+                for member in vc.channel.members:
+                    log.debug(f"    - {member.display_name} (ID: {member.id}), is_bot: {member.bot}")
 
                 # Jika tidak ada anggota manusia
                 if num_human_members == 0:
@@ -1103,7 +1109,7 @@ class ReswanBot(commands.Cog):
                 minutes, seconds = divmod(source.duration, 60)
                 duration_str = f"{minutes:02}:{seconds:02}"
             embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
-            embed_to_send.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True) # FIX: Typo, should be embed_to_send.add_field
+            embed_to_send.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
             embed_to_send.set_footer(text=f"Antrean: {len(self.get_queue(guild_id))} lagu tersisa")
         
         new_view_instance = MusicControlView(self, {'message_id': None, 'channel_id': old_channel_id})
@@ -1166,16 +1172,16 @@ class ReswanBot(commands.Cog):
         # Asumsi: Query Spotify akan berupa URL langsung dari Spotify atau ID track/playlist/album.
         # Jika Anda menggunakan proxy/redirect sebelumnya, Anda perlu menangani URL aslinya.
         # Untuk demonstrasi ini, saya berasumsi query adalah URL Spotify yang valid.
-        if self.spotify and ("spotify.com/track/" in query or "spotify.com/playlist/" in query or "spotify.com/album/" in query): 
+        if self.spotify and ("https://open.spotify.com/track/" in query or "https://open.spotify.com/playlist/" in query or "https://open.spotify.com/album/" in query): 
             is_spotify_link = True
             try:
-                if "spotify.com/track/" in query:
+                if "https://open.spotify.com/track/" in query:
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
                     spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "spotify.com/playlist/" in query:
+                elif "https://open.spotify.com/playlist/" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
                     for item in results['items']:
@@ -1183,7 +1189,7 @@ class ReswanBot(commands.Cog):
                         if track: 
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
-                elif "spotify.com/album/" in query:
+                elif "https://open.spotify.com/album/" in query:
                     album_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.album_tracks(album_id)
                     for item in results['items']:
@@ -1276,7 +1282,7 @@ class ReswanBot(commands.Cog):
                     ctx.voice_client.stop()
                 return
         else:
-            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrean: **{urls[0]}**.", ephemeral=True)
+            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
             queue.extend(urls)
                 
             if ctx.guild.id in self.current_music_message_info:
@@ -1746,3 +1752,4 @@ async def setup(bot):
         logging.info("Created default donation_buttons.json file.")
 
     await bot.add_cog(ReswanBot(bot))
+
