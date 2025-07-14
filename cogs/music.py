@@ -67,7 +67,7 @@ ytdl_opts = {
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
         'preferredcodec': 'opus', # Coba opus sebagai preferred codec
-        'preferredquality': '192',
+        'preferredquality': '128',
     }],
 }
 
