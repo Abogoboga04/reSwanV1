@@ -58,7 +58,7 @@ def save_temp_channels(data):
 
 # --- Updated YTDL Options for Opus and FFMPEG Options for Stability ---
 ytdl_opts = {
-    'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best', # Prioritaskan opus, lalu m4a
+    'format': 'bestaudio[ext=opus]', # Prioritaskan opus, lalu m4a
     'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
