@@ -58,7 +58,7 @@ def save_temp_channels(data):
 
 # --- Updated YTDL Options for Opus and FFMPEG Options for Stability ---
 ytdl_opts = {
-    'format': 'bestaudio[ext=opus]', # PRIORITAS PENUH KE OPUS. Jika tidak tersedia, yt-dlp akan gagal.
+    'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best', # Prioritaskan opus, lalu m4a
     'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
@@ -66,8 +66,8 @@ ytdl_opts = {
     'noplaylist': True,
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'opus', # Pastikan FFMPEG juga berusaha mengkonversi ke Opus jika diperlukan
-        'preferredquality': '192', 
+        'preferredcodec': 'opus', # Coba opus sebagai preferred codec
+        'preferredquality': '192',
     }],
 }
 
