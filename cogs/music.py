@@ -462,20 +462,21 @@ class ReswanBot(commands.Cog):
             logging.warning("GENIUS_API_TOKEN is not set in environment variables.")
             logging.warning("Lyrics feature might not work without it.")
 
+        # --- PERBAIKAN: Menggunakan SPOTIFY_CLIENT_ID dan SPOTIFY_CLIENT_SECRET ---
         SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-        SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
+        SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET") # Nama variabel diperbaiki
         self.spotify = None
-        if SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET:
+        if SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET: # Pengecekan menggunakan variabel yang benar
             try:
                 self.spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-                    client_id=SPOTIPY_CLIENT_ID,
-                    client_secret=SPOTIPY_CLIENT_SECRET
+                    client_id=SPOTIFY_CLIENT_ID,
+                    client_secret=SPOTIFY_CLIENT_SECRET
                 ))
             except Exception as e:
                 logging.warning(f"Could not initialize Spotify client: {e}")
                 logging.warning("Spotify features might not work.")
         else:
-            logging.warning("SPOTIPY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
+            logging.warning("SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not set.")
             logging.warning("Spotify features might not work without them.")
 
         self.bot.add_view(MusicControlView(self))
@@ -981,7 +982,7 @@ class ReswanBot(commands.Cog):
                 minutes, seconds = divmod(source.duration, 60)
                 duration_str = f"{minutes:02}:{seconds:02}"
             embed.add_field(name="Durasi", value=duration_str, inline=True)
-            embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True) 
+            embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
             embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
 
             view_instance = MusicControlView(self, {'message_id': None, 'channel_id': target_channel.id})
@@ -1102,7 +1103,7 @@ class ReswanBot(commands.Cog):
                 minutes, seconds = divmod(source.duration, 60)
                 duration_str = f"{minutes:02}:{seconds:02}"
             embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
-            embed_to_field(name="Diminta oleh", value=ctx.author.mention, inline=True) # FIX: Typo, should be embed.add_field
+            embed_to_send.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True) # FIX: Typo, should be embed_to_send.add_field
             embed_to_send.set_footer(text=f"Antrean: {len(self.get_queue(guild_id))} lagu tersisa")
         
         new_view_instance = MusicControlView(self, {'message_id': None, 'channel_id': old_channel_id})
@@ -1162,7 +1163,7 @@ class ReswanBot(commands.Cog):
         spotify_track_info = None
 
         # Perbaikan: Mengubah pola URL Spotify agar tidak merujuk ke googleusercontent.com
-        # Asumsi: Query Spotify akan berupa URL langsung dari https://open.spotify.com/playlist/1 atau ID track/playlist/album.
+        # Asumsi: Query Spotify akan berupa URL langsung dari Spotify atau ID track/playlist/album.
         # Jika Anda menggunakan proxy/redirect sebelumnya, Anda perlu menangani URL aslinya.
         # Untuk demonstrasi ini, saya berasumsi query adalah URL Spotify yang valid.
         if self.spotify and ("spotify.com/track/" in query or "spotify.com/playlist/" in query or "spotify.com/album/" in query): 
@@ -1745,4 +1746,3 @@ async def setup(bot):
         logging.info("Created default donation_buttons.json file.")
 
     await bot.add_cog(ReswanBot(bot))
-
