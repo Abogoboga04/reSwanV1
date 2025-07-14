@@ -57,7 +57,7 @@ def save_temp_channels(data):
         json.dump(data_to_save, f, indent=4)
 
 ytdl_opts = {
-    'format': 'bestaudio[ext=m4a]/bestaudio/best',
+    'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best', # Prioritaskan opus, lalu m4a
     'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
@@ -65,14 +65,14 @@ ytdl_opts = {
     'noplaylist': True,
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'm4a',
-        'preferredquality': '192',
+        'preferredcodec': 'opus', # Coba opus sebagai preferred codec
+        'preferredquality': '192', # Sesuaikan kualitas jika perlu, 128kbps cukup untuk opus
     }],
 }
 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 192k'
+    'options': '-vn -b:a 192k -bufsize 64M -probesize 10M -analyzeduration 10M'
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_opts)
