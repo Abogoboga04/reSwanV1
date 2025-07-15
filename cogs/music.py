@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 # --- FILE DATA UNTUK MELACAK CHANNEL SEMENTARA (Persisten antar restart bot) ---
 TEMP_CHANNELS_FILE = 'data/temp_voice_channels.json'
-EQ_SETTINGS_FILE = 'data/equalizer.json' # Tambahkan ini
+EQ_SETTINGS_FILE = 'data/equalizer.json' 
 
 def load_temp_channels():
     if not os.path.exists('data'):
@@ -32,7 +32,7 @@ def load_temp_channels():
         log.info(f"Created new {TEMP_CHANNELS_FILE}.")
         return {}
     try:
-        with open(TEMP_CHANNELS_FILE, 'r', encoding='utf-8') as f: # Perbaikan typo di sini
+        with open(TEMP_CHANNELS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
             cleaned_data = {}
             for ch_id, info in data.items():
@@ -90,7 +90,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.uploader = data.get('uploader')
 
     @classmethod
-    async def from_url(cls, url, *, loop=None, stream=True, ffmpeg_options=None): # Tambahkan ffmpeg_options
+    async def from_url(cls, url, *, loop=None, stream=True, ffmpeg_options=None):
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
         if 'entries' in data:
@@ -99,7 +99,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         
         final_ffmpeg_options = ffmpeg_options if ffmpeg_options else {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-            'options': '-vn -b:a 128k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header -af "equalizer=f=80:width=80:g=4,equalizer=f=10000:width=2000:g=3"' # Default lama
+            'options': '-vn -b:a 128k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header -af "equalizer=f=80:width=80:g=4,equalizer=f=10000:width=2000:g=3"'
         }
         return cls(discord.FFmpegPCMAudio(filename, **final_ffmpeg_options), data=data)
 
@@ -144,7 +144,7 @@ class MusicControlView(discord.ui.View):
         current_message_info = self.cog.current_music_message_info.get(guild_id)
 
         old_channel_obj = None
-        if current_message_info: # Hanya jika ada info pesan yang tersimpan
+        if current_message_info:
             old_message_id = current_message_info['message_id']
             old_channel_id = current_message_info['channel_id']
             
@@ -159,7 +159,6 @@ class MusicControlView(discord.ui.View):
             finally:
                 self.cog.current_music_message_info.pop(guild_id, None)
 
-        # Tentukan channel baru untuk mengirim pesan
         target_channel = old_channel_obj if old_channel_obj else interaction.channel
 
         if not target_channel:
@@ -187,16 +186,13 @@ class MusicControlView(discord.ui.View):
             embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
             embed_to_send.add_field(name="Diminta oleh", value=interaction.user.mention, inline=True)
             
-            # --- Tambahan untuk Equalizer ---
             eq_settings = self.cog.get_current_eq_settings(guild_id)
             eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
             embed_to_send.add_field(name="Equalizer", value=eq_info, inline=True)
-            # --- Akhir Tambahan ---
 
             embed_to_send.set_footer(text=f"Antrean: {len(self.cog.get_queue(guild_id))} lagu tersisa")
         else:
             embed_to_send = discord.Embed(title="Musik Bot", description="Tidak ada musik yang sedang diputar.", color=discord.Color.light_grey())
-            # Tambahkan info equalizer bahkan jika tidak ada lagu diputar
             eq_settings = self.cog.get_current_eq_settings(guild_id)
             eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
             embed_to_send.add_field(name="Equalizer", value=eq_info, inline=True)
@@ -485,11 +481,9 @@ class MusicControlView(discord.ui.View):
             queue = self.cog.get_queue(interaction.guild.id)
             embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
             
-            # --- Tambahan untuk Equalizer ---
             eq_settings = self.cog.get_current_eq_settings(guild_id)
             eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
             embed.add_field(name="Equalizer", value=eq_info, inline=True)
-            # --- Akhir Tambahan ---
 
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
@@ -554,9 +548,10 @@ class ReswanBot(commands.Cog):
         self.DEFAULT_CHANNEL_NAME_PREFIX = "Music"
         self.active_temp_channels = load_temp_channels() 
         log.info(f"ReswanBot cog loaded. Active temporary channels: {self.active_temp_channels}")
+        
         self.cleanup_task.start()
-        # Perubahan frekuensi idle check menjadi 5 detik
-        self.idle_check_task.start() 
+        # Perbaikan: Panggil metode loop langsung untuk memulainya
+        self._check_and_disconnect_idle_bots.start() 
 
     def _save_temp_channels_state(self):
         save_temp_channels(self.active_temp_channels)
@@ -619,7 +614,7 @@ class ReswanBot(commands.Cog):
     def cog_unload(self):
         log.info("ReswanBot cog unloaded. Cancelling cleanup tasks.")
         self.cleanup_task.cancel()
-        self.idle_check_task.cancel()
+        self._check_and_disconnect_idle_bots.cancel() # Pastikan juga untuk membatalkan task ini
 
     @tasks.loop(seconds=10) # Tetap 10 detik untuk temp voice cleanup
     async def cleanup_task(self):
@@ -672,7 +667,7 @@ class ReswanBot(commands.Cog):
         await self.bot.wait_until_ready()
         log.info("Bot ready, TempVoice cleanup task is about to start.")
 
-    @tasks.loop(seconds=5) # <--- DIUBAH MENJADI 5 DETIK DI SINI
+    @tasks.loop(seconds=5) # <--- DIUBAH MENJADI 5 DETIK
     async def _check_and_disconnect_idle_bots(self):
         log.info("Running idle check task...")
         for guild in self.bot.guilds:
@@ -698,8 +693,7 @@ class ReswanBot(commands.Cog):
                 if num_human_members == 0:
                     log.info(f"Bot {self.bot.user.name} idle in voice channel {vc.channel.name} in guild {guild.name} (tidak ada anggota manusia). Memutus koneksi.")
                     
-                    # Langsung panggil stop() tanpa pengecualian
-                    vc.stop() 
+                    vc.stop() # Langsung panggil stop() tanpa pengecualian
                     
                     await vc.disconnect()
                     
@@ -1091,11 +1085,9 @@ class ReswanBot(commands.Cog):
             embed.add_field(name="Durasi", value=duration_str, inline=True)
             embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
             
-            # --- Tambahan untuk Equalizer ---
             eq_settings = self.get_current_eq_settings(guild_id)
             eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
             embed.add_field(name="Equalizer", value=eq_info, inline=True)
-            # --- Akhir Tambahan ---
 
             embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
 
@@ -1173,7 +1165,7 @@ class ReswanBot(commands.Cog):
         current_message_info = self.current_music_message_info.get(guild_id)
 
         old_channel_obj = None
-        if current_message_info: # Hanya jika ada info pesan yang tersimpan
+        if current_message_info:
             old_message_id = current_message_info['message_id']
             old_channel_id = current_message_info['channel_id']
             
@@ -1215,16 +1207,13 @@ class ReswanBot(commands.Cog):
             embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
             embed_to_send.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
             
-            # --- Tambahan untuk Equalizer ---
             eq_settings = self.get_current_eq_settings(guild_id)
             eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
             embed_to_send.add_field(name="Equalizer", value=eq_info, inline=True)
-            # --- Akhir Tambahan ---
 
             embed_to_send.set_footer(text=f"Antrean: {len(self.get_queue(guild_id))} lagu tersisa")
         else:
             embed_to_send = discord.Embed(title="Musik Bot", description="Tidak ada musik yang sedang diputar.", color=discord.Color.light_grey())
-            # Tambahkan info equalizer bahkan jika tidak ada lagu diputar
             eq_settings = self.get_current_eq_settings(guild_id)
             eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
             embed_to_send.add_field(name="Equalizer", value=eq_info, inline=True)
@@ -1295,16 +1284,16 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         spotify_track_info = None
 
-        if self.spotify and ("https://open.spotify.com/track/" in query or "https://open.spotify.com/playlist/" in query or "https://open.spotify.com/album/" in query): # Perbaikan ini untuk match URL Spotify asli
+        if self.spotify and ("spotify.com/track/" in query or "spotify.com/playlist/" in query or "spotify.com/album/" in query):
             is_spotify_link = True
             try:
-                if "https://open.spotify.com/track/" in query:
+                if "spotify.com/track/" in query:
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
                     spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "https://open.spotify.com/playlist/" in query:
+                elif "spotify.com/playlist/" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
                     for item in results['items']:
@@ -1312,7 +1301,7 @@ class ReswanBot(commands.Cog):
                         if track: 
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
-                elif "https://open.spotify.com/album/" in query:
+                elif "spotify.com/album/" in query:
                     album_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.album_tracks(album_id)
                     for item in results['items']:
@@ -1381,11 +1370,9 @@ class ReswanBot(commands.Cog):
                 embed.add_field(name="Durasi", value=duration_str, inline=True)
                 embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
                 
-                # --- Tambahan untuk Equalizer ---
                 eq_settings = self.get_current_eq_settings(ctx.guild.id)
                 eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
                 embed.add_field(name="Equalizer", value=eq_info, inline=True)
-                # --- Akhir Tambahan ---
 
                 embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
 
@@ -1984,7 +1971,7 @@ class ReswanBot(commands.Cog):
             await ctx.send(f"❌ Terjadi kesalahan saat menjalankan perintah: {original_error}", ephemeral=True)
             log.error(f"Command '{ctx.command.name}' invoked by {ctx.author.display_name} raised an error: {original_error}", exc_info=True)
         else:
-            await ctx.send(f"❌ Terjadi kesalahan yang tidak terduga: {error}", exc_info=True) # Tambahkan exc_info untuk error tak terduga
+            await ctx.send(f"❌ Terjadi kesalahan yang tidak terduga: {error}", exc_info=True)
             log.error(f"Unhandled error in VC command {ctx.command.name} by {ctx.author.display_name}: {error}", exc_info=True)
 
 
