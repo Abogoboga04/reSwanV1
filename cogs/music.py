@@ -347,7 +347,7 @@ class MusicControlView(discord.ui.View):
                     embed_to_send.set_thumbnail(url=source.thumbnail)
                 
                 duration_str = "N/A"
-                if source and source.duration:
+                if source.duration:
                     minutes, seconds = divmod(source.duration, 60)
                     duration_str = f"{minutes:02}:{seconds:02}"
                 embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
@@ -381,7 +381,7 @@ class MusicControlView(discord.ui.View):
                             item.style = discord.ButtonStyle.green
                         else:
                             item.style = discord.ButtonStyle.grey
-                    # Tidak ada Select Menu di sini. Item EQ Presets akan ada di baris 4.
+                    # Select Menu ada di view terpisah, jadi tidak perlu diupdate di sini.
                 await old_message_obj.edit(embed=embed_to_send, view=new_view_instance)
                 return
         except (discord.NotFound, discord.HTTPException) as e:
@@ -748,6 +748,8 @@ class ReswanBot(commands.Cog):
             logging.warning("SPOTIPY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
             logging.warning("Spotify features might not work without them.")
 
+        # Anda tidak perlu lagi mendaftarkan setiap tombol di __init__ MusicControlView.
+        # Hanya perlu memastikan class MusicControlView itu sendiri terdaftar.
         self.bot.add_view(MusicControlView(self))
 
         # TempVoice Module States
@@ -1542,7 +1544,7 @@ class ReswanBot(commands.Cog):
                 }
                 queue.extend([{'webpage_url': url} for url in additional_urls])
                 await ctx.send(f"Menambahkan {len(additional_urls) + 1} lagu dari link (termasuk yang sedang diputar) ke antrean.")
-                await self._create_music_control_message(ctx, source_or_none) # Panggil metode ini!
+                await self._create_music_control_message(ctx, source_or_none) 
             else:
                 queue.extend([{'webpage_url': url} for url in additional_urls])
                 await ctx.send(f"Ditambahkan {len(additional_urls)} lagu dari link ke antrean.")
@@ -1558,7 +1560,7 @@ class ReswanBot(commands.Cog):
                     'webpage_url': source_or_none.webpage_url,
                     'requester_mention': ctx.author.mention
                 }
-                await self._create_music_control_message(ctx, source_or_none) # Panggil metode ini!
+                await self._create_music_control_message(ctx, source_or_none) 
             else:
                 queue.append({'webpage_url': query}) 
                 await ctx.send(f"Ditambahkan ke antrian: **{source_or_none.title}**.")
@@ -1566,7 +1568,7 @@ class ReswanBot(commands.Cog):
         else:
             await ctx.send("Tidak dapat menemukan lagu atau link tidak valid.")
 
-    # --- Ini adalah metode _create_music_control_message yang hilang ---
+    # --- Ini adalah metode _create_music_control_message yang telah ditambahkan ---
     async def _create_music_control_message(self, ctx, source):
         guild_id = ctx.guild.id
         queue = self.get_queue(guild_id)
@@ -1605,7 +1607,6 @@ class ReswanBot(commands.Cog):
                     item.style = discord.ButtonStyle.green
                 else:
                     item.style = discord.ButtonStyle.grey
-            # Tidak ada Select Menu di sini. Item EQ Presets akan ada di baris 4.
             item.disabled = False
         
         message_sent = await ctx.send(embed=embed, view=view_instance)
@@ -1754,7 +1755,7 @@ class ReswanBot(commands.Cog):
     async def clear_queue_cmd(self, ctx):
         queue = self.get_queue(ctx.guild.id)
         if queue:
-            self.queues[ctx.guild.id] = []
+            self.queues[guild_id] = []
             await ctx.send("🗑️ Antrean lagu telah dikosongkan!", ephemeral=True)
             if ctx.guild.id in self.current_music_message_info:
                 await self._update_music_message_from_ctx(ctx)
