@@ -15,7 +15,8 @@ import random
 from datetime import datetime, timedelta
 
 # Konfigurasi logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Pastikan level logging diatur ke DEBUG untuk melihat semua pesan yang ditambahkan
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
 
 # --- FILE DATA UNTUK MELACAK CHANNEL SEMENTARA (Persisten antar restart bot) ---
@@ -28,9 +29,10 @@ def load_temp_channels():
     if not os.path.exists(TEMP_CHANNELS_FILE):
         with open(TEMP_CHANNELS_FILE, 'w', encoding='utf-8') as f:
             json.dump({}, f, indent=4)
+        log.info(f"Created new {TEMP_CHANNELS_FILE}.")
         return {}
     try:
-        with open(TEMP_CHANNELS_FILE, 'r', encoding='utf-8') as f:
+        with open(TEMP_CHANNELS_FILE, 'r', encoding='utf-8') as f: # Perbaikan typo di sini
             data = json.load(f)
             cleaned_data = {}
             for ch_id, info in data.items():
@@ -39,6 +41,7 @@ def load_temp_channels():
                 if "guild_id" in info:
                     info["guild_id"] = str(info["guild_id"])
                 cleaned_data[str(ch_id)] = info
+            log.info(f"Loaded {len(cleaned_data)} temporary channels from {TEMP_CHANNELS_FILE}.")
             return cleaned_data
     except json.JSONDecodeError as e:
         log.error(f"Failed to load {TEMP_CHANNELS_FILE}: {e}. File might be corrupted. Attempting to reset it.")
@@ -56,6 +59,7 @@ def save_temp_channels(data):
     data_to_save = {str(k): v for k, v in data.items()}
     with open(TEMP_CHANNELS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data_to_save, f, indent=4)
+    log.debug(f"Temporary channel state saved to {TEMP_CHANNELS_FILE}.")
 
 ytdl_opts = {
     'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best',
@@ -119,11 +123,11 @@ class MusicControlView(discord.ui.View):
                         row=3
                     ))
         except FileNotFoundError:
-            logging.error("Donation buttons file not found: reswan/data/donation_buttons.json")
+            log.error("Donation buttons file not found: reswan/data/donation_buttons.json")
         except json.JSONDecodeError:
-            logging.error("Error decoding donation_buttons.json. Check JSON format.")
+            log.error("Error decoding donation_buttons.json. Check JSON format.")
         except Exception as e:
-            logging.error(f"An unexpected error occurred loading donation buttons: {e}")
+            log.error(f"An unexpected error occurred loading donation buttons: {e}")
 
     async def _check_voice_channel(self, interaction: discord.Interaction):
         if not interaction.guild.voice_client:
@@ -137,9 +141,7 @@ class MusicControlView(discord.ui.View):
     async def _update_music_message(self, interaction: discord.Interaction):
         guild_id = interaction.guild.id
         
-        # --- PERBAIKAN KEYERROR: Gunakan .get() ---
         current_message_info = self.cog.current_music_message_info.get(guild_id)
-        # --- AKHIR PERBAIKAN KEYERROR ---
 
         old_channel_obj = None
         if current_message_info: # Hanya jika ada info pesan yang tersimpan
@@ -153,17 +155,15 @@ class MusicControlView(discord.ui.View):
                     await old_message_obj.delete()
                     log.debug(f"Deleted old music message {old_message_id} in channel {old_channel_id}.")
             except (discord.NotFound, discord.HTTPException) as e:
-                logging.warning(f"Could not delete old music message {old_message_id} in channel {old_channel_id}: {e}")
+                log.warning(f"Could not delete old music message {old_message_id} in channel {old_channel_id}: {e}")
             finally:
-                # --- PERBAIKAN KEYERROR: Gunakan .pop() ---
                 self.cog.current_music_message_info.pop(guild_id, None)
-                # --- AKHIR PERBAIKAN KEYERROR ---
 
         # Tentukan channel baru untuk mengirim pesan
         target_channel = old_channel_obj if old_channel_obj else interaction.channel
 
         if not target_channel:
-            logging.error(f"Could not determine target channel for updating music message in guild {guild_id}.")
+            log.error(f"Could not determine target channel for updating music message in guild {guild_id}.")
             return
 
         embed_to_send = None
@@ -240,9 +240,9 @@ class MusicControlView(discord.ui.View):
             }
             log.debug(f"New music message sent to channel {target_channel.id}.")
         except discord.Forbidden:
-            logging.error(f"Bot lacks permissions to send messages in channel {target_channel.name} ({target_channel.id}) for guild {guild_id}.")
+            log.error(f"Bot lacks permissions to send messages in channel {target_channel.name} ({target_channel.id}) for guild {guild_id}.")
         except Exception as e:
-            logging.error(f"Error sending new music message to channel {target_channel.id}: {e}", exc_info=True)
+            log.error(f"Error sending new music message to channel {target_channel.id}: {e}", exc_info=True)
 
 
     @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.primary, custom_id="music:play_pause", row=0)
@@ -307,9 +307,9 @@ class MusicControlView(discord.ui.View):
                     await old_message.delete()
                     log.info(f"Deleted old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} on stop button click.")
             except (discord.NotFound, discord.HTTPException) as e:
-                logging.warning(f"Could not delete old music message on stop button click: {e}")
+                log.warning(f"Could not delete old music message on stop button click: {e}")
             finally:
-                self.cog.current_music_message_info.pop(interaction.guild.id, None) # Gunakan .pop()
+                self.cog.current_music_message_info.pop(interaction.guild.id, None)
 
         await interaction.followup.send("⏹️ Stop dan keluar dari voice.", ephemeral=True)
             
@@ -513,27 +513,27 @@ class ReswanBot(commands.Cog):
             try:
                 self.genius = Genius(GENIUS_API_TOKEN)
             except Exception as e:
-                logging.warning(f"Failed to initialize Genius API: {e}")
-                logging.warning("Lyrics feature might not work without GENIUS_API_TOKEN set correctly.")
+                log.warning(f"Failed to initialize Genius API: {e}")
+                log.warning("Lyrics feature might not work without GENIUS_API_TOKEN set correctly.")
         else:
-            logging.warning("GENIUS_API_TOKEN is not set in environment variables.")
-            logging.warning("Lyrics feature might not work without it.")
+            log.warning("GENIUS_API_TOKEN is not set in environment variables.")
+            log.warning("Lyrics feature might not work without it.")
 
         SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-        SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET") # Pastikan variabel ini benar, sebelumnya SPOTIFY_CLIENT_SECRET
+        SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
         self.spotify = None
-        if SPOTIFY_CLIENT_ID and SPOTIPY_CLIENT_SECRET: # Gunakan SPOTIPY_CLIENT_SECRET di sini
+        if SPOTIFY_CLIENT_ID and SPOTIPY_CLIENT_SECRET:
             try:
                 self.spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
                     client_id=SPOTIFY_CLIENT_ID,
-                    client_secret=SPOTIPY_CLIENT_SECRET # Gunakan SPOTIPY_CLIENT_SECRET di sini
+                    client_secret=SPOTIPY_CLIENT_SECRET
                 ))
             except Exception as e:
-                logging.warning(f"Could not initialize Spotify client: {e}")
-                logging.warning("Spotify features might not work.")
+                log.warning(f"Could not initialize Spotify client: {e}")
+                log.warning("Spotify features might not work.")
         else:
-            logging.warning("SPOTIFY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
-            logging.warning("Spotify features might not work without them.")
+            log.warning("SPOTIFY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
+            log.warning("Spotify features might not work without them.")
 
         self.equalizer_presets = {
             "Default": {"bass": 4, "treble": 3},
@@ -548,13 +548,15 @@ class ReswanBot(commands.Cog):
 
         self.bot.add_view(MusicControlView(self))
 
+        # ID channel pemicu dan kategori target
         self.TRIGGER_VOICE_CHANNEL_ID = 1382486705113927811 
         self.TARGET_CATEGORY_ID = 1255211613326278716 
         self.DEFAULT_CHANNEL_NAME_PREFIX = "Music"
         self.active_temp_channels = load_temp_channels() 
         log.info(f"ReswanBot cog loaded. Active temporary channels: {self.active_temp_channels}")
         self.cleanup_task.start()
-        self.idle_check_task = self.bot.loop.create_task(self._check_and_disconnect_idle_bots())
+        # Perubahan frekuensi idle check menjadi 5 detik
+        self.idle_check_task.start() 
 
     def _save_temp_channels_state(self):
         save_temp_channels(self.active_temp_channels)
@@ -566,10 +568,12 @@ class ReswanBot(commands.Cog):
         if not os.path.exists(EQ_SETTINGS_FILE):
             with open(EQ_SETTINGS_FILE, 'w', encoding='utf-8') as f:
                 json.dump({}, f, indent=4)
+            log.info(f"Created new {EQ_SETTINGS_FILE}.")
             return {}
         try:
             with open(EQ_SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                log.info(f"Loaded {len(data)} equalizer settings from {EQ_SETTINGS_FILE}.")
                 return {str(k): v for k, v in data.items()}
         except json.JSONDecodeError as e:
             log.error(f"Failed to load {EQ_SETTINGS_FILE}: {e}. File might be corrupted. Attempting to reset it.")
@@ -617,7 +621,7 @@ class ReswanBot(commands.Cog):
         self.cleanup_task.cancel()
         self.idle_check_task.cancel()
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=10) # Tetap 10 detik untuk temp voice cleanup
     async def cleanup_task(self):
         log.debug("Running TempVoice cleanup task.") 
         channels_to_remove = []
@@ -668,7 +672,7 @@ class ReswanBot(commands.Cog):
         await self.bot.wait_until_ready()
         log.info("Bot ready, TempVoice cleanup task is about to start.")
 
-    @tasks.loop(seconds=30)
+    @tasks.loop(seconds=5) # <--- DIUBAH MENJADI 5 DETIK DI SINI
     async def _check_and_disconnect_idle_bots(self):
         log.info("Running idle check task...")
         for guild in self.bot.guilds:
@@ -676,28 +680,28 @@ class ReswanBot(commands.Cog):
             if vc and vc.is_connected():
                 log.info(f"Checking voice channel {vc.channel.name} in guild {guild.name} (ID: {guild.id})...")
                 
+                # --- START DEBUGGING LOGGING ---
+                all_members_in_vc = []
+                for m in vc.channel.members:
+                    all_members_in_vc.append(f"{m.display_name} (ID: {m.id}, Bot: {m.bot})")
+                log.debug(f"  Semua anggota di {vc.channel.name}: {all_members_in_vc}")
+                # --- END DEBUGGING LOGGING ---
+
                 human_members = [
                     member for member in vc.channel.members
                     if not member.bot
                 ]
                 
                 num_human_members = len(human_members)
-                is_playing_or_paused = vc.is_playing() or vc.is_paused()
-                is_queue_empty = not self.queues.get(guild.id) or len(self.queues.get(guild.id)) == 0
-
-                log.info(f"  Human members: {num_human_members}, Playing/Paused: {is_playing_or_paused}, Queue Empty: {is_queue_empty}")
+                log.info(f"  Jumlah anggota manusia yang terdeteksi: {num_human_members}")
                 
-                log.debug(f"  Members in {vc.channel.name}:")
-                for member in vc.channel.members:
-                    log.debug(f"    - {member.display_name} (ID: {member.id}), is_bot: {member.bot}")
-
                 if num_human_members == 0:
-                    log.info(f"Bot {self.bot.user.name} idle in voice channel {vc.channel.name} in guild {guild.name} (no human members). Disconnecting.")
+                    log.info(f"Bot {self.bot.user.name} idle in voice channel {vc.channel.name} in guild {guild.name} (tidak ada anggota manusia). Memutus koneksi.")
                     
-                    vc.stop() # <-- PASTIKAN BARIS INI TIDAK TERDINDENTASI (GESER KE KIRI)
+                    # Langsung panggil stop() tanpa pengecualian
+                    vc.stop() 
                     
                     await vc.disconnect()
-
                     
                     self.queues.pop(guild.id, None)
                     self.loop_status.pop(guild.id, None)
@@ -715,11 +719,11 @@ class ReswanBot(commands.Cog):
                                 await old_message.delete()
                                 log.info(f"Deleted old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
                         except (discord.NotFound, discord.HTTPException) as e:
-                            logging.warning(f"Could not delete old music message on idle disconnect: {e}")
+                            log.warning(f"Could not delete old music message on idle disconnect: {e}")
                         finally:
-                            self.current_music_message_info.pop(guild.id, None) # Gunakan .pop()
+                            self.current_music_message_info.pop(guild.id, None)
                 else:
-                    log.info(f"Bot {self.bot.user.name} not idle in {vc.channel.name}. Conditions: Human Members={num_human_members}, Playing/Paused={is_playing_or_paused}, Queue Empty={is_queue_empty}.")
+                    log.info(f"Bot {self.bot.user.name} tidak idle di {vc.channel.name}. Anggota Manusia={num_human_members}.")
 
 
     @_check_and_disconnect_idle_bots.before_loop
@@ -902,7 +906,7 @@ class ReswanBot(commands.Cog):
                             artist = potential_artist
             return {'title': title, 'artist': artist, 'webpage_url': info.get('webpage_url', url)}
         except Exception as e:
-            logging.error(f"Error getting song info from URL {url}: {e}")
+            log.error(f"Error getting song info from URL {url}: {e}")
             return {'title': url, 'artist': 'Unknown Artist', 'webpage_url': url}
 
     async def _send_lyrics(self, interaction_or_ctx, song_name_override=None):
@@ -949,7 +953,7 @@ class ReswanBot(commands.Cog):
             if song_artist_for_lyrics and "Unknown Artist" not in song_artist_for_lyrics and "channel" not in song_artist_for_lyrics.lower() and "vevo" not in song_artist_for_lyrics.lower() and "topic" not in song_artist_for_lyrics.lower():
                 song = await asyncio.to_thread(self.genius.search_song, song_title_for_lyrics, song_artist_for_lyrics)
                 if not song: 
-                    logging.info(f"Lyrics not found for '{song_title_for_lyrics}' by '{song_artist_for_lyrics}'. Trying with title only.")
+                    log.info(f"Lyrics not found for '{song_title_for_lyrics}' by '{song_artist_for_lyrics}'. Trying with title only.")
                     song = await asyncio.to_thread(self.genius.search_song, song_title_for_lyrics)
             else: 
                 song = await asyncio.to_thread(self.genius.search_song, song_title_for_lyrics)
@@ -990,7 +994,7 @@ class ReswanBot(commands.Cog):
                     await interaction_or_ctx.send("Lirik tidak ditemukan untuk lagu tersebut.")
         except Exception as e:
             error_message = f"Gagal mengambil lirik: {e}"
-            logging.error(f"Error fetching lyrics: {e}")
+            log.error(f"Error fetching lyrics: {e}")
             if isinstance(interaction_or_ctx, discord.Interaction):
                 if interaction_or_ctx.response.is_done():
                     await interaction_or_ctx.followup.send(error_message, ephemeral=True)
@@ -1011,7 +1015,7 @@ class ReswanBot(commands.Cog):
                 try:
                     target_channel = await ctx.guild.fetch_channel(channel_id)
                 except discord.NotFound:
-                    logging.warning(f"Target channel {channel_id} not found for guild {guild_id}. Fallback to ctx.channel.")
+                    log.warning(f"Target channel {channel_id} not found for guild {guild_id}. Fallback to ctx.channel.")
                     target_channel = ctx.channel
         if not target_channel:
             target_channel = ctx.channel
@@ -1025,9 +1029,9 @@ class ReswanBot(commands.Cog):
                     old_message = await old_channel.fetch_message(old_message_info['message_id'])
                     await old_message.delete()
             except (discord.NotFound, discord.HTTPException) as e:
-                logging.warning(f"Could not delete old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during play_next: {e}")
+                log.warning(f"Could not delete old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during play_next: {e}")
             finally:
-                self.current_music_message_info.pop(guild_id, None) # Gunakan .pop()
+                self.current_music_message_info.pop(guild_id, None)
 
         if self.loop_status.get(guild_id, False) and ctx.voice_client and ctx.voice_client.source:
             current_song_url = ctx.voice_client.source.data.get('webpage_url')
@@ -1111,7 +1115,7 @@ class ReswanBot(commands.Cog):
                 }
 
         except Exception as e:
-            logging.error(f'Failed to play song for guild {guild_id}: {e}')
+            log.error(f'Failed to play song for guild {guild_id}: {e}')
             await target_channel.send(f'Gagal memutar lagu: {e}')
             if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                 ctx.voice_client.stop()
@@ -1120,7 +1124,7 @@ class ReswanBot(commands.Cog):
     async def _after_play_handler(self, ctx, error):
         guild_id = ctx.guild.id
         if error:
-            logging.error(f"Player error for guild {guild_id}: {error}")
+            log.error(f"Player error for guild {guild_id}: {error}")
             target_channel = None
             if guild_id in self.current_music_message_info:
                 channel_id = self.current_music_message_info[guild_id]['channel_id']
@@ -1135,14 +1139,14 @@ class ReswanBot(commands.Cog):
             if target_channel:
                 await target_channel.send(f"Terjadi error saat memutar: {error}. Mencoba lagu berikutnya jika ada.", ephemeral=True)
             else:
-                logging.warning(f"Could not send error message for guild {guild_id} because no target channel was found.")
+                log.warning(f"Could not send error message for guild {guild_id} because no target channel was found.")
                 
         self.playing_tracks.pop(guild_id, None)
 
         if ctx.voice_client and ctx.voice_client.is_connected():
             await self.play_next(ctx) 
         else:
-            logging.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
+            log.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
             self.queues.pop(guild_id, None)
             self.loop_status.pop(guild_id, None)
             self.is_muted.pop(guild_id, None)
@@ -1158,17 +1162,15 @@ class ReswanBot(commands.Cog):
                         await old_message.delete()
                         log.info(f"Deleted old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during after_play_handler cleanup.")
                 except (discord.NotFound, discord.HTTPException):
-                    logging.warning(f"Could not delete old music message on auto-disconnect: {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
+                    log.warning(f"Could not delete old music message on auto-disconnect: {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
                 finally:
-                    self.current_music_message_info.pop(guild_id, None) # Gunakan .pop()
+                    self.current_music_message_info.pop(guild_id, None)
 
 
     async def _update_music_message_from_ctx(self, ctx):
         guild_id = ctx.guild.id
         
-        # --- PERBAIKAN KEYERROR: Gunakan .get() ---
         current_message_info = self.current_music_message_info.get(guild_id)
-        # --- AKHIR PERBAIKAN KEYERROR ---
 
         old_channel_obj = None
         if current_message_info: # Hanya jika ada info pesan yang tersimpan
@@ -1182,16 +1184,14 @@ class ReswanBot(commands.Cog):
                     await old_message_obj.delete()
                     log.debug(f"Deleted old music message {old_message_id} in channel {old_channel_id} from ctx update.")
             except (discord.NotFound, discord.HTTPException) as e:
-                logging.warning(f"Could not delete old music message {old_message_id} in channel {old_channel_id} from ctx update: {e}")
+                log.warning(f"Could not delete old music message {old_message_id} in channel {old_channel_id} from ctx update: {e}")
             finally:
-                # --- PERBAIKAN KEYERROR: Gunakan .pop() ---
                 self.current_music_message_info.pop(guild_id, None)
-                # --- AKHIR PERBAIKAN KEYERROR ---
 
         target_channel = old_channel_obj if old_channel_obj else ctx.channel
 
         if not target_channel:
-            logging.error(f"Could not determine target channel for updating music message from ctx in guild {guild_id}.")
+            log.error(f"Could not determine target channel for updating music message from ctx in guild {guild_id}.")
             return
             
         embed_to_send = None
@@ -1266,9 +1266,9 @@ class ReswanBot(commands.Cog):
             }
             log.debug(f"New music message sent from ctx update to channel {target_channel.id}.")
         except discord.Forbidden:
-            logging.error(f"Bot lacks permissions to send messages in channel {target_channel.name} ({target_channel.id}) for guild {guild_id} from ctx update.")
+            log.error(f"Bot lacks permissions to send messages in channel {target_channel.name} ({target_channel.id}) for guild {guild_id} from ctx update.")
         except Exception as e:
-            logging.error(f"Error sending new music message from ctx update to channel {target_channel.id}: {e}", exc_info=True)
+            log.error(f"Error sending new music message from ctx update to channel {target_channel.id}: {e}", exc_info=True)
 
     @commands.command(name="resjoin")
     async def join(self, ctx):
@@ -1295,16 +1295,16 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         spotify_track_info = None
 
-        if self.spotify and ("spotify.com/track" in query or "spotify.com/playlist" in query or "spotify.com/album" in query): # Perbaiki ini untuk match URL Spotify asli
+        if self.spotify and ("https://open.spotify.com/track/" in query or "https://open.spotify.com/playlist/" in query or "https://open.spotify.com/album/" in query): # Perbaikan ini untuk match URL Spotify asli
             is_spotify_link = True
             try:
-                if "spotify.com/track" in query:
+                if "https://open.spotify.com/track/" in query:
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
                     spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "spotify.com/playlist" in query:
+                elif "https://open.spotify.com/playlist/" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
                     for item in results['items']:
@@ -1312,7 +1312,7 @@ class ReswanBot(commands.Cog):
                         if track: 
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
-                elif "spotify.com/album" in query:
+                elif "https://open.spotify.com/album/" in query:
                     album_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.album_tracks(album_id)
                     for item in results['items']:
@@ -1324,7 +1324,7 @@ class ReswanBot(commands.Cog):
                     await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
                     return
             except Exception as e:
-                logging.error(f"Error processing Spotify link: {e}")
+                log.error(f"Error processing Spotify link: {e}")
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
         else:
@@ -1340,9 +1340,9 @@ class ReswanBot(commands.Cog):
                     old_message = await old_channel.fetch_message(old_message_info['message_id'])
                     await old_message.delete()
             except (discord.NotFound, discord.HTTPException) as e:
-                logging.warning(f"Could not delete old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during play command: {e}")
+                log.warning(f"Could not delete old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during play command: {e}")
             finally:
-                self.current_music_message_info.pop(ctx.guild.id, None) # Gunakan .pop()
+                self.current_music_message_info.pop(ctx.guild.id, None)
 
 
         if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused() and not queue:
@@ -1405,7 +1405,7 @@ class ReswanBot(commands.Cog):
                     }
                 
             except Exception as e:
-                logging.error(f'Failed to play song: {e}')
+                log.error(f'Failed to play song: {e}')
                 await ctx.send(f'Gagal memutar lagu: {e}', ephemeral=True)
                 if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                     ctx.voice_client.stop()
@@ -1455,9 +1455,9 @@ class ReswanBot(commands.Cog):
                         old_message = await target_channel.fetch_message(old_message_info['message_id'])
                         await old_message.delete()
                 except (discord.NotFound, discord.HTTPException):
-                    logging.warning(f"Could not delete old music message on stop command for message {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
+                    log.warning(f"Could not delete old music message on stop command for message {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
                 finally:
-                    self.current_music_message_info.pop(ctx.guild.id, None) # Gunakan .pop()
+                    self.current_music_message_info.pop(ctx.guild.id, None)
 
             if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
                 ctx.voice_client.stop()
@@ -1991,7 +1991,7 @@ class ReswanBot(commands.Cog):
 async def setup(bot):
     if not os.path.exists("downloads"):
         os.makedirs("downloads")
-        logging.info("Created 'downloads' directory.")
+        log.info("Created 'downloads' directory.")
     
     os.makedirs('reswan/data', exist_ok=True)
     os.makedirs('data', exist_ok=True)
@@ -2014,12 +2014,12 @@ async def setup(bot):
         ]
         with open(donation_file_path, 'w', encoding='utf-8') as f:
             json.dump(default_data, f, indent=4)
-        logging.info("Created default donation_buttons.json file.")
+        log.info("Created default donation_buttons.json file.")
 
     equalizer_data_path = 'data/equalizer.json'
     if not os.path.exists(equalizer_data_path) or os.stat(equalizer_data_path).st_size == 0:
         with open(equalizer_data_path, 'w', encoding='utf-8') as f:
             json.dump({}, f, indent=4)
-        logging.info("Created empty equalizer.json file.")
+        log.info("Created empty equalizer.json file.")
 
     await bot.add_cog(ReswanBot(bot))
