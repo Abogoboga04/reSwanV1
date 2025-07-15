@@ -692,6 +692,7 @@ class ReswanBot(commands.Cog):
                     log.debug(f"    - {member.display_name} (ID: {member.id}), is_bot: {member.bot}")
 
                 if num_human_members == 0:
+                    
                         vc.stop()
                     await vc.disconnect()
                     
