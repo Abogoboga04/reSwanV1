@@ -381,7 +381,7 @@ class MusicControlView(discord.ui.View):
                             item.style = discord.ButtonStyle.green
                         else:
                             item.style = discord.ButtonStyle.grey
-                    # Select Menu ada di view terpisah, jadi tidak perlu diupdate di sini.
+                    # Tidak ada Select Menu di sini. Item EQ Presets akan ada di baris 4.
                 await old_message_obj.edit(embed=embed_to_send, view=new_view_instance)
                 return
         except (discord.NotFound, discord.HTTPException) as e:
@@ -643,9 +643,9 @@ class MusicControlView(discord.ui.View):
         # Buat instance view baru yang hanya berisi Select Menu
         eq_select_view = EQPresetSelectView(self.cog, interaction.channel.id, interaction.user.id)
         # Kirim pesan dengan Select Menu
-        response_message = await interaction.response.send_message("Pilih preset EQ:", view=eq_select_view, ephemeral=True)
-        # Simpan pesan ini di view agar bisa di-edit/hapus setelah timeout atau pilihan
-        eq_select_view.message = await response_message.fetch_message()
+        await interaction.response.send_message("Pilih preset EQ:", view=eq_select_view, ephemeral=True)
+        # Ambil objek pesan yang baru dikirim untuk disimpan di view
+        eq_select_view.message = await interaction.followup.fetch_message('@original')
 
 
 class ReswanBot(commands.Cog):
@@ -748,8 +748,6 @@ class ReswanBot(commands.Cog):
             logging.warning("SPOTIPY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
             logging.warning("Spotify features might not work without them.")
 
-        # Anda tidak perlu lagi mendaftarkan setiap tombol di __init__ MusicControlView.
-        # Hanya perlu memastikan class MusicControlView itu sendiri terdaftar.
         self.bot.add_view(MusicControlView(self))
 
         # TempVoice Module States
@@ -1592,7 +1590,6 @@ class ReswanBot(commands.Cog):
 
         view_instance = MusicControlView(self, {'message_id': None, 'channel_id': ctx.channel.id})
         
-        # Perbarui status tombol play/pause dan mute/unmute
         for item in view_instance.children:
             if item.custom_id == "music:play_pause":
                 item.emoji = "⏸️" 
