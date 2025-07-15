@@ -692,9 +692,6 @@ class ReswanBot(commands.Cog):
                     log.debug(f"    - {member.display_name} (ID: {member.id}), is_bot: {member.bot}")
 
                 if num_human_members == 0:
-                    log.info(f"Bot {self.bot.user.name} idle in voice channel {vc.channel.name} in guild {guild.name} (no human members). Disconnecting.")
-                    
-                    if is_playing_or_paused:
                         vc.stop()
                     await vc.disconnect()
                     
