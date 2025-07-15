@@ -273,15 +273,10 @@ class MusicControlView(discord.ui.View):
         self.cog = cog_instance
         self.original_message_info = original_message_info
         
-        # NOTE: Semua tombol di bawah ini menggunakan metode @discord.ui.button
-        # yang didefinisikan di bawah kelas ini.
-        # Baris 0, 1, 2 akan diisi oleh decorator, jadi tidak perlu self.add_item di sini.
-        # Hanya load donation buttons dan tambahkan tombol EQ Presets baru.
-        
-        self.load_donation_buttons()
-        # Tombol EQ Presets baru, ditempatkan di baris yang tersedia, contoh row=4
-        # (Karena row 0-3 sudah terisi oleh tombol-tombol dari kode lama Anda)
-        self.add_item(discord.ui.Button(emoji="🎛️", label="EQ Presets", style=discord.ButtonStyle.blurple, custom_id="music:show_eq_presets", row=4))
+        # --- Hanya memanggil load_donation_buttons dan menambahkan tombol EQ Presets baru ---
+        # Semua tombol lain (play/pause, skip, dll.) akan terdaftar secara otomatis
+        # karena mereka didefinisikan menggunakan decorator @discord.ui.button
+        self.load_donation_buttons() 
 
     def load_donation_buttons(self):
         try:
@@ -361,8 +356,6 @@ class MusicControlView(discord.ui.View):
 
                 embed_to_send.set_footer(text=f"Antrean: {len(self.cog.get_queue(guild_id))} lagu tersisa")
 
-                # MusicControlView() sekarang tidak lagi menerima original_message_info secara langsung
-                # dan tombol-tombol didefinisikan oleh decorators.
                 new_view_instance = MusicControlView(self.cog) # Cukup teruskan cog_instance
                 
                 # Perbarui status tombol play/pause dan mute/unmute
@@ -930,7 +923,7 @@ class ReswanBot(commands.Cog):
                         except Exception as e:
                             log.error(f"Error moving {member.display_name} to existing VC {existing_channel.name}: {e}", exc_info=True)
                             try: await member.send(f"❌ Terjadi kesalahan saat memindahkan Anda ke channel pribadi Anda: {e}. Hubungi admin server.", ephemeral=True)
-                            except discord.Google_service: pass
+                            except discord.Forbidden: pass
                             return
                     else: 
                         log.warning(f"Temporary channel {ch_id_str} in data not found on Discord. Removing from tracking.")
@@ -1258,7 +1251,6 @@ class ReswanBot(commands.Cog):
             # Menonaktifkan semua tombol saat bot akan keluar
             for item in view_instance.children:
                 item.disabled = True
-            # Menambahkan placeholder untuk Select EQ
             # Select EQ tidak ada di MusicControlView, jadi tidak perlu update placeholder di sini.
             
             message_sent = await target_channel.send(embed=embed, view=view_instance)
@@ -1341,7 +1333,7 @@ class ReswanBot(commands.Cog):
                         item.style = discord.ButtonStyle.green
                     else:
                         item.style = discord.ButtonStyle.grey
-                # Tidak ada lagi update placeholder EQ Select di sini karena Select di view terpisah
+                # Select menu ada di view terpisah, jadi tidak perlu update placeholder
                 item.disabled = False
             
             message_sent = await target_channel.send(embed=embed, view=view_instance)
@@ -1655,7 +1647,7 @@ class ReswanBot(commands.Cog):
         if guild_id not in self.loop_status:
             self.loop_status[guild_id] = False
             
-        self.loop_status[guild_id] = not self.cog.loop_status[guild_id]
+        self.loop_status[guild_id] = not self.loop_status[guild_id]
 
         status_msg = "ON" if self.loop_status[guild_id] else "OFF"
         await ctx.send(f"🔁 Mode Loop **{status_msg}** (lagu saat ini akan diulang).", ephemeral=True)
