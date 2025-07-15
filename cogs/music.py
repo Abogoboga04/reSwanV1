@@ -51,7 +51,7 @@ def save_temp_channels(data):
     with open(TEMP_CHANNELS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data_to_save, f, indent=4)
 
-# --- YTDL Options for Opus and FFMPEG Options (default, now dynamic) ---
+# --- YTDL Options and default FFMPEG Options ---
 ytdl_opts = {
     'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best',
     'cookiefile': 'cookies.txt',
@@ -64,13 +64,6 @@ ytdl_opts = {
         'preferredcodec': 'opus',
         'preferredquality': '128',
     }],
-}
-
-# FFMPEG_OPTIONS ini akan menjadi default jika tidak ada preset EQ yang dipilih
-# Namun, fungsi _get_ffmpeg_options di Cog akan membangunnya secara dinamis
-DEFAULT_FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 128k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header'
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_opts)
@@ -90,20 +83,28 @@ class YTDLSource(discord.PCMVolumeTransformer):
     async def from_url(cls, url, *, loop=None, stream=True, ffmpeg_options=None): # Tambahkan ffmpeg_options
         loop = loop or asyncio.get_event_loop()
         
-        # Untuk kasus Spotify, kita akan melakukan pencarian di YouTube
-        if "spotify.com" in url:
-            try:
-                # Pastikan bot memiliki instance spotipy
-                cog = loop._bot_instance.get_cog("ReswanBot") # Ambil instance cog dari bot
-                if cog and cog.spotify:
-                    track_info = None
-                    if "/track/" in url:
+        data = None
+        additional_urls = None
+
+        # Penanganan link Spotify (diperbarui agar lebih robust)
+        if isinstance(loop, asyncio.ProactorEventLoop): # Check if loop has a bot_instance attribute
+            cog = loop._bot_instance.get_cog("ReswanBot")
+            if cog and cog.spotify and ("spotify.com/track/" in url or "spotify.com/playlist/" in url or "spotify.com/album/" in url):
+                try:
+                    # Menambahkan context channel ID untuk mengirim pesan dari dalam YTDLSource
+                    current_ctx_channel = None
+                    if hasattr(loop, '_current_context_channel_id'):
+                        current_ctx_channel = cog.bot.get_channel(loop._current_context_channel_id)
+
+                    if "spotify.com/track/" in url:
                         track_id = url.split('/')[-1].split('?')[0]
                         track = await asyncio.to_thread(cog.spotify.track, track_id)
                         if track:
-                            track_info = {'name': track['name'], 'artist': track['artists'][0]['name']}
-                    elif "/playlist/" in url:
-                        await loop._bot_instance.get_channel(loop._current_context_channel_id).send("Memproses playlist Spotify, mungkin butuh waktu...") # Kirim pesan ke channel tempat perintah dijalankan
+                            query_for_youtube = f"{track['name']} {track['artists'][0]['name']}"
+                            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(query_for_youtube, download=not stream))
+                    elif "spotify.com/playlist/" in url:
+                        if current_ctx_channel:
+                            await current_ctx_channel.send("Memproses playlist Spotify, mungkin butuh waktu...")
                         playlist_id = url.split('/')[-1].split('?')[0]
                         results = await asyncio.to_thread(cog.spotify.playlist_tracks, playlist_id)
                         urls_from_playlist = []
@@ -115,8 +116,9 @@ class YTDLSource(discord.PCMVolumeTransformer):
                         # Ini hanya untuk ekstrak info. Fungsi play() akan menanganinya
                         return None, urls_from_playlist # Mengembalikan list url jika playlist
 
-                    elif "/album/" in url:
-                        await loop._bot_instance.get_channel(loop._current_context_channel_id).send("Memproses album Spotify, mungkin butuh waktu...") # Kirim pesan ke channel tempat perintah dijalankan
+                    elif "spotify.com/album/" in url:
+                        if current_ctx_channel:
+                            await current_ctx_channel.send("Memproses album Spotify, mungkin butuh waktu...")
                         album_id = url.split('/')[-1].split('?')[0]
                         results = await asyncio.to_thread(cog.spotify.album_tracks, album_id)
                         urls_from_album = []
@@ -125,27 +127,21 @@ class YTDLSource(discord.PCMVolumeTransformer):
                             if track and track['name'] and track['artists']:
                                 urls_from_album.append(f"{track['name']} {track['artists'][0]['name']}")
                         return None, urls_from_album # Mengembalikan list url jika album
-
-                    if track_info:
-                        query_for_youtube = f"{track_info['name']} {track_info['artist']}"
-                        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(query_for_youtube, download=not stream))
-                        if 'entries' in data:
-                            data = data['entries'][0]
-                        filename = data['url'] if stream else ytdl.prepare_filename(data)
-                        used_ffmpeg_options = ffmpeg_options if ffmpeg_options is not None else DEFAULT_FFMPEG_OPTIONS
-                        return cls(discord.FFmpegPCMAudio(filename, **used_ffmpeg_options), data=data), None # Mengembalikan source dan None untuk list
-                
-            except Exception as e:
-                log.error(f"Error processing Spotify URL {url}: {e}")
-                # Fallback to direct yt-dlp processing if Spotify API fails or invalid link
+                    
+                except Exception as e:
+                    log.error(f"Error processing Spotify URL {url}: {e}")
+                    if current_ctx_channel:
+                        await current_ctx_channel.send(f"❌ Terjadi kesalahan saat memproses link Spotify: {e}. Mencoba memutar sebagai URL biasa.")
+                    # Fallback to direct yt-dlp processing if Spotify API fails or invalid link
+                    data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+            else: # Jika bukan link Spotify yang dikenali atau Spotify client tidak aktif
                 data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-
-        # Ini adalah logika default untuk YouTube, SoundCloud, dll.
-        else:
+        else: # Jika tidak ada bot instance di loop, fallback ke yt_dlp umum
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-        
-        if data is None: # Jika data kosong (misalnya dari Spotify playlist/album)
-            return None, None # Sinyal bahwa tidak ada source tunggal yang diputar
+
+
+        if data is None: # Jika data kosong (misalnya dari Spotify playlist/album yang di-return tanpa source tunggal)
+            return None, additional_urls # Sinyal bahwa tidak ada source tunggal yang diputar
 
         if 'entries' in data:
             # Jika ini playlist/album, ambil entri pertama untuk diputar,
@@ -153,13 +149,14 @@ class YTDLSource(discord.PCMVolumeTransformer):
             first_entry = data['entries'][0]
             if first_entry:
                 filename = first_entry['url'] if stream else ytdl.prepare_filename(first_entry)
-                used_ffmpeg_options = ffmpeg_options if ffmpeg_options is not None else DEFAULT_FFMPEG_OPTIONS
+                used_ffmpeg_options = ffmpeg_options if ffmpeg_options is not None else DEFAULT_FFMPEG_OPTIONS # Default jika tidak ada
+                # Kembalikan source pertama dan sisa URL untuk playlist/album
                 return cls(discord.FFmpegPCMAudio(filename, **used_ffmpeg_options), data=first_entry), [e['webpage_url'] for e in data['entries'][1:] if e]
             else:
                 return None, None # Jika playlist kosong
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        used_ffmpeg_options = ffmpeg_options if ffmpeg_options is not None else DEFAULT_FFMPEG_OPTIONS
+        used_ffmpeg_options = ffmpeg_options if ffmpeg_options is not None else DEFAULT_FFMPEG_OPTIONS # Default jika tidak ada
         return cls(discord.FFmpegPCMAudio(filename, **used_ffmpeg_options), data=data), None
 
 
@@ -176,7 +173,7 @@ class EQPresetSelect(discord.ui.Select):
             max_values=1,
             options=options,
             custom_id="music:eq_preset_select",
-            row=3 
+            row=3 # Ditempatkan di baris 3
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -186,9 +183,8 @@ class EQPresetSelect(discord.ui.Select):
         guild_id = interaction.guild.id
         
         if guild_id not in self.cog.eq_settings:
-            self.cog.eq_settings[guild_id] = {'current_preset': 'Flat'} # Hanya simpan nama preset
+            self.cog.eq_settings[guild_id] = {'current_preset': 'Flat'}
 
-        # Update state bot dengan preset yang dipilih
         self.cog.eq_settings[guild_id]['current_preset'] = selected_preset_name
         
         vc = interaction.guild.voice_client
@@ -196,32 +192,29 @@ class EQPresetSelect(discord.ui.Select):
             await interaction.followup.send(f"Preset EQ diatur ke **{selected_preset_name}**. Putar lagu untuk menerapkannya.", ephemeral=True)
             return
 
-        # Ambil URL lagu yang sedang diputar (URL asli dari YTDL, bukan URL streaming)
         current_song_webpage_url = self.cog.now_playing_info[guild_id]['webpage_url'] 
 
         await interaction.followup.send(f"Preset EQ diubah ke **{selected_preset_name}**.\n*(Memuat ulang lagu untuk menerapkan efek...)*", ephemeral=True)
 
-        # RESTART LAGU UNTUK MENERAPKAN EFEK BARU
         try:
             vc.stop()
             new_ffmpeg_options = self.cog._get_ffmpeg_options(guild_id)
             
-            # Panggil YTDLSource lagi untuk membuat source baru dengan opsi FFMPEG yang diperbarui
-            # Gunakan URL yang sama yang sedang diputar
+            # Set context channel ID for YTDLSource if handling Spotify playlists/albums
+            self.cog.bot.loop._current_context_channel_id = interaction.channel.id
+
             source, _ = await YTDLSource.from_url(current_song_webpage_url, loop=self.cog.bot.loop, stream=True, ffmpeg_options=new_ffmpeg_options)
             
             if source:
-                # Pertahankan volume dan mute dari source sebelumnya atau dari state bot
                 if self.cog.is_muted.get(guild_id, False):
                     source.volume = 0.0
                 elif vc.source:
                     source.volume = vc.source.volume
                 else:
-                    source.volume = 0.8 # Default
+                    source.volume = 0.8 # Default if no previous source or volume
 
                 vc.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self.cog._after_play_handler(interaction.message.channel, e), self.cog.bot.loop))
                 
-                # Update info now playing
                 self.cog.now_playing_info[guild_id] = {
                     'title': source.title,
                     'artist': source.uploader, 
@@ -242,26 +235,28 @@ class MusicControlView(discord.ui.View):
         self.cog = cog_instance
         self.original_message_info = original_message_info
         
-        self.load_donation_buttons()
-        
-        # Tambahkan Select menu untuk EQ Presets
-        self.add_item(EQPresetSelect(self.cog))
-
-        # Tambahkan tombol-tombol yang sudah ada (pastikan row-nya tidak bentrok)
+        # Baris 0: Kontrol Pemutaran Utama
         self.add_item(discord.ui.Button(emoji="▶️", style=discord.ButtonStyle.primary, custom_id="music:play_pause", row=0))
         self.add_item(discord.ui.Button(emoji="⏩", style=discord.ButtonStyle.secondary, custom_id="music:skip", row=0))
         self.add_item(discord.ui.Button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="music:stop", row=0))
-        self.add_item(discord.ui.Button(emoji="ℹ️", style=discord.ButtonStyle.blurple, custom_id="music:np_info", row=0)) # Moved to row 0
 
+        # Baris 1: Antrean & Loop (Maks 5 tombol)
         self.add_item(discord.ui.Button(emoji="📜", style=discord.ButtonStyle.grey, custom_id="music:queue", row=1))
         self.add_item(discord.ui.Button(emoji="🔁", style=discord.ButtonStyle.grey, custom_id="music:loop", row=1))
-        self.add_item(discord.ui.Button(emoji="🔀", style=discord.ButtonStyle.grey, custom_id="music:shuffle", row=1)) # Added shuffle button
-        self.add_item(discord.ui.Button(emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="music:clear_queue", row=1)) # Added clear queue button
-        self.add_item(discord.ui.Button(emoji="📖", style=discord.ButtonStyle.blurple, custom_id="music:lyrics", row=1)) # Lyrics button
+        self.add_item(discord.ui.Button(emoji="🔀", style=discord.ButtonStyle.grey, custom_id="music:shuffle", row=1)) 
+        self.add_item(discord.ui.Button(emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="music:clear_queue", row=1)) 
+        self.add_item(discord.ui.Button(emoji="📖", style=discord.ButtonStyle.blurple, custom_id="music:lyrics", row=1)) 
 
+        # Baris 2: Kontrol Volume
         self.add_item(discord.ui.Button(emoji="➕", style=discord.ButtonStyle.secondary, custom_id="music:volume_up", row=2))
         self.add_item(discord.ui.Button(emoji="➖", style=discord.ButtonStyle.secondary, custom_id="music:volume_down", row=2))
         self.add_item(discord.ui.Button(emoji="🔊", style=discord.ButtonStyle.secondary, custom_id="music:mute_unmute", row=2))
+
+        # Baris 3: EQ Preset Select (Ini adalah select menu, dihitung 1 item)
+        self.add_item(EQPresetSelect(self.cog)) 
+        
+        # Tombol Donasi (akan dimulai dari row 4 dan seterusnya)
+        self.load_donation_buttons()
 
     def load_donation_buttons(self):
         try:
@@ -272,7 +267,7 @@ class MusicControlView(discord.ui.View):
                         label=button_data['label'],
                         style=discord.ButtonStyle.url,
                         url=button_data['url'],
-                        row=4 + i # Letakkan di baris setelah EQ Select, sesuaikan jika ada tombol lain
+                        row=4 + i # Ditempatkan di baris 4 dan seterusnya
                     ))
         except FileNotFoundError:
             logging.error("Donation buttons file not found: reswan/data/donation_buttons.json")
@@ -294,26 +289,22 @@ class MusicControlView(discord.ui.View):
         guild_id = interaction.guild.id
         current_message_info = self.cog.current_music_message_info.get(guild_id)
         
-        # Jika tidak ada lagu yang diputar, jangan update message dengan info lagu
+        # Jika tidak ada message info yang tersimpan, atau bot tidak bermain/pause, atau tidak ada info lagu,
+        # maka tidak perlu update message (pesan baru akan dibuat oleh play/play_next jika perlu)
         vc = interaction.guild.voice_client
-        if not vc or not vc.is_playing() or guild_id not in self.cog.now_playing_info:
-            embed_to_send = discord.Embed(title="Musik Bot", description="Tidak ada lagu yang sedang diputar.", color=discord.Color.light_grey())
-            # Hanya perbarui view-nya tanpa menghapus dan membuat ulang pesan
+        if not current_message_info or not vc or (not vc.is_playing() and not vc.is_paused()) or guild_id not in self.cog.now_playing_info:
+            # Jika ada pesan lama tapi bot tidak aktif, coba hapus pesan lama
             if current_message_info:
-                try:
+                 try:
                     old_channel_obj = interaction.guild.get_channel(current_message_info['channel_id']) or await interaction.guild.fetch_channel(current_message_info['channel_id'])
                     if old_channel_obj:
                         old_message_obj = await old_channel_obj.fetch_message(current_message_info['message_id'])
-                        await old_message_obj.edit(embed=embed_to_send, view=MusicControlView(self.cog)) # Buat view baru agar tombolnya terupdate
-                        return
-                except (discord.NotFound, discord.HTTPException):
-                    logging.warning(f"Old music message not found or inaccessible for update in guild {guild_id}.")
-                    # If message not found, clear info and allow new message to be sent next time
+                        await old_message_obj.delete()
+                        del self.cog.current_music_message_info[guild_id]
+                 except (discord.NotFound, discord.HTTPException):
+                    logging.warning(f"Old music message not found or inaccessible for cleanup in guild {guild_id}.")
                     del self.cog.current_music_message_info[guild_id]
-            
-            # Jika tidak ada pesan lama atau gagal diupdate, jangan lakukan apa-apa
             return
-
 
         old_message_id = current_message_info['message_id']
         old_channel_id = current_message_info['channel_id']
@@ -339,7 +330,7 @@ class MusicControlView(discord.ui.View):
                     minutes, seconds = divmod(source.duration, 60)
                     duration_str = f"{minutes:02}:{seconds:02}"
                 embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
-                embed_to_send.add_field(name="Diminta oleh", value=interaction.user.mention, inline=True) # Gunakan interaction.user
+                # 'Diminta oleh' tidak ada di interaction _update_music_message, dihapus atau diambil dari now_playing_info
                 embed_to_send.set_footer(text=f"Antrean: {len(self.cog.get_queue(guild_id))} lagu tersisa")
 
                 new_view_instance = MusicControlView(self.cog, {'message_id': old_message_id, 'channel_id': old_channel_id})
@@ -362,7 +353,6 @@ class MusicControlView(discord.ui.View):
                             item.style = discord.ButtonStyle.green
                         else:
                             item.style = discord.ButtonStyle.grey
-                    # Pastikan tombol EQ select placeholder-nya menunjukkan preset aktif
                     elif item.custom_id == "music:eq_preset_select":
                         current_preset = self.cog.eq_settings.get(guild_id, {}).get('current_preset', 'Flat')
                         item.placeholder = f"Preset EQ: {current_preset}"
@@ -371,12 +361,9 @@ class MusicControlView(discord.ui.View):
                 return
         except (discord.NotFound, discord.HTTPException) as e:
             logging.warning(f"Could not edit old music message {old_message_id} in channel {old_channel_id}: {e}")
-            # Jika tidak bisa edit, bersihkan info agar pesan baru bisa dibuat
             del self.cog.current_music_message_info[guild_id]
         
-        # Jika sampai sini, berarti pesan lama tidak ditemukan/tidak bisa di-update
-        # Bot akan membuat pesan baru di play() atau play_next()
-        pass
+        pass # Fallback jika tidak bisa update pesan
 
     @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.primary, custom_id="music:play_pause", row=0)
     async def play_pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -420,7 +407,6 @@ class MusicControlView(discord.ui.View):
 
         vc = interaction.guild.voice_client
         if vc:
-            # PENTING: Panggil stop() sebelum disconnect untuk menghentikan FFMPEG dengan bersih
             if vc.is_playing() or vc.is_paused():
                 vc.stop() 
             await vc.disconnect()
@@ -430,7 +416,7 @@ class MusicControlView(discord.ui.View):
             self.cog.old_volume.pop(interaction.guild.id, None)
             self.cog.now_playing_info.pop(interaction.guild.id, None)
             self.cog.playing_tracks.pop(interaction.guild.id, None) 
-            self.cog.eq_settings.pop(interaction.guild.id, None) # Clear EQ settings on stop
+            self.cog.eq_settings.pop(interaction.guild.id, None) 
             
             if interaction.guild.id in self.cog.current_music_message_info:
                 old_message_info = self.cog.current_music_message_info[interaction.guild.id]
@@ -452,7 +438,7 @@ class MusicControlView(discord.ui.View):
         if queue:
             display_queue = queue[:10]
             display_queue_titles = await asyncio.gather(
-                *[self.cog.get_song_info_from_url(q['webpage_url']) for q in display_queue] # Mengambil webpage_url
+                *[self.cog.get_song_info_from_url(q['webpage_url']) for q in display_queue] 
             )
             msg = "\n".join([f"{i+1}. {q['title']}" for i, q in enumerate(display_queue_titles)])
             
@@ -590,38 +576,6 @@ class MusicControlView(discord.ui.View):
         
         await self._update_music_message(interaction)
 
-    @discord.ui.button(emoji="ℹ️", style=discord.ButtonStyle.blurple, custom_id="music:np_info", row=0)
-    async def now_playing_info_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self._check_voice_channel(interaction):
-            return
-
-        vc = interaction.guild.voice_client
-        guild_id = interaction.guild.id
-        if vc and vc.is_playing() and vc.source and guild_id in self.cog.now_playing_info:
-            info = self.cog.now_playing_info[guild_id]
-            source = vc.source
-
-            embed = discord.Embed(
-                title=f"🎶 Sedang Memutar: {info['title']}",
-                description=f"Oleh: {info.get('artist', 'Unknown Artist')}\n[Link YouTube/Sumber]({info['webpage_url']})",
-                color=discord.Color.purple()
-            )
-            if source.thumbnail:
-                embed.set_thumbnail(url=source.thumbnail)
-            
-            duration_str = "N/A"
-            if source.duration:
-                minutes, seconds = divmod(source.duration, 60)
-                duration_str = f"{minutes:02}:{seconds:02}"
-            embed.add_field(name="Durasi", value=duration_str, inline=True)
-            
-            queue = self.cog.get_queue(interaction.guild.id)
-            embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
-            
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            await interaction.response.send_message("Tidak ada lagu yang sedang diputar.", ephemeral=True)
-
 
 class ReswanBot(commands.Cog):
     def __init__(self, bot):
@@ -638,55 +592,60 @@ class ReswanBot(commands.Cog):
         # --- EQ Presets ---
         self.eq_settings = {} # {guild_id: {'current_preset': 'Flat'}}
         self.EQ_PRESETS = {
-            "Flat": { 
+            "Flat": { # DEFAULT: Bass +4dB, Treble +3dB (sesuai FFMPEG_OPTIONS asli Anda)
                 'bass_gain': 4,
                 'treble_gain': 3,
                 'ffmpeg_filters': '' 
             },
             "Vokal Jernih": {
-                '': -2,
+                'bass_gain': -2,
                 'treble_gain': 4,
                 'ffmpeg_filters': 'equalizer=f=2000:width=1000:g=2, equalizer=f=4000:width=1000:g=1'
             },
             "Bass Kuat": {
-                '': 8,
+                'bass_gain': 8,
                 'treble_gain': 2,
                 'ffmpeg_filters': 'bass=g=12:f=100:w=0.8, equalizer=f=400:width=200:g=-2'
             },
             "Treble Menggema": {
-                '': -1,
+                'bass_gain': -1,
                 'treble_gain': 7,
                 'ffmpeg_filters': 'treble=g=7, aecho=0.8:0.9:1000:0.3'
             },
             "Rock": {
-                '': 5,
+                'bass_gain': 5,
                 'treble_gain': 4,
                 'ffmpeg_filters': 'equalizer=f=250:width=200:g=3, equalizer=f=1200:width=800:g=2'
             },
             "Pop": {
-                '': 3,
+                'bass_gain': 3,
                 'treble_gain': 3,
                 'ffmpeg_filters': 'equalizer=f=500:width=200:g=1, equalizer=f=3000:width=1000:g=2'
             },
             "Akustik": {
-                '': -3,
+                'bass_gain': -3,
                 'treble_gain': 5,
                 'ffmpeg_filters': 'equalizer=f=1500:width=800:g=3, equalizer=f=6000:width=1500:g=2'
             },
             "Dance/EDM": {
-                '': 7,
+                'bass_gain': 7,
                 'treble_gain': 6,
                 'ffmpeg_filters': 'equalizer=f=400:width=200:g=-3, equalizer=f=8000:width=2000:g=4'
             },
             "Klasik": {
-                '': 1,
+                'bass_gain': 1,
                 'treble_gain': 1,
                 'ffmpeg_filters': 'equalizer=f=1000:width=500:g=0'
             },
             "Tradisional": {
-                '': 2,
+                'bass_gain': 2,
                 'treble_gain': 2,
                 'ffmpeg_filters': 'equalizer=f=600:width=300:g=3, equalizer=f=3000:width=1000:g=1'
+            },
+            "Reset (Flat 0dB)": { # Preset eksplisit untuk reset ke 0dB flat
+                'bass_gain': 0,
+                'treble_gain': 0,
+                'ffmpeg_filters': ''
             }
         }
 
@@ -707,7 +666,6 @@ class ReswanBot(commands.Cog):
         self.spotify = None
         if SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET:
             try:
-                # SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:8888/callback") # Anda mungkin tidak membutuhkannya untuk Client Credentials Flow
                 self.spotify = spotipy.Spotify(auth_manager=spotipy.oauth2.SpotifyClientCredentials(
                     client_id=SPOTIPY_CLIENT_ID,
                     client_secret=SPOTIPY_CLIENT_SECRET
@@ -716,7 +674,7 @@ class ReswanBot(commands.Cog):
                 logging.warning(f"Could not initialize Spotify client: {e}")
                 logging.warning("Spotify features might not work.")
         else:
-            logging.warning("SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not set.")
+            logging.warning("SPOTIPY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
             logging.warning("Spotify features might not work without them.")
 
         self.bot.add_view(MusicControlView(self))
@@ -730,13 +688,15 @@ class ReswanBot(commands.Cog):
         self.cleanup_task.start()
         self.idle_check_task = self.bot.loop.create_task(self._check_and_disconnect_idle_bots())
 
-        # Inisialisasi EQ settings untuk guild yang sudah terdaftar
         @self.bot.event
         async def on_ready():
             log.info("Bot is ready. Initializing EQ settings for known guilds.")
             for guild in self.bot.guilds:
                 if guild.id not in self.eq_settings:
-                    self.eq_settings[guild.id] = {'current_preset': 'Flat'}
+                    # Default EQ preset untuk guild baru atau yang belum ada pengaturan
+                    self.eq_settings[guild.id] = {'current_preset': 'Flat'} 
+            # Inisialisasi _bot_instance di loop
+            self.bot.loop._bot_instance = self.bot
 
     def _save_temp_channels_state(self):
         save_temp_channels(self.active_temp_channels)
@@ -768,13 +728,12 @@ class ReswanBot(commands.Cog):
                 channels_to_remove.append(channel_id_str)
                 continue
 
-            # --- LOGIKA BARU UNTUK HAPUS CUSTOM CHANNEL JIKA TANPA PENGGUNA MANUSIA ---
             human_members_in_custom_channel = [
                 member for member in channel.members
                 if not member.bot
             ]
 
-            if not human_members_in_custom_channel: # Jika tidak ada anggota manusia
+            if not human_members_in_custom_channel: 
                 try:
                     await channel.delete(reason="Custom voice channel is empty of human users.")
                     log.info(f"Deleted empty (of humans) temporary voice channel: {channel.name} ({channel_id}).")
@@ -799,7 +758,7 @@ class ReswanBot(commands.Cog):
         await self.bot.wait_until_ready()
         log.info("Bot ready, TempVoice cleanup task is about to start.")
 
-    @tasks.loop(seconds=30) # Mengubah timer dari minutes=2 menjadi seconds=30
+    @tasks.loop(seconds=30) 
     async def _check_and_disconnect_idle_bots(self):
         log.info("Running idle check task...")
         for guild in self.bot.guilds:
@@ -814,9 +773,8 @@ class ReswanBot(commands.Cog):
                 
                 num_human_members = len(human_members)
                 is_playing_or_paused = vc.is_playing() or vc.is_paused()
-                is_queue_empty = not self.queues.get(guild.id) or len(self.queues.get(guild.id)) == 0
 
-                log.info(f"  Human members: {num_human_members}, Playing/Paused: {is_playing_or_paused}, Queue Empty: {is_queue_empty}")
+                log.info(f"  Human members: {num_human_members}, Playing/Paused: {is_playing_or_paused}")
                 
                 log.debug(f"  Members in {vc.channel.name}:")
                 for member in vc.channel.members:
@@ -835,7 +793,7 @@ class ReswanBot(commands.Cog):
                     self.old_volume.pop(guild.id, None)
                     self.now_playing_info.pop(guild.id, None)
                     self.playing_tracks.pop(guild.id, None)
-                    self.eq_settings.pop(guild.id, None) # Clear EQ settings
+                    self.eq_settings.pop(guild.id, None) 
                     
                     if guild.id in self.current_music_message_info:
                         old_message_info = self.current_music_message_info[guild.id]
@@ -850,7 +808,7 @@ class ReswanBot(commands.Cog):
                         finally:
                             del self.current_music_message_info[guild.id]
                 else:
-                    log.info(f"Bot {self.bot.user.name} not idle in {vc.channel.name}. Conditions: Human Members={num_human_members}, Playing/Paused={is_playing_or_paused}, Queue Empty={is_queue_empty}.")
+                    log.info(f"Bot {self.bot.user.name} not idle in {vc.channel.name}. Conditions: Human Members={num_human_members}, Playing/Paused={is_playing_or_paused}.")
 
 
     @_check_and_disconnect_idle_bots.before_loop
@@ -864,7 +822,6 @@ class ReswanBot(commands.Cog):
         if member.bot:
             return
 
-        # --- LOGIKA UNTUK PEMBUATAN CHANNEL SEMENTARA ---
         if after.channel and after.channel.id == self.TRIGGER_VOICE_CHANNEL_ID: 
             log.info(f"User {member.display_name} ({member.id}) joined trigger VC ({self.TRIGGER_VOICE_CHANNEL_ID}).")
 
@@ -1021,13 +978,10 @@ class ReswanBot(commands.Cog):
 
     async def get_song_info_from_url(self, url):
         try:
-            # Memastikan yt_dlp memproses URL apa pun, termasuk SoundCloud.
-            # Menggunakan process=True agar metadata lengkap didapatkan untuk artist/uploader.
             info = await asyncio.to_thread(lambda: ytdl.extract_info(url, download=False, process=True)) 
             title = info.get('title', url)
             artist = info.get('artist') or info.get('uploader', 'Unknown Artist')
             
-            # Heuristik untuk membersihkan nama artist/uploader
             if artist and ("Vevo" in artist or "Official" in artist or "Topic" in artist or "Channel" in artist):
                 if ' - ' in title:
                     parts = title.split(' - ')
@@ -1036,10 +990,9 @@ class ReswanBot(commands.Cog):
                         if len(potential_artist) < 30 and "channel" not in potential_artist.lower() and "topic" not in potential_artist.lower():
                             artist = potential_artist
             
-            # Coba ambil thumbnail terbaik, biasanya 'thumbnail' atau 'thumbnails'[-1]['url']
             thumbnail_url = info.get('thumbnail')
             if not thumbnail_url and 'thumbnails' in info and info['thumbnails']:
-                thumbnail_url = info['thumbnails'][-1]['url'] # Ambil thumbnail kualitas tertinggi
+                thumbnail_url = info['thumbnails'][-1]['url'] 
                 
             return {
                 'title': title,
@@ -1054,7 +1007,8 @@ class ReswanBot(commands.Cog):
 
     def _get_ffmpeg_options(self, guild_id):
         if guild_id not in self.eq_settings:
-            self.eq_settings[guild_id] = {'current_preset': 'Flat'}
+            # Ini akan mengambil preset 'Flat' yang sudah dimodifikasi
+            self.eq_settings[guild_id] = {'current_preset': 'Flat'} 
             
         current_preset_name = self.eq_settings[guild_id]['current_preset']
         preset = self.EQ_PRESETS.get(current_preset_name, self.EQ_PRESETS["Flat"])
@@ -1227,7 +1181,6 @@ class ReswanBot(commands.Cog):
         url_to_play = next_song_data['webpage_url'] # Ambil URL dari dictionary
         
         try:
-            # Ambil opsi FFMPEG yang disesuaikan untuk guild ini
             current_ffmpeg_options = self._get_ffmpeg_options(guild_id)
             
             # Atur ID channel konteks untuk YTDLSource jika memproses playlist Spotify
@@ -1235,17 +1188,16 @@ class ReswanBot(commands.Cog):
 
             source, additional_urls = await YTDLSource.from_url(url_to_play, loop=self.bot.loop, stream=True, ffmpeg_options=current_ffmpeg_options)
             
-            if additional_urls: # Jika playlist/album Spotify, tambahkan sisa lagu ke antrean
-                # Mengubah format urls menjadi dict dengan 'webpage_url'
+            if additional_urls: 
                 queue.extend([{'webpage_url': u} for u in additional_urls])
             
-            if not source: # Jika Spotify playlist/album dan bukan track tunggal yang langsung dimainkan
-                 if queue: # Jika ada lagu di antrean setelah memproses playlist/album
+            if not source: 
+                 if queue: 
                      await target_channel.send(f"Menambahkan {len(additional_urls)} lagu dari Spotify ke antrean. Memutar lagu pertama dari antrean.")
-                     await self.play_next(ctx) # Lanjut ke lagu pertama di antrean
+                     await self.play_next(ctx) 
                  else:
                      await target_channel.send("Tidak ada lagu yang bisa diputar dari link yang diberikan atau playlist/album kosong.")
-                 return # Keluar dari fungsi jika tidak ada source untuk dimainkan langsung
+                 return 
 
             if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
                 ctx.voice_client.stop()
@@ -1254,7 +1206,7 @@ class ReswanBot(commands.Cog):
             
             self.now_playing_info[guild_id] = {
                 'title': source.title,
-                'artist': source.uploader, # Gunakan uploader dari YTDLSource (bisa jadi 'artist' atau 'uploader')
+                'artist': source.uploader, 
                 'webpage_url': source.webpage_url
             }
 
@@ -1276,10 +1228,9 @@ class ReswanBot(commands.Cog):
 
             view_instance = MusicControlView(self, {'message_id': None, 'channel_id': target_channel.id})
             
-            # Update tombol-tombol agar mencerminkan status play/pause/mute/loop
             for item in view_instance.children:
                 if item.custom_id == "music:play_pause":
-                    item.emoji = "⏸️" # Asumsi langsung play, jadi tampilkan pause
+                    item.emoji = "⏸️" 
                     item.style = discord.ButtonStyle.green
                 elif item.custom_id == "music:mute_unmute":
                     if self.is_muted.get(guild_id, False):
@@ -1309,216 +1260,6 @@ class ReswanBot(commands.Cog):
             if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                 ctx.voice_client.stop()
             return
-
-    async def _after_play_handler(self, ctx_channel, error): # ctx_channel bisa berupa ctx atau interaction.message.channel
-        guild_id = ctx_channel.guild.id
-        if error:
-            logging.error(f"Player error for guild {guild_id}: {error}")
-            # Target channel mungkin sudah tidak valid, coba dapatkan lagi
-            target_channel = None
-            if guild_id in self.current_music_message_info:
-                channel_id = self.current_music_message_info[guild_id]['channel_id']
-                try:
-                    target_channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
-                except discord.NotFound:
-                    pass
-            if target_channel:
-                await target_channel.send(f"Terjadi error saat memutar: {error}")
-            else:
-                log.warning(f"Could not send error message for guild {guild_id}, target channel not found.")
-                
-        await asyncio.sleep(1) # Beri sedikit waktu untuk FFMPEG berhenti
-
-        self.playing_tracks.pop(guild_id, None)
-
-        vc = ctx_channel.guild.voice_client # Pastikan vc tetap ada
-        if vc and vc.is_connected():
-            # Periksa jika bot masih dalam kondisi play/pause, jika ya, hentikan dengan bersih
-            # Ini penting terutama setelah error agar player tidak stuck
-            if vc.is_playing() or vc.is_paused():
-                vc.stop()
-            await self.play_next(ctx_channel) # Lanjutkan dengan channel dari interaction/ctx awal
-        else:
-            logging.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
-            self.queues[guild_id] = []
-            self.loop_status[guild_id] = False
-            self.is_muted[guild_id] = False
-            self.old_volume.pop(guild_id, None)
-            self.now_playing_info.pop(guild_id, None)
-            self.eq_settings.pop(guild_id, None) # Clear EQ settings
-            
-            if guild_id in self.current_music_message_info:
-                old_message_info = self.current_music_message_info[guild_id]
-                try:
-                    old_channel = self.bot.get_channel(old_message_info['channel_id']) or await self.bot.fetch_channel(old_message_info['channel_id'])
-                    if old_channel:
-                        old_message = await old_channel.fetch_message(old_message_info['message_id'])
-                        await old_message.delete()
-                except (discord.NotFound, discord.HTTPException):
-                    logging.warning(f"Could not delete old music message on auto-disconnect: {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
-                finally:
-                    del self.current_music_message_info[guild_id]
-
-
-    async def _update_music_message_from_ctx(self, ctx):
-        guild_id = ctx.guild.id
-        current_message_info = self.current_music_message_info.get(guild_id)
-        
-        vc = ctx.voice_client
-        if not vc or (not vc.is_playing() and not vc.is_paused()) or guild_id not in self.now_playing_info:
-            embed_to_send = discord.Embed(title="Musik Bot", description="Tidak ada lagu yang sedang diputar.", color=discord.Color.light_grey())
-            if current_message_info:
-                try:
-                    old_channel_obj = ctx.guild.get_channel(current_message_info['channel_id']) or await ctx.guild.fetch_channel(current_message_info['channel_id'])
-                    if old_channel_obj:
-                        old_message_obj = await old_channel_obj.fetch_message(current_message_info['message_id'])
-                        await old_message_obj.edit(embed=embed_to_send, view=MusicControlView(self))
-                        return
-                except (discord.NotFound, discord.HTTPException):
-                    logging.warning(f"Old music message not found or inaccessible for update from ctx in guild {guild_id}.")
-                    del self.current_music_message_info[guild_id]
-            return
-
-        old_message_id = current_message_info['message_id']
-        old_channel_id = current_message_info['channel_id']
-
-        try:
-            old_channel_obj = ctx.guild.get_channel(old_channel_id) or await ctx.guild.fetch_channel(old_channel_id)
-            if old_channel_obj:
-                old_message_obj = await old_channel_obj.fetch_message(old_message_id)
-                
-                info = self.now_playing_info[guild_id]
-                source = vc.source
-
-                embed_to_send = discord.Embed(
-                    title="🎶 Sedang Memutar",
-                    description=f"**[{info['title']}]({info['webpage_url']})**",
-                    color=discord.Color.purple()
-                )
-                if source and source.thumbnail:
-                    embed_to_send.set_thumbnail(url=source.thumbnail)
-                
-                duration_str = "N/A"
-                if source and source.duration:
-                    minutes, seconds = divmod(source.duration, 60)
-                    duration_str = f"{minutes:02}:{seconds:02}"
-                embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
-                embed_to_send.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
-                embed_to_send.set_footer(text=f"Antrean: {len(self.get_queue(guild_id))} lagu tersisa")
-            
-                new_view_instance = MusicControlView(self, {'message_id': old_message_id, 'channel_id': old_channel_id}) # Kirim info message ID juga
-                for item in new_view_instance.children:
-                    if item.custom_id == "music:play_pause":
-                        if vc.is_playing():
-                            item.emoji = "⏸️"
-                            item.style = discord.ButtonStyle.green
-                        elif vc.is_paused():
-                            item.emoji = "▶️"
-                            item.style = discord.ButtonStyle.primary
-                    elif item.custom_id == "music:mute_unmute":
-                        if self.is_muted.get(guild_id, False):
-                            item.emoji = "🔇"
-                        else:
-                            item.emoji = "🔊"
-                    elif item.custom_id == "music:loop":
-                        if self.loop_status.get(guild_id, False):
-                            item.style = discord.ButtonStyle.green
-                        else:
-                            item.style = discord.ButtonStyle.grey
-                    elif item.custom_id == "music:eq_preset_select":
-                        current_preset = self.eq_settings.get(guild_id, {}).get('current_preset', 'Flat')
-                        item.placeholder = f"Preset EQ: {current_preset}"
-
-                await old_message_obj.edit(embed=embed_to_send, view=new_view_instance)
-                return
-        except (discord.NotFound, discord.HTTPException) as e:
-            logging.warning(f"Could not edit old music message {old_message_id} in channel {old_channel_id} from ctx: {e}")
-            del self.current_music_message_info[guild_id]
-        
-        # Jika sampai sini, berarti pesan lama tidak ditemukan/tidak bisa di-update
-        pass
-
-    # --- Music Commands ---
-    @commands.command(name="resjoin")
-    async def join(self, ctx):
-        if ctx.voice_client:
-            if ctx.voice_client.channel != ctx.author.voice.channel:
-                return await ctx.send("Bot sudah berada di voice channel lain. Harap keluarkan dulu.")
-            return
-        if ctx.author.voice:
-            await ctx.author.voice.channel.connect()
-            await ctx.send(f"Joined **{ctx.author.voice.channel.name}**")
-        else:
-            await ctx.send("Kamu harus berada di voice channel dulu.")
-
-    @commands.command(name="resp")
-    async def play(self, ctx, *, query):
-        if not ctx.voice_client:
-            await ctx.invoke(self.join)
-            if not ctx.voice_client:
-                return await ctx.send("Gagal bergabung ke voice channel.")
-
-        await ctx.defer()
-
-        guild_id = ctx.guild.id
-        
-        # Hapus pesan kontrol musik lama sebelum memutar lagu baru atau menambah antrean
-        if guild_id in self.current_music_message_info:
-            old_message_info = self.current_music_message_info[guild_id]
-            try:
-                old_channel = ctx.guild.get_channel(old_message_info['channel_id']) or await ctx.guild.fetch_channel(old_message_info['channel_id'])
-                if old_channel:
-                    old_message = await old_channel.fetch_message(old_message_info['message_id'])
-                    await old_message.delete()
-            except (discord.NotFound, discord.HTTPException) as e:
-                logging.warning(f"Could not delete old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during play command: {e}")
-            finally:
-                del self.current_music_message_info[guild_id]
-
-        queue = self.get_queue(guild_id)
-        
-        # Set ID channel konteks untuk YTDLSource jika memproses playlist Spotify
-        self.bot.loop._current_context_channel_id = ctx.channel.id
-
-        source_or_none, additional_urls = await YTDLSource.from_url(query, loop=self.bot.loop, stream=True, ffmpeg_options=self._get_ffmpeg_options(guild_id))
-
-        if additional_urls: # Ini adalah playlist atau album
-            # Tambahkan lagu pertama dari playlist jika ada, lalu sisanya
-            if source_or_none and (not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused() and not queue):
-                # Putar lagu pertama dari playlist/album jika bot idle dan queue kosong
-                ctx.voice_client.play(source_or_none, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
-                self.now_playing_info[guild_id] = {
-                    'title': source_or_none.title,
-                    'artist': source_or_none.uploader, 
-                    'webpage_url': source_or_none.webpage_url
-                }
-                # Tambahkan sisa lagu ke antrean
-                queue.extend([{'webpage_url': url} for url in additional_urls])
-                await ctx.send(f"Menambahkan {len(additional_urls) + 1} lagu dari link (termasuk yang sedang diputar) ke antrean.")
-                # Buat pesan kontrol musik baru
-                await self._create_music_control_message(ctx, source_or_none)
-            else:
-                # Jika bot sudah memutar atau antrean tidak kosong, tambahkan semua ke antrean
-                queue.extend([{'webpage_url': url} for url in additional_urls])
-                await ctx.send(f"Menambahkan {len(additional_urls)} lagu dari link ke antrean.")
-                await self._update_music_message_from_ctx(ctx) # Update pesan kontrol jika ada
-            return
-
-        if source_or_none: # Jika itu lagu tunggal
-            if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused() and not queue:
-                ctx.voice_client.play(source_or_none, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
-                self.now_playing_info[guild_id] = {
-                    'title': source_or_none.title,
-                    'artist': source_or_none.uploader, 
-                    'webpage_url': source_or_none.webpage_url
-                }
-                await self._create_music_control_message(ctx, source_or_none)
-            else:
-                queue.append({'webpage_url': query}) # Simpan query asli ke antrean
-                await ctx.send(f"Ditambahkan ke antrean: **{source_or_none.title}**.")
-                await self._update_music_message_from_ctx(ctx)
-        else:
-            await ctx.send("Tidak dapat menemukan lagu atau link tidak valid.")
 
     async def _create_music_control_message(self, ctx, source):
         guild_id = ctx.guild.id
@@ -1573,7 +1314,7 @@ class ReswanBot(commands.Cog):
     async def skip_cmd(self, ctx):
         if not ctx.voice_client or (not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused()):
             return await ctx.send("Tidak ada lagu yang sedang diputar.", ephemeral=True)
-        ctx.voice_client.stop() # Ini akan memicu _after_play_handler
+        ctx.voice_client.stop() 
         await ctx.send("⏭️ Skip lagu.", ephemeral=True)
 
     @commands.command(name="respause")
@@ -1620,7 +1361,7 @@ class ReswanBot(commands.Cog):
             self.old_volume.pop(ctx.guild.id, None)
             self.now_playing_info.pop(ctx.guild.id, None)
             self.playing_tracks.pop(ctx.guild.id, None) 
-            self.eq_settings.pop(ctx.guild.id, None) # Clear EQ settings on stop
+            self.eq_settings.pop(ctx.guild.id, None) 
             
             await ctx.voice_client.disconnect()
             await ctx.send("⏹️ Stop dan keluar dari voice.", ephemeral=True)
@@ -1631,8 +1372,10 @@ class ReswanBot(commands.Cog):
     async def queue_cmd(self, ctx):
         queue = self.get_queue(ctx.guild.id)
         if queue:
-            # Mengambil webpage_url dari setiap item di antrean
-            display_queue_titles = [await self.get_song_info_from_url(q['webpage_url']) for q in queue[:15]]
+            display_queue = queue[:10]
+            display_queue_titles = await asyncio.gather(
+                *[self.get_song_info_from_url(q['webpage_url']) for q in display_queue] 
+            )
             msg = "\n".join([f"{i+1}. {q['title']}" for i, q in enumerate(display_queue_titles)])
             
             embed = discord.Embed(
@@ -1640,8 +1383,8 @@ class ReswanBot(commands.Cog):
                 description=f"```{msg}```",
                 color=discord.Color.gold()
             )
-            if len(queue) > 15:
-                embed.set_footer(text=f"Dan {len(queue) - 15} lagu lainnya...")
+            if len(queue) > 10:
+                embed.set_footer(text=f"Dan {len(queue) - 10} lagu lainnya...")
             await ctx.send(embed=embed, ephemeral=True)
         else:
             await ctx.send("Antrian kosong.", ephemeral=True)
@@ -2034,3 +1777,4 @@ async def setup(bot):
         logging.info("Created default donation_buttons.json file.")
 
     await bot.add_cog(ReswanBot(bot))
+
