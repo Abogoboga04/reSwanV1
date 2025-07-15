@@ -167,80 +167,104 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 
 # --- Kelas Select Menu untuk EQ Presets ---
-class EQPresetSelect(discord.ui.Select):
-    def __init__(self, cog_instance):
+class EQPresetSelectView(discord.ui.View): # Membuat View terpisah untuk Select Menu
+    def __init__(self, cog_instance, interaction_channel_id, original_requester_id):
+        super().__init__(timeout=60) # Timeout 60 detik agar tidak menumpuk
         self.cog = cog_instance
-        options = []
-        for preset_name in self.cog.EQ_PRESETS.keys():
-            options.append(discord.SelectOption(label=preset_name, description=f"Preset {preset_name}."))
-        
-        # Dapatkan preset aktif saat ini untuk placeholder
-        current_preset_name = 'Flat' # Default Fallback
-        guild_id = None
-        if hasattr(self.cog.bot.loop, '_current_context_interaction') and self.cog.bot.loop._current_context_interaction is not None:
-            guild_id = self.cog.bot.loop._current_context_interaction.guild.id
-            current_preset_name = self.cog.eq_settings.get(guild_id, {}).get('current_preset', 'Flat')
-        
-        super().__init__(
-            placeholder=f"Pilih Preset EQ ({current_preset_name})...", # Menampilkan preset aktif
-            min_values=1,
-            max_values=1,
-            options=options,
-            custom_id="music:eq_preset_select",
-            row=4 # Ditempatkan di baris 4 (baris baru setelah tombol donasi asli di row 3)
-        )
+        self.interaction_channel_id = interaction_channel_id
+        self.original_requester_id = original_requester_id
+        self.add_item(self.EQPresetSelect(self.cog)) # Tambahkan Select ke view ini
+        self.message = None # Akan disimpan saat pesan dikirim
 
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True) 
-        
-        selected_preset_name = self.values[0]
-        guild_id = interaction.guild.id
-        
-        if guild_id not in self.cog.eq_settings:
-            self.cog.eq_settings[guild_id] = {'current_preset': 'Flat'}
+    async def on_timeout(self):
+        # Hapus pesan setelah timeout
+        channel = self.cog.bot.get_channel(self.interaction_channel_id)
+        if channel and self.message:
+            try:
+                for item in self.children:
+                    item.disabled = True
+                await self.message.edit(content="Pilihan preset EQ telah kedaluwarsa.", view=self)
+            except discord.NotFound:
+                pass # Pesan sudah terhapus
 
-        self.cog.eq_settings[guild_id]['current_preset'] = selected_preset_name
-        
-        vc = interaction.guild.voice_client
-        if not vc or not vc.is_playing() or not self.cog.now_playing_info.get(guild_id):
-            await interaction.followup.send(f"Preset EQ diatur ke **{selected_preset_name}**. Putar lagu untuk menerapkannya.", ephemeral=True)
-            return
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Hanya pengguna yang mengklik tombol EQ awal yang bisa menggunakan select menu ini
+        if interaction.user.id != self.original_requester_id:
+            await interaction.response.send_message("Anda bukan pengguna yang meminta pengaturan EQ ini.", ephemeral=True)
+            return False
+        return True
 
-        current_song_webpage_url = self.cog.now_playing_info[guild_id]['webpage_url'] 
 
-        await interaction.followup.send(f"Preset EQ diubah ke **{selected_preset_name}**.\n*(Memuat ulang lagu untuk menerapkan efek...)*", ephemeral=True)
-
-        try:
-            vc.stop()
-            new_ffmpeg_options = self.cog._get_ffmpeg_options(guild_id)
+    class EQPresetSelect(discord.ui.Select): # Nested class for easier access to cog
+        def __init__(self, cog_instance):
+            self.cog = cog_instance
+            options = []
+            for preset_name in self.cog.EQ_PRESETS.keys():
+                options.append(discord.SelectOption(label=preset_name, description=f"Preset {preset_name}."))
             
-            # Set context channel ID for YTDLSource if handling Spotify playlists/albums
-            self.cog.bot.loop._current_context_channel_id = interaction.channel.id
+            super().__init__(
+                placeholder="Pilih Preset EQ...",
+                min_values=1,
+                max_values=1,
+                options=options,
+                custom_id="music:eq_preset_select_dropdown" # ID unik untuk dropdown
+            )
 
-            source, _ = await YTDLSource.from_url(current_song_webpage_url, loop=self.cog.bot.loop, stream=True, ffmpeg_options=new_ffmpeg_options)
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer(ephemeral=True) 
             
-            if source:
-                if self.cog.is_muted.get(guild_id, False):
-                    source.volume = 0.0
-                elif vc.source:
-                    source.volume = vc.source.volume
-                else:
-                    source.volume = 0.8 
+            selected_preset_name = self.values[0]
+            guild_id = interaction.guild.id
+            
+            if guild_id not in self.cog.eq_settings:
+                self.cog.eq_settings[guild_id] = {'current_preset': 'Flat'}
 
-                vc.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self.cog._after_play_handler(interaction.message.channel, e), self.cog.bot.loop))
+            self.cog.eq_settings[guild_id]['current_preset'] = selected_preset_name
+            
+            vc = interaction.guild.voice_client
+            if not vc or not vc.is_playing() or not self.cog.now_playing_info.get(guild_id):
+                await interaction.followup.send(f"Preset EQ diatur ke **{selected_preset_name}**. Putar lagu untuk menerapkannya.", ephemeral=True)
+                # Hapus view dropdown setelah seleksi jika tidak ada lagu
+                await interaction.message.delete()
+                return
+
+            current_song_webpage_url = self.cog.now_playing_info[guild_id]['webpage_url'] 
+
+            await interaction.followup.send(f"Preset EQ diubah ke **{selected_preset_name}**.\n*(Memuat ulang lagu untuk menerapkan efek...)*", ephemeral=True)
+            # Hapus view dropdown setelah seleksi
+            await interaction.message.delete()
+
+            try:
+                vc.stop()
+                new_ffmpeg_options = self.cog._get_ffmpeg_options(guild_id)
                 
-                self.cog.now_playing_info[guild_id] = {
-                    'title': source.title,
-                    'artist': source.uploader, 
-                    'webpage_url': source.webpage_url
-                }
-            else:
-                 await interaction.followup.send("❌ Gagal mendapatkan sumber lagu untuk menerapkan preset.", ephemeral=True)
-                 return
+                # Update current context for YTDLSource if needed
+                self.cog.bot.loop._current_context_channel_id = interaction.channel.id
 
-        except Exception as e:
-            await interaction.followup.send(f"❌ Gagal menerapkan preset EQ: {e}", ephemeral=True)
-            log.error(f"Error applying EQ preset for guild {guild_id}: {e}", exc_info=True)
+                source, _ = await YTDLSource.from_url(current_song_webpage_url, loop=self.cog.bot.loop, stream=True, ffmpeg_options=new_ffmpeg_options)
+                
+                if source:
+                    if self.cog.is_muted.get(guild_id, False):
+                        source.volume = 0.0
+                    elif vc.source:
+                        source.volume = vc.source.volume
+                    else:
+                        source.volume = 0.8 
+
+                    vc.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self.cog._after_play_handler(interaction.message.channel, e), self.cog.bot.loop))
+                    
+                    self.cog.now_playing_info[guild_id] = {
+                        'title': source.title,
+                        'artist': source.uploader, 
+                        'webpage_url': source.webpage_url
+                    }
+                else:
+                    await interaction.followup.send("❌ Gagal mendapatkan sumber lagu untuk menerapkan preset.", ephemeral=True)
+                    return
+
+            except Exception as e:
+                await interaction.followup.send(f"❌ Gagal menerapkan preset EQ: {e}", ephemeral=True)
+                log.error(f"Error applying EQ preset for guild {guild_id}: {e}", exc_info=True)
 
 
 class MusicControlView(discord.ui.View):
@@ -249,36 +273,21 @@ class MusicControlView(discord.ui.View):
         self.cog = cog_instance
         self.original_message_info = original_message_info
         
-        # --- BUTTONS: OLD LAYOUT FROM YOUR ORIGINAL CODE ---
-        # Baris 0: (Sesuai kode lama Anda)
-        self.add_item(discord.ui.Button(emoji="▶️", style=discord.ButtonStyle.primary, custom_id="music:play_pause", row=0))
-        self.add_item(discord.ui.Button(emoji="⏩", style=discord.ButtonStyle.secondary, custom_id="music:skip", row=0))
-        self.add_item(discord.ui.Button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="music:stop", row=0))
-        self.add_item(discord.ui.Button(emoji="ℹ️", style=discord.ButtonStyle.blurple, custom_id="music:np_info", row=0)) # Tombol info asli dikembalikan
+        # NOTE: Semua tombol di bawah ini menggunakan metode @discord.ui.button
+        # yang didefinisikan di bawah kelas ini.
+        # Baris 0, 1, 2 akan diisi oleh decorator, jadi tidak perlu self.add_item di sini.
+        # Hanya load donation buttons dan tambahkan tombol EQ Presets baru.
         
-        # Baris 1: (Sesuai kode lama Anda)
-        self.add_item(discord.ui.Button(emoji="📜", style=discord.ButtonStyle.grey, custom_id="music:queue", row=1))
-        self.add_item(discord.ui.Button(emoji="🔁", style=discord.ButtonStyle.grey, custom_id="music:loop", row=1))
-        self.add_item(discord.ui.Button(emoji="📖", style=discord.ButtonStyle.blurple, custom_id="music:lyrics", row=1))
-        self.add_item(discord.ui.Button(emoji="🔀", style=discord.ButtonStyle.grey, custom_id="music:shuffle", row=1)) # Shuffle asli dikembalikan
-        self.add_item(discord.ui.Button(emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="music:clear_queue", row=1)) # Clear asli dikembalikan
-        
-        # Baris 2: (Sesuai kode lama Anda)
-        self.add_item(discord.ui.Button(emoji="➕", style=discord.ButtonStyle.secondary, custom_id="music:volume_up", row=2))
-        self.add_item(discord.ui.Button(emoji="➖", style=discord.ButtonStyle.secondary, custom_id="music:volume_down", row=2))
-        self.add_item(discord.ui.Button(emoji="🔊", style=discord.ButtonStyle.secondary, custom_id="music:mute_unmute", row=2))
-        
-        # Baris 3: Tombol Donasi (Sesuai kode lama Anda)
-        self.load_donation_buttons() # Ini akan menambahkan tombol donasi ke row=3
-
-        # Baris 4: Tambahkan EQPresetSelect di baris baru agar tidak mengganggu layout lama
-        self.add_item(EQPresetSelect(self.cog)) 
+        self.load_donation_buttons()
+        # Tombol EQ Presets baru, ditempatkan di baris yang tersedia, contoh row=4
+        # (Karena row 0-3 sudah terisi oleh tombol-tombol dari kode lama Anda)
+        self.add_item(discord.ui.Button(emoji="🎛️", label="EQ Presets", style=discord.ButtonStyle.blurple, custom_id="music:show_eq_presets", row=4))
 
     def load_donation_buttons(self):
         try:
             with open('reswan/data/donation_buttons.json', 'r', encoding='utf-8') as f:
                 donation_data = json.load(f)
-                for button_data in donation_data: # Kode lama Anda menggunakan loop langsung ke data
+                for button_data in donation_data: 
                     self.add_item(discord.ui.Button(
                         label=button_data['label'],
                         style=discord.ButtonStyle.url,
@@ -307,7 +316,6 @@ class MusicControlView(discord.ui.View):
         
         vc = interaction.guild.voice_client
         if not current_message_info or not vc or (not vc.is_playing() and not vc.is_paused()) or guild_id not in self.cog.now_playing_info:
-            # Jika ada pesan lama tapi bot tidak aktif, coba hapus pesan lama
             if current_message_info:
                  try:
                     old_channel_obj = interaction.guild.get_channel(current_message_info['channel_id']) or await interaction.guild.fetch_channel(current_message_info['channel_id'])
@@ -344,9 +352,19 @@ class MusicControlView(discord.ui.View):
                     minutes, seconds = divmod(source.duration, 60)
                     duration_str = f"{minutes:02}:{seconds:02}"
                 embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
+                
+                # Coba ambil original requester jika ada, fallback ke interaction.user
+                if 'requester_mention' in info: 
+                    embed_to_send.add_field(name="Diminta oleh", value=info['requester_mention'], inline=True)
+                else: 
+                    embed_to_send.add_field(name="Diminta oleh", value=interaction.user.mention, inline=True)
+
                 embed_to_send.set_footer(text=f"Antrean: {len(self.cog.get_queue(guild_id))} lagu tersisa")
 
-                new_view_instance = MusicControlView(self.cog, {'message_id': old_message_id, 'channel_id': old_channel_id})
+                # MusicControlView() sekarang tidak lagi menerima original_message_info secara langsung
+                # dan tombol-tombol didefinisikan oleh decorators.
+                new_view_instance = MusicControlView(self.cog) # Cukup teruskan cog_instance
+                
                 # Perbarui status tombol play/pause dan mute/unmute
                 for item in new_view_instance.children:
                     if item.custom_id == "music:play_pause":
@@ -366,11 +384,7 @@ class MusicControlView(discord.ui.View):
                             item.style = discord.ButtonStyle.green
                         else:
                             item.style = discord.ButtonStyle.grey
-                    # Perbarui placeholder Select Menu EQ
-                    elif item.custom_id == "music:eq_preset_select":
-                        current_preset = self.cog.eq_settings.get(guild_id, {}).get('current_preset', 'Flat')
-                        item.placeholder = f"Pilih Preset EQ ({current_preset})..."
-
+                    # Select Menu ada di view terpisah, jadi tidak perlu diupdate di sini.
                 await old_message_obj.edit(embed=embed_to_send, view=new_view_instance)
                 return
         except (discord.NotFound, discord.HTTPException) as e:
@@ -421,7 +435,6 @@ class MusicControlView(discord.ui.View):
 
         vc = interaction.guild.voice_client
         if vc:
-            # PENTING: Panggil stop() sebelum disconnect untuk menghentikan FFMPEG dengan bersih
             if vc.is_playing() or vc.is_paused():
                 vc.stop() 
             await vc.disconnect()
@@ -624,6 +637,19 @@ class MusicControlView(discord.ui.View):
         else:
             await interaction.response.send_message("Tidak ada lagu yang sedang diputar.", ephemeral=True)
 
+    # --- Tombol baru untuk menampilkan EQ Presets ---
+    @discord.ui.button(emoji="🎛️", label="EQ Presets", style=discord.ButtonStyle.blurple, custom_id="music:show_eq_presets", row=4)
+    async def show_eq_presets_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._check_voice_channel(interaction):
+            return
+        
+        # Buat instance view baru yang hanya berisi Select Menu
+        eq_select_view = EQPresetSelectView(self.cog, interaction.channel.id, interaction.user.id)
+        # Kirim pesan dengan Select Menu
+        response_message = await interaction.response.send_message("Pilih preset EQ:", view=eq_select_view, ephemeral=True)
+        # Simpan pesan ini di view agar bisa di-edit/hapus setelah timeout atau pilihan
+        eq_select_view.message = await response_message.fetch_message()
+
 
 class ReswanBot(commands.Cog):
     def __init__(self, bot):
@@ -725,6 +751,8 @@ class ReswanBot(commands.Cog):
             logging.warning("SPOTIPY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
             logging.warning("Spotify features might not work without them.")
 
+        # Anda tidak perlu lagi mendaftarkan setiap tombol di __init__ MusicControlView.
+        # Hanya perlu memastikan class MusicControlView itu sendiri terdaftar.
         self.bot.add_view(MusicControlView(self))
 
         # TempVoice Module States
@@ -902,7 +930,7 @@ class ReswanBot(commands.Cog):
                         except Exception as e:
                             log.error(f"Error moving {member.display_name} to existing VC {existing_channel.name}: {e}", exc_info=True)
                             try: await member.send(f"❌ Terjadi kesalahan saat memindahkan Anda ke channel pribadi Anda: {e}. Hubungi admin server.", ephemeral=True)
-                            except discord.Forbidden: pass
+                            except discord.Google_service: pass
                             return
                     else: 
                         log.warning(f"Temporary channel {ch_id_str} in data not found on Discord. Removing from tracking.")
@@ -1039,17 +1067,18 @@ class ReswanBot(commands.Cog):
 
     async def get_song_info_from_url(self, url):
         try:
-            info = await asyncio.to_thread(lambda: ytdl.extract_info(url, download=False, process=True)) 
+            info = await asyncio.to_thread(lambda: ytdl.extract_info(url, download=False, process=True)) # Changed process=False to process=True for full metadata
             title = info.get('title', url)
             artist = info.get('artist') or info.get('uploader', 'Unknown Artist')
             
-            if artist and ("Vevo" in artist or "Official" in artist or "Topic" in artist or "Channel" in artist):
+            if artist and ("Vevo" in artist or "Official" in artist or "Topic" in artist or "Channel" in artist): # Added 'artist and' to prevent error
                 if ' - ' in title:
                     parts = title.split(' - ')
                     if len(parts) > 1:
                         potential_artist = parts[-1].strip()
                         if len(potential_artist) < 30 and "channel" not in potential_artist.lower() and "topic" not in potential_artist.lower():
                             artist = potential_artist
+            # Added thumbnail extraction for info message
             thumbnail_url = info.get('thumbnail')
             if not thumbnail_url and 'thumbnails' in info and info['thumbnails']:
                 thumbnail_url = info['thumbnails'][-1]['url']
@@ -1059,7 +1088,7 @@ class ReswanBot(commands.Cog):
                 'artist': artist,
                 'webpage_url': info.get('webpage_url', url),
                 'thumbnail': thumbnail_url,
-                'duration': info.get('duration')
+                'duration': info.get('duration') # Added duration
             }
         except Exception as e:
             logging.error(f"Error getting song info from URL {url}: {e}")
@@ -1080,7 +1109,7 @@ class ReswanBot(commands.Cog):
         
         full_audio_filters = eq_main_filter
         if additional_filters:
-            full_audio_filters += f",{additional_filters}"
+            full_audio_filters += f",{additional_filters}" # Perbaikan: Pastikan ini digabung dengan koma
 
         base_options = '-vn -b:a 128k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header'
         
@@ -1230,9 +1259,7 @@ class ReswanBot(commands.Cog):
             for item in view_instance.children:
                 item.disabled = True
             # Menambahkan placeholder untuk Select EQ
-            for item in view_instance.children:
-                if item.custom_id == "music:eq_preset_select":
-                    item.placeholder = "Antrean kosong, tidak ada EQ"
+            # Select EQ tidak ada di MusicControlView, jadi tidak perlu update placeholder di sini.
             
             message_sent = await target_channel.send(embed=embed, view=view_instance)
             self.current_music_message_info[guild_id] = {
@@ -1255,7 +1282,7 @@ class ReswanBot(commands.Cog):
             
             # Set ID channel konteks untuk YTDLSource jika memproses playlist Spotify
             self.bot.loop._current_context_channel_id = target_channel.id
-            self.bot.loop._current_context_interaction = ctx # Penting untuk EQPresetSelect placeholder
+            self.bot.loop._current_context_interaction = ctx # Penting untuk EQPresetSelectView placeholder
 
             source, additional_urls = await YTDLSource.from_url(url_to_play, loop=self.bot.loop, stream=True, ffmpeg_options=current_ffmpeg_options)
             
@@ -1278,7 +1305,8 @@ class ReswanBot(commands.Cog):
             self.now_playing_info[guild_id] = {
                 'title': source.title,
                 'artist': source.uploader, 
-                'webpage_url': source.webpage_url
+                'webpage_url': source.webpage_url,
+                'requester_mention': ctx.author.mention # Simpan mention requester
             }
 
             embed = discord.Embed(
@@ -1294,7 +1322,7 @@ class ReswanBot(commands.Cog):
                 minutes, seconds = divmod(source.duration, 60)
                 duration_str = f"{minutes:02}:{seconds:02}"
             embed.add_field(name="Durasi", value=duration_str, inline=True)
-            embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
+            embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True) # Pakai ctx.author.mention untuk pesan awal
             embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
 
             view_instance = MusicControlView(self, {'message_id': None, 'channel_id': target_channel.id})
@@ -1313,9 +1341,7 @@ class ReswanBot(commands.Cog):
                         item.style = discord.ButtonStyle.green
                     else:
                         item.style = discord.ButtonStyle.grey
-                elif item.custom_id == "music:eq_preset_select": # Update placeholder EQ Select
-                    current_preset = self.eq_settings.get(guild_id, {}).get('current_preset', 'Flat')
-                    item.placeholder = f"Pilih Preset EQ ({current_preset})..."
+                # Tidak ada lagi update placeholder EQ Select di sini karena Select di view terpisah
                 item.disabled = False
             
             message_sent = await target_channel.send(embed=embed, view=view_instance)
@@ -1422,10 +1448,16 @@ class ReswanBot(commands.Cog):
                     minutes, seconds = divmod(source.duration, 60)
                     duration_str = f"{minutes:02}:{seconds:02}"
                 embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
-                embed_to_send.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
+                
+                if 'requester_mention' in info: # Pakai mention yang tersimpan
+                    embed_to_send.add_field(name="Diminta oleh", value=info['requester_mention'], inline=True)
+                else: # Fallback jika tidak ada
+                    embed_to_send.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
+
+
                 embed_to_send.set_footer(text=f"Antrean: {len(self.get_queue(guild_id))} lagu tersisa")
             
-                new_view_instance = MusicControlView(self, {'message_id': old_message_id, 'channel_id': old_channel_id}) 
+                new_view_instance = MusicControlView(self) # Tidak perlu original_message_info di sini
                 for item in new_view_instance.children:
                     if item.custom_id == "music:play_pause":
                         if vc.is_playing():
@@ -1444,9 +1476,7 @@ class ReswanBot(commands.Cog):
                             item.style = discord.ButtonStyle.green
                         else:
                             item.style = discord.ButtonStyle.grey
-                    elif item.custom_id == "music:eq_preset_select": # Update placeholder EQ Select
-                        current_preset = self.eq_settings.get(guild_id, {}).get('current_preset', 'Flat')
-                        item.placeholder = f"Pilih Preset EQ ({current_preset})..."
+                    # Select menu ada di view terpisah, jadi tidak perlu update placeholder
                     item.disabled = False
                 
                 new_message = await old_channel_obj.send(embed=embed_to_send, view=new_view_instance) 
@@ -1513,7 +1543,8 @@ class ReswanBot(commands.Cog):
                 self.now_playing_info[guild_id] = {
                     'title': source_or_none.title,
                     'artist': source_or_none.uploader, 
-                    'webpage_url': source_or_none.webpage_url
+                    'webpage_url': source_or_none.webpage_url,
+                    'requester_mention': ctx.author.mention
                 }
                 queue.extend([{'webpage_url': url} for url in additional_urls])
                 await ctx.send(f"Menambahkan {len(additional_urls) + 1} lagu dari link (termasuk yang sedang diputar) ke antrean.")
@@ -1530,7 +1561,8 @@ class ReswanBot(commands.Cog):
                 self.now_playing_info[guild_id] = {
                     'title': source_or_none.title,
                     'artist': source_or_none.uploader, 
-                    'webpage_url': source_or_none.webpage_url
+                    'webpage_url': source_or_none.webpage_url,
+                    'requester_mention': ctx.author.mention
                 }
                 await self._create_music_control_message(ctx, source_or_none)
             else:
@@ -1623,7 +1655,7 @@ class ReswanBot(commands.Cog):
         if guild_id not in self.loop_status:
             self.loop_status[guild_id] = False
             
-        self.loop_status[guild_id] = not self.loop_status[guild_id]
+        self.loop_status[guild_id] = not self.cog.loop_status[guild_id]
 
         status_msg = "ON" if self.loop_status[guild_id] else "OFF"
         await ctx.send(f"🔁 Mode Loop **{status_msg}** (lagu saat ini akan diulang).", ephemeral=True)
