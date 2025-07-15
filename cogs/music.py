@@ -277,6 +277,10 @@ class MusicControlView(discord.ui.View):
         # Semua tombol lain (play/pause, skip, dll.) akan terdaftar secara otomatis
         # karena mereka didefinisikan menggunakan decorator @discord.ui.button
         self.load_donation_buttons() 
+        # Tambahkan tombol EQ Presets baru. Ditempatkan di baris 4.
+        # Catatan: row=4 karena baris 0, 1, 2, dan 3 (donasi) sudah terisi di kode lama Anda.
+        # Jika Anda menambahkan tombol di decorator dengan row lebih tinggi, sesuaikan ini.
+
 
     def load_donation_buttons(self):
         try:
@@ -377,7 +381,7 @@ class MusicControlView(discord.ui.View):
                             item.style = discord.ButtonStyle.green
                         else:
                             item.style = discord.ButtonStyle.grey
-                    # Select Menu ada di view terpisah, jadi tidak perlu diupdate di sini.
+                    # Tidak ada Select Menu di sini. Item EQ Presets akan ada di baris 4.
                 await old_message_obj.edit(embed=embed_to_send, view=new_view_instance)
                 return
         except (discord.NotFound, discord.HTTPException) as e:
@@ -744,8 +748,6 @@ class ReswanBot(commands.Cog):
             logging.warning("SPOTIPY_CLIENT_ID or SPOTIPY_CLIENT_SECRET not set.")
             logging.warning("Spotify features might not work without them.")
 
-        # Anda tidak perlu lagi mendaftarkan setiap tombol di __init__ MusicControlView.
-        # Hanya perlu memastikan class MusicControlView itu sendiri terdaftar.
         self.bot.add_view(MusicControlView(self))
 
         # TempVoice Module States
@@ -1540,7 +1542,7 @@ class ReswanBot(commands.Cog):
                 }
                 queue.extend([{'webpage_url': url} for url in additional_urls])
                 await ctx.send(f"Menambahkan {len(additional_urls) + 1} lagu dari link (termasuk yang sedang diputar) ke antrean.")
-                await self._create_music_control_message(ctx, source_or_none)
+                await self._create_music_control_message(ctx, source_or_none) # Panggil metode ini!
             else:
                 queue.extend([{'webpage_url': url} for url in additional_urls])
                 await ctx.send(f"Ditambahkan {len(additional_urls)} lagu dari link ke antrean.")
@@ -1556,7 +1558,7 @@ class ReswanBot(commands.Cog):
                     'webpage_url': source_or_none.webpage_url,
                     'requester_mention': ctx.author.mention
                 }
-                await self._create_music_control_message(ctx, source_or_none)
+                await self._create_music_control_message(ctx, source_or_none) # Panggil metode ini!
             else:
                 queue.append({'webpage_url': query}) 
                 await ctx.send(f"Ditambahkan ke antrian: **{source_or_none.title}**.")
@@ -1564,6 +1566,56 @@ class ReswanBot(commands.Cog):
         else:
             await ctx.send("Tidak dapat menemukan lagu atau link tidak valid.")
 
+    # --- Ini adalah metode _create_music_control_message yang hilang ---
+    async def _create_music_control_message(self, ctx, source):
+        guild_id = ctx.guild.id
+        queue = self.get_queue(guild_id)
+        info = self.now_playing_info[guild_id]
+
+        embed = discord.Embed(
+            title="🎶 Sedang Memutar",
+            description=f"**[{info['title']}]({info['webpage_url']})**",
+            color=discord.Color.purple()
+        )
+        if source.thumbnail:
+            embed.set_thumbnail(url=source.thumbnail)
+        
+        duration_str = "N/A"
+        if source.duration:
+            minutes, seconds = divmod(source.duration, 60)
+            duration_str = f"{minutes:02}:{seconds:02}"
+        embed.add_field(name="Durasi", value=duration_str, inline=True)
+        embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True) 
+        embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
+
+        view_instance = MusicControlView(self, {'message_id': None, 'channel_id': ctx.channel.id})
+        
+        # Perbarui status tombol play/pause dan mute/unmute
+        for item in view_instance.children:
+            if item.custom_id == "music:play_pause":
+                item.emoji = "⏸️" 
+                item.style = discord.ButtonStyle.green
+            elif item.custom_id == "music:mute_unmute":
+                if self.is_muted.get(guild_id, False):
+                    item.emoji = "🔇"
+                else:
+                    item.emoji = "🔊"
+            elif item.custom_id == "music:loop":
+                if self.loop_status.get(guild_id, False):
+                    item.style = discord.ButtonStyle.green
+                else:
+                    item.style = discord.ButtonStyle.grey
+            # Tidak ada Select Menu di sini. Item EQ Presets akan ada di baris 4.
+            item.disabled = False
+        
+        message_sent = await ctx.send(embed=embed, view=view_instance)
+        
+        if message_sent:
+            self.current_music_message_info[guild_id] = {
+                'message_id': message_sent.id,
+                'channel_id': message_sent.channel.id
+            }
+            
     @commands.command(name="resskip")
     async def skip_cmd(self, ctx):
         if not ctx.voice_client or (not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused()):
