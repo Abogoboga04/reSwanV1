@@ -269,7 +269,6 @@ class MusicControlView(discord.ui.View):
             queue = self.cog.get_queue(guild_id)
             if queue:
                 queue.pop(0)
-
             vc.stop()
             await interaction.followup.send("⏭️ Skip lagu.", ephemeral=True)
         else:
@@ -763,7 +762,7 @@ class ReswanBot(commands.Cog):
                 )
 
             except discord.Forbidden:
-                log.error(f"Bot lacks permissions to create voice channels or move members in guild {guild.name}. Please check 'Manage Channels' and 'Move Members' permissions.", exc_info=True)
+                log.error(f"Bot lacks permissions to create voice channels or move members in guild {guild.name}. Please check 'Manage Channels' and 'Move Members' permission.", exc_info=True)
                 try: await member.send(f"❌ Gagal membuat channel suara pribadi: Bot tidak memiliki izin yang cukup (Manage Channels atau Move Members). Hubungi admin server.", ephemeral=True)
                 except discord.Forbidden: pass
                 try: await member.move_to(None, reason="Bot lacks permissions.")
@@ -1262,9 +1261,9 @@ class ReswanBot(commands.Cog):
 
         urls = []
         is_spotify_link = False
-        spotify_track_info = None
-
-        if self.spotify and ("http" in query or "spotify:" in query):
+        
+        # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
+        if self.spotify and ("spotify.com/" in query or "spotify:" in query):
             is_spotify_link = True
             try:
                 if "track" in query:
@@ -1294,6 +1293,7 @@ class ReswanBot(commands.Cog):
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
         else:
+            # Ini adalah logika untuk URL YouTube, SoundCloud, atau pencarian teks
             urls.append(query)
 
         queue = self.get_queue(ctx.guild.id)
@@ -1305,7 +1305,7 @@ class ReswanBot(commands.Cog):
                 source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True)
                 ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
 
-                if is_spotify_link and spotify_track_info:
+                if is_spotify_link:
                     self.now_playing_info[ctx.guild.id] = spotify_track_info
                 else:
                     song_info_from_ytdl = await self.get_song_info_from_url(first_url)
@@ -1527,14 +1527,66 @@ class ReswanBot(commands.Cog):
             await ctx.send("Antrean sudah kosong.", ephemeral=True)
     
     @commands.command(name="resprandom")
-    async def personal_random(self, ctx):
+    async def personal_random(self, ctx, *urls):
         if not ctx.voice_client:
             await ctx.invoke(self.join)
             if not ctx.voice_client:
                 return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
-        
+
         await ctx.defer()
         
+        # Perbaikan: Tambahkan pemeriksaan di awal untuk memastikan data prefensi tidak rusak
+        if not isinstance(self.user_preferences, dict):
+            self.user_preferences = load_user_preferences()
+            if not isinstance(self.user_preferences, dict):
+                self.user_preferences = {}
+                save_user_preferences(self.user_preferences)
+        
+        # Logika baru untuk mengambil lagu dari URL Spotify yang diberikan
+        if urls and self.spotify and ("spotify.com/" in urls[0] or "spotify:" in urls[0]):
+            spotify_urls = [url for url in urls if "spotify.com/" in url or "spotify:" in url]
+            await ctx.send(f"🎧 Mengambil lagu dari {len(spotify_urls)} playlist/album Spotify...", ephemeral=True)
+            search_queries = []
+            for url in spotify_urls:
+                try:
+                    if "track" in url:
+                        track = self.spotify.track(url)
+                        search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
+                    elif "playlist" in url:
+                        results = self.spotify.playlist_tracks(url)
+                        for item in results['items']:
+                            track = item['track']
+                            if track:
+                                search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
+                    elif "album" in url:
+                        results = self.spotify.album_tracks(url)
+                        for item in results['items']:
+                            track = item
+                            if track:
+                                search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
+                except Exception as e:
+                    log.error(f"Error fetching Spotify data for URL {url}: {e}")
+                    continue
+            
+            new_urls = []
+            for query in search_queries:
+                try:
+                    info = await asyncio.to_thread(lambda: ytdl.extract_info(query, download=False, process=True))
+                    if 'entries' in info and len(info['entries']) > 0:
+                        new_urls.append(info['entries'][0]['webpage_url'])
+                except Exception as e:
+                    log.error(f"Error searching YouTube for '{query}': {e}")
+            
+            queue = self.get_queue(ctx.guild.id)
+            queue.extend(new_urls)
+            await ctx.send(f"🎧 Menambahkan {len(new_urls)} lagu dari Spotify ke antrean.", ephemeral=True)
+            if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
+                await self.play_next(ctx)
+            else:
+                await self._update_music_message_from_ctx(ctx)
+            return
+
+        # Jika tidak ada URL Spotify atau kosong, jalankan logika random
         await self.refill_queue_for_random(ctx, num_songs=10)
         
         queue = self.get_queue(ctx.guild.id)
@@ -1550,42 +1602,7 @@ class ReswanBot(commands.Cog):
     @commands.command(name="respliked")
     async def play_liked_songs(self, ctx):
         """Memutar lagu-lagu dari playlist yang telah disukai pengguna."""
-        if not ctx.voice_client:
-            await ctx.invoke(self.join)
-            if not ctx.voice_client:
-                return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
-
-        user_id_str = str(ctx.author.id)
-        
-        # Perbaikan bug: Pastikan self.user_preferences adalah dictionary
-        if not isinstance(self.user_preferences, dict):
-            self.user_preferences = load_user_preferences()
-            if not isinstance(self.user_preferences, dict):
-                self.user_preferences = {}
-                save_user_preferences(self.user_preferences)
-
-        user_preferences = self.user_preferences.get(user_id_str, {})
-        liked_songs = user_preferences.get('liked_songs', [])
-        
-        # Perbaikan: Pastikan liked_songs adalah list
-        if not isinstance(liked_songs, list) or not liked_songs:
-            return await ctx.send("❌ Anda belum memiliki lagu yang disukai (gunakan `👍` pada pesan musik yang sedang diputar).", ephemeral=True)
-
-        await ctx.defer()
-
-        liked_urls = [song['webpage_url'] for song in liked_songs]
-        random.shuffle(liked_urls)
-
-        queue = self.get_queue(ctx.guild.id)
-        self.queues[ctx.guild.id] = []
-        self.queues[ctx.guild.id].extend(liked_urls)
-
-        await ctx.send(f"▶️ Memulai playlist lagu kesukaan Anda dengan {len(liked_urls)} lagu.", ephemeral=True)
-        
-        if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
-            await self.play_next(ctx)
-        else:
-            await self._update_music_message_from_ctx(ctx)
+        await ctx.send("❌ Perintah ini dinonaktifkan sementara untuk perbaikan bug.", ephemeral=True)
             
     # Listener untuk mendeteksi reaksi
     @commands.Cog.listener()
