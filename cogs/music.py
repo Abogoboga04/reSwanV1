@@ -32,7 +32,14 @@ def load_json_file(file_path, default_data={}):
         return default_data
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Menambahkan pengecekan tipe data untuk mencegah error
+            if not isinstance(data, (dict, list)):
+                log.error(f"File {file_path} contains invalid data type. Resetting it.")
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(default_data, f, indent=4)
+                return default_data
+            return data
     except json.JSONDecodeError as e:
         log.error(f"Failed to load {file_path}: {e}. File might be corrupted. Resetting it.")
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -50,8 +57,7 @@ def save_json_file(file_path, data):
 
 def load_temp_channels():
     data = load_json_file(TEMP_CHANNELS_FILE)
-    if isinstance(data, list): # Tambahan pengecekan untuk file yang rusak
-        log.warning(f"File {TEMP_CHANNELS_FILE} is a list, expected a dict. Resetting it.")
+    if not isinstance(data, dict):
         return {}
     return data
 
@@ -148,65 +154,51 @@ class MusicControlView(discord.ui.View):
             return False
         return True
 
-    async def _update_music_message(self, interaction: discord.Interaction, new_embed=None):
+    async def _update_music_message(self, interaction: discord.Interaction):
         guild_id = interaction.guild.id
         current_message_info = self.cog.current_music_message_info.get(guild_id)
-        if not current_message_info:
-            return
-
-        message_id = current_message_info['message_id']
-        channel_id = current_message_info['channel_id']
         
-        try:
-            channel = interaction.guild.get_channel(channel_id) or await interaction.guild.fetch_channel(channel_id)
-            if not channel:
-                log.warning(f"Channel {channel_id} not found to update music message.")
-                return
+        vc = interaction.guild.voice_client
+        queue = self.cog.get_queue(guild_id)
+        
+        if vc and vc.is_playing() and vc.source and guild_id in self.cog.now_playing_info:
+            info = self.cog.now_playing_info[guild_id]
+            source = vc.source
 
-            message = await channel.fetch_message(message_id)
+            new_embed = discord.Embed(
+                title="🎶 Sedang Memutar",
+                description=f"**[{info['title']}]({info['webpage_url']})**",
+                color=discord.Color.purple()
+            )
+            if source.thumbnail:
+                new_embed.set_thumbnail(url=source.thumbnail)
             
-            # Jika embed baru tidak disediakan, buat embed dari status saat ini
-            if not new_embed:
-                vc = interaction.guild.voice_client
-                queue = self.cog.get_queue(guild_id)
-                if vc and vc.is_playing() and vc.source and guild_id in self.cog.now_playing_info:
-                    info = self.cog.now_playing_info[guild_id]
-                    source = vc.source
+            duration_str = "N/A"
+            if source.duration:
+                minutes, seconds = divmod(source.duration, 60)
+                duration_str = f"{minutes:02}:{seconds:02}"
+            new_embed.add_field(name="Durasi", value=duration_str, inline=True)
+            new_embed.add_field(name="Diminta oleh", value=info.get('requester', 'N/A'), inline=True)
+            new_embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
+        else:
+            new_embed = discord.Embed(
+                title="Musik Bot",
+                description="Antrean kosong. Bot akan keluar dari voice channel jika tidak ada pengguna lain.",
+                color=discord.Color.red()
+            )
 
-                    new_embed = discord.Embed(
-                        title="🎶 Sedang Memutar",
-                        description=f"**[{info['title']}]({info['webpage_url']})**",
-                        color=discord.Color.purple()
-                    )
-                    if source.thumbnail:
-                        new_embed.set_thumbnail(url=source.thumbnail)
-                    
-                    duration_str = "N/A"
-                    if source.duration:
-                        minutes, seconds = divmod(source.duration, 60)
-                        duration_str = f"{minutes:02}:{seconds:02}"
-                    new_embed.add_field(name="Durasi", value=duration_str, inline=True)
-                    new_embed.add_field(name="Diminta oleh", value=info.get('requester', 'N/A'), inline=True)
-                    new_embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
-                else:
-                    new_embed = discord.Embed(
-                        title="Musik Bot",
-                        description="Status musik...",
-                        color=discord.Color.light_grey()
-                    )
-
-            # Buat view baru dengan status tombol yang diperbarui
-            updated_view = MusicControlView(self.cog)
-            vc = interaction.guild.voice_client
+        updated_view = MusicControlView(self.cog)
+        vc = interaction.guild.voice_client
+        if not vc: # Jika bot tidak terhubung, nonaktifkan semua tombol
+            for item in updated_view.children:
+                item.disabled = True
+        else:
             for item in updated_view.children:
                 if item.custom_id == "music:play_pause":
-                    if vc and vc.is_playing():
-                        item.emoji = "▶️"
-                        item.style = discord.ButtonStyle.primary
-                    elif vc and vc.is_paused():
+                    if vc.is_playing():
                         item.emoji = "⏸️"
                         item.style = discord.ButtonStyle.green
-                    else:
+                    elif vc.is_paused():
                         item.emoji = "▶️"
                         item.style = discord.ButtonStyle.primary
                 elif item.custom_id == "music:mute_unmute":
@@ -220,15 +212,28 @@ class MusicControlView(discord.ui.View):
                     else:
                         item.style = discord.ButtonStyle.grey
                 item.disabled = False
-            
-            await message.edit(embed=new_embed, view=updated_view)
-            log.debug(f"Edited music control message {message_id} in channel {channel_id}.")
-            
-        except (discord.NotFound, discord.HTTPException) as e:
-            log.warning(f"Failed to edit music message {message_id} in channel {channel_id}: {e}. Message might have been deleted.")
-            self.cog.current_music_message_info.pop(guild_id, None)
-        except Exception as e:
-            log.error(f"An unexpected error occurred while editing music message: {e}", exc_info=True)
+        
+        # Logika baru: hapus pesan lama dan kirim yang baru
+        if current_message_info:
+            try:
+                old_channel = interaction.guild.get_channel(current_message_info['channel_id']) or await interaction.guild.fetch_channel(current_message_info['channel_id'])
+                if old_channel:
+                    old_message = await old_channel.fetch_message(current_message_info['message_id'])
+                    await old_message.delete()
+            except (discord.NotFound, discord.HTTPException):
+                log.warning(f"Could not delete old music message for guild {guild_id}.")
+            finally:
+                self.cog.current_music_message_info.pop(guild_id, None)
+
+        new_message = await interaction.channel.send(embed=new_embed, view=updated_view)
+        self.cog.current_music_message_info[guild_id] = {
+            'message_id': new_message.id,
+            'channel_id': new_message.channel.id
+        }
+        
+        if vc and vc.is_playing():
+            await new_message.add_reaction('👍')
+            await new_message.add_reaction('👎')
 
 
     @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.primary, custom_id="music:play_pause", row=0)
@@ -270,6 +275,8 @@ class MusicControlView(discord.ui.View):
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check_voice_channel(interaction):
             return
+        
+        await interaction.response.defer(ephemeral=True)
 
         vc = interaction.guild.voice_client
         if vc:
@@ -295,7 +302,7 @@ class MusicControlView(discord.ui.View):
                 finally:
                     del self.cog.current_music_message_info[interaction.guild.id]
 
-            await interaction.response.send_message("⏹️ Stop dan keluar dari voice.", ephemeral=True)
+            await interaction.followup.send("⏹️ Stop dan keluar dari voice.", ephemeral=True)
             
     @discord.ui.button(emoji="📜", style=discord.ButtonStyle.grey, custom_id="music:queue", row=1)
     async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -322,6 +329,8 @@ class MusicControlView(discord.ui.View):
     async def loop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check_voice_channel(interaction):
             return
+        
+        await interaction.response.defer(ephemeral=True)
 
         guild_id = interaction.guild.id
         if guild_id not in self.cog.loop_status:
@@ -330,9 +339,9 @@ class MusicControlView(discord.ui.View):
         self.cog.loop_status[guild_id] = not self.cog.loop_status[guild_id]
 
         if self.cog.loop_status[guild_id]:
-            await interaction.response.send_message("🔁 Mode Loop **ON** (lagu saat ini akan diulang).", ephemeral=True)
+            await interaction.followup.send("🔁 Mode Loop **ON** (lagu saat ini akan diulang).", ephemeral=True)
         else:
-            await interaction.response.send_message("🔁 Mode Loop **OFF**.", ephemeral=True)
+            await interaction.followup.send("🔁 Mode Loop **OFF**.", ephemeral=True)
         
         await self._update_music_message(interaction)
 
@@ -393,6 +402,8 @@ class MusicControlView(discord.ui.View):
     async def mute_unmute_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check_voice_channel(interaction):
             return
+        
+        await interaction.response.defer(ephemeral=True)
 
         vc = interaction.guild.voice_client
         guild_id = interaction.guild.id
@@ -402,15 +413,15 @@ class MusicControlView(discord.ui.View):
                 self.cog.old_volume[guild_id] = vc.source.volume
                 vc.source.volume = 0.0
                 self.cog.is_muted[guild_id] = True
-                await interaction.response.send_message("🔇 Volume dimatikan.", ephemeral=True)
+                await interaction.followup.send("🔇 Volume dimatikan.", ephemeral=True)
             else:
                 vc.source.volume = self.cog.old_volume.get(guild_id, 0.8)
                 self.cog.is_muted[guild_id] = False
-                await interaction.response.send_message("🔊 Volume dinyalakan.", ephemeral=True)
+                await interaction.followup.send("🔊 Volume dinyalakan.", ephemeral=True)
             
             await self._update_music_message(interaction)
         else:
-            await interaction.response.send_message("Tidak ada lagu yang sedang diputar.", ephemeral=True)
+            await interaction.followup.send("Tidak ada lagu yang sedang diputar.", ephemeral=True)
 
     @discord.ui.button(emoji="🔀", style=discord.ButtonStyle.grey, custom_id="music:shuffle", row=1)
     async def shuffle_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -535,7 +546,6 @@ class ReswanBot(commands.Cog):
         log.debug("Running TempVoice cleanup task.")
         channels_to_remove = []
         for channel_id_str, channel_info in list(self.active_temp_channels.items()):
-            # Perbaikan: Tambahkan pengecekan tipe data
             if not isinstance(channel_info, dict):
                 log.warning(f"Corrupted entry found for channel ID {channel_id_str}. Removing it.")
                 channels_to_remove.append(channel_id_str)
@@ -646,6 +656,10 @@ class ReswanBot(commands.Cog):
             log.info(f"User {member.display_name} ({member.id}) joined trigger VC ({self.TRIGGER_VOICE_CHANNEL_ID}).")
 
             for ch_id_str, ch_info in list(self.active_temp_channels.items()):
+                if not isinstance(ch_info, dict):
+                    log.warning(f"Corrupted entry found in active_temp_channels for ID {ch_id_str}. Ignoring.")
+                    continue
+                
                 if ch_info["owner_id"] == str(member.id) and ch_info["guild_id"] == str(member.guild.id):
                     existing_channel = member.guild.get_channel(int(ch_id_str))
                     if existing_channel:
@@ -802,6 +816,10 @@ class ReswanBot(commands.Cog):
         if user_id_str not in self.listening_history:
             self.listening_history[user_id_str] = []
         
+        # Perbaikan bug: Pastikan data untuk user adalah list sebelum mencoba insert
+        if not isinstance(self.listening_history[user_id_str], list):
+             self.listening_history[user_id_str] = []
+
         self.listening_history[user_id_str].insert(0, song_info)
         
         if len(self.listening_history[user_id_str]) > 50:
@@ -815,13 +833,17 @@ class ReswanBot(commands.Cog):
         if user_id_str not in self.user_preferences:
             self.user_preferences[user_id_str] = {'liked_songs': [], 'disliked_songs': []}
         
-        # Hapus dari disliked jika ada
+        # Perbaikan bug: Pastikan liked_songs dan disliked_songs adalah list
+        if not isinstance(self.user_preferences[user_id_str].get('disliked_songs'), list):
+             self.user_preferences[user_id_str]['disliked_songs'] = []
+        if not isinstance(self.user_preferences[user_id_str].get('liked_songs'), list):
+             self.user_preferences[user_id_str]['liked_songs'] = []
+
         self.user_preferences[user_id_str]['disliked_songs'] = [
             s for s in self.user_preferences[user_id_str]['disliked_songs']
             if s['webpage_url'] != song_info['webpage_url']
         ]
 
-        # Tambahkan ke liked jika belum ada
         if not any(s['webpage_url'] == song_info['webpage_url'] for s in self.user_preferences[user_id_str]['liked_songs']):
             self.user_preferences[user_id_str]['liked_songs'].insert(0, song_info)
             if len(self.user_preferences[user_id_str]['liked_songs']) > 25:
@@ -835,13 +857,16 @@ class ReswanBot(commands.Cog):
         if user_id_str not in self.user_preferences:
             self.user_preferences[user_id_str] = {'liked_songs': [], 'disliked_songs': []}
 
-        # Hapus dari liked jika ada
+        if not isinstance(self.user_preferences[user_id_str].get('disliked_songs'), list):
+             self.user_preferences[user_id_str]['disliked_songs'] = []
+        if not isinstance(self.user_preferences[user_id_str].get('liked_songs'), list):
+             self.user_preferences[user_id_str]['liked_songs'] = []
+
         self.user_preferences[user_id_str]['liked_songs'] = [
             s for s in self.user_preferences[user_id_str]['liked_songs']
             if s['webpage_url'] != song_info['webpage_url']
         ]
 
-        # Tambahkan ke disliked jika belum ada
         if not any(s['webpage_url'] == song_info['webpage_url'] for s in self.user_preferences[user_id_str]['disliked_songs']):
             self.user_preferences[user_id_str]['disliked_songs'].insert(0, song_info)
             if len(self.user_preferences[user_id_str]['disliked_songs']) > 100:
@@ -965,18 +990,7 @@ class ReswanBot(commands.Cog):
     async def play_next(self, ctx):
         guild_id = ctx.guild.id
         queue = self.get_queue(guild_id)
-
-        target_channel = None
-        if guild_id in self.current_music_message_info:
-            channel_id = self.current_music_message_info[guild_id]['channel_id']
-            try:
-                target_channel = ctx.guild.get_channel(channel_id) or await ctx.guild.fetch_channel(channel_id)
-            except discord.NotFound:
-                logging.warning(f"Target channel {channel_id} not found for guild {guild_id}. Fallback to ctx.channel.")
-                target_channel = ctx.channel
-        if not target_channel:
-            target_channel = ctx.channel
-
+        
         if self.loop_status.get(guild_id, False) and ctx.voice_client and ctx.voice_client.source:
             current_song_url = ctx.voice_client.source.data.get('webpage_url')
             if current_song_url:
@@ -994,11 +1008,17 @@ class ReswanBot(commands.Cog):
             if vc and vc.is_connected():
                 await vc.disconnect()
             
-            # Hapus info pesan kontrol yang sudah tidak berlaku
             if guild_id in self.current_music_message_info:
-                del self.current_music_message_info[guild_id]
+                message_info = self.current_music_message_info.pop(guild_id)
+                try:
+                    channel = ctx.guild.get_channel(message_info['channel_id']) or await ctx.guild.fetch_channel(message_info['channel_id'])
+                    if channel:
+                        old_message = await channel.fetch_message(message_info['message_id'])
+                        await old_message.delete()
+                except (discord.NotFound, discord.HTTPException) as e:
+                    log.warning(f"Failed to delete old music message on empty queue: {e}")
             
-            await target_channel.send("Antrean kosong. Bot akan keluar dari voice channel jika tidak ada pengguna lain.", ephemeral=True)
+            await ctx.send("Antrean kosong. Bot akan keluar dari voice channel jika tidak ada pengguna lain.", ephemeral=True)
             return
 
         url = queue.pop(0)
@@ -1006,7 +1026,6 @@ class ReswanBot(commands.Cog):
             song_info_from_ytdl = await self.get_song_info_from_url(url)
             self.add_song_to_history(ctx.author.id, song_info_from_ytdl)
             
-            # Tambahkan info requester ke data lagu
             song_info_from_ytdl['requester'] = ctx.author.mention
             
             source = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
@@ -1036,29 +1055,26 @@ class ReswanBot(commands.Cog):
             
             view = MusicControlView(self)
             
-            # Edit pesan yang sudah ada jika ada, jika tidak, kirim pesan baru
+            # Hapus pesan lama dan kirim yang baru
             if guild_id in self.current_music_message_info:
-                message_info = self.current_music_message_info[guild_id]
+                message_info = self.current_music_message_info.pop(guild_id)
                 try:
-                    message_obj = await target_channel.fetch_message(message_info['message_id'])
-                    await message_obj.edit(embed=embed, view=view)
-                    log.info(f"Edited existing music message for guild {guild_id}.")
+                    channel = ctx.guild.get_channel(message_info['channel_id']) or await ctx.guild.fetch_channel(message_info['channel_id'])
+                    if channel:
+                        old_message = await channel.fetch_message(message_info['message_id'])
+                        await old_message.delete()
                 except (discord.NotFound, discord.HTTPException):
-                    message_sent = await target_channel.send(embed=embed, view=view)
-                    self.current_music_message_info[guild_id] = {'message_id': message_sent.id, 'channel_id': message_sent.channel.id}
-                    await message_sent.add_reaction('👍')
-                    await message_sent.add_reaction('👎')
-                    log.warning("Could not edit old music message. Sent new one.")
-            else:
-                message_sent = await target_channel.send(embed=embed, view=view)
-                self.current_music_message_info[guild_id] = {'message_id': message_sent.id, 'channel_id': message_sent.channel.id}
-                await message_sent.add_reaction('👍')
-                await message_sent.add_reaction('👎')
-                log.info(f"Sent new music message for guild {guild_id}.")
+                    log.warning(f"Could not delete old music message for guild {guild_id}.")
+
+            message_sent = await ctx.send(embed=embed, view=view)
+            self.current_music_message_info[guild_id] = {'message_id': message_sent.id, 'channel_id': message_sent.channel.id}
+            await message_sent.add_reaction('👍')
+            await message_sent.add_reaction('👎')
+            log.info(f"Sent new music message for guild {guild_id}.")
 
         except Exception as e:
-            logging.error(f'Failed to play song for guild {guild_id}: {e}')
-            await target_channel.send(f'Gagal memutar lagu: {e}')
+            logging.error(f'Failed to play song for guild {guild_id}: {e}', exc_info=True)
+            await ctx.send(f'Gagal memutar lagu: {e}', ephemeral=True)
             if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                 ctx.voice_client.stop()
             return
@@ -1104,31 +1120,32 @@ class ReswanBot(commands.Cog):
 
     async def refill_queue_for_random(self, ctx, num_songs=10):
         user_id_str = str(ctx.author.id)
-        user_preferences = self.user_preferences.get(user_id_str, {'liked_songs': [], 'disliked_songs': []})
+        user_preferences = self.user_preferences.get(user_id_str, {})
         disliked_urls = {s.get('webpage_url') for s in user_preferences.get('disliked_songs', [])}
         
         new_urls = []
         
         liked_songs = user_preferences.get('liked_songs', [])
-        if liked_songs:
+        if liked_songs and isinstance(liked_songs, list):
             random.shuffle(liked_songs)
             liked_urls = [s['webpage_url'] for s in liked_songs if s['webpage_url'] not in disliked_urls]
             new_urls.extend(liked_urls[:num_songs])
 
         if len(new_urls) < num_songs:
             user_history = self.listening_history.get(user_id_str, [])
-            filtered_history = [s['webpage_url'] for s in user_history if s['webpage_url'] not in disliked_urls]
-            
-            if filtered_history:
-                random.shuffle(filtered_history)
-                urls_from_history = filtered_history[:num_songs - len(new_urls)]
-                new_urls.extend(urls_from_history)
+            if user_history and isinstance(user_history, list):
+                filtered_history = [s['webpage_url'] for s in user_history if s['webpage_url'] not in disliked_urls]
+                
+                if filtered_history:
+                    random.shuffle(filtered_history)
+                    urls_from_history = filtered_history[:num_songs - len(new_urls)]
+                    new_urls.extend(urls_from_history)
 
         if len(new_urls) < num_songs:
             search_query = "trending music"
             try:
                 info = await asyncio.to_thread(lambda: ytdl.extract_info(search_query, download=False, process=True))
-                if 'entries' in info:
+                if 'entries' in info and isinstance(info.get('entries'), list):
                     filtered_entries = [entry for entry in info['entries'] if entry.get('webpage_url') not in disliked_urls]
                     if filtered_entries:
                         random.shuffle(filtered_entries)
@@ -1147,53 +1164,42 @@ class ReswanBot(commands.Cog):
         if not current_message_info:
             return
 
-        message_id = current_message_info['message_id']
-        channel_id = current_message_info['channel_id']
+        vc = ctx.voice_client
+        queue = self.get_queue(guild_id)
+        
+        if vc and vc.is_playing() and vc.source and guild_id in self.now_playing_info:
+            info = self.now_playing_info[guild_id]
+            source = vc.source
 
-        try:
-            channel_obj = ctx.guild.get_channel(channel_id) or await ctx.guild.fetch_channel(channel_id)
-            if not channel_obj:
-                log.warning(f"Channel {channel_id} not found for updating music message.")
-                return
-
-            message_obj = await channel_obj.fetch_message(message_id)
-
-            vc = ctx.voice_client
-            queue = self.get_queue(guild_id)
+            embed_to_send = discord.Embed(
+                title="🎶 Sedang Memutar",
+                description=f"**[{info['title']}]({info['webpage_url']})**",
+                color=discord.Color.purple()
+            )
+            if source.thumbnail:
+                embed_to_send.set_thumbnail(url=source.thumbnail)
             
-            if vc and vc.is_playing() and vc.source and guild_id in self.now_playing_info:
-                info = self.now_playing_info[guild_id]
-                source = vc.source
+            duration_str = "N/A"
+            if source.duration:
+                minutes, seconds = divmod(source.duration, 60)
+                duration_str = f"{minutes:02}:{seconds:02}"
+            embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
+            embed_to_send.add_field(name="Diminta oleh", value=info.get('requester', 'N/A'), inline=True)
+            embed_to_send.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
+        else:
+            embed_to_send = discord.Embed(title="Musik Bot", description="Status musik...", color=discord.Color.light_grey())
 
-                embed_to_send = discord.Embed(
-                    title="🎶 Sedang Memutar",
-                    description=f"**[{info['title']}]({info['webpage_url']})**",
-                    color=discord.Color.purple()
-                )
-                if source.thumbnail:
-                    embed_to_send.set_thumbnail(url=source.thumbnail)
-                
-                duration_str = "N/A"
-                if source.duration:
-                    minutes, seconds = divmod(source.duration, 60)
-                    duration_str = f"{minutes:02}:{seconds:02}"
-                embed_to_send.add_field(name="Durasi", value=duration_str, inline=True)
-                embed_to_send.add_field(name="Diminta oleh", value=info.get('requester', 'N/A'), inline=True)
-                embed_to_send.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
-            else:
-                embed_to_send = discord.Embed(title="Musik Bot", description="Status musik...", color=discord.Color.light_grey())
-
-            updated_view = MusicControlView(self)
-            vc = ctx.voice_client
+        updated_view = MusicControlView(self)
+        if not vc:
+            for item in updated_view.children:
+                item.disabled = True
+        else:
             for item in updated_view.children:
                 if item.custom_id == "music:play_pause":
-                    if vc and vc.is_playing():
-                        item.emoji = "▶️"
-                        item.style = discord.ButtonStyle.primary
-                    elif vc and vc.is_paused():
+                    if vc.is_playing():
                         item.emoji = "⏸️"
                         item.style = discord.ButtonStyle.green
-                    else:
+                    elif vc.is_paused():
                         item.emoji = "▶️"
                         item.style = discord.ButtonStyle.primary
                 elif item.custom_id == "music:mute_unmute":
@@ -1208,11 +1214,26 @@ class ReswanBot(commands.Cog):
                         item.style = discord.ButtonStyle.grey
                 item.disabled = False
         
-            await message_obj.edit(embed=embed_to_send, view=updated_view)
-            log.info("Successfully edited music message from command.")
-        except (discord.NotFound, discord.HTTPException) as e:
-            log.warning(f"Failed to edit music message on command {ctx.command.name}: {e}. Sending new message.")
-            self.current_music_message_info.pop(guild_id, None)
+        # Hapus pesan lama dan kirim yang baru
+        if guild_id in self.current_music_message_info:
+            message_info = self.current_music_message_info.pop(guild_id)
+            try:
+                channel = ctx.guild.get_channel(message_info['channel_id']) or await ctx.guild.fetch_channel(message_info['channel_id'])
+                if channel:
+                    old_message = await channel.fetch_message(message_info['message_id'])
+                    await old_message.delete()
+            except (discord.NotFound, discord.HTTPException) as e:
+                log.warning(f"Could not delete old music message on command {ctx.command.name}: {e}.")
+
+        new_message = await ctx.send(embed=embed_to_send, view=updated_view)
+        self.current_music_message_info[guild_id] = {
+            'message_id': new_message.id,
+            'channel_id': new_message.channel.id
+        }
+
+        if vc and vc.is_playing():
+            await new_message.add_reaction('👍')
+            await new_message.add_reaction('👎')
 
 
     # --- Music Commands ---
@@ -1241,26 +1262,23 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         spotify_track_info = None
 
-        if self.spotify and ("spotify.com/track" in query or "spotify.com/playlist" in query or "spotify.com/album" in query):
+        if self.spotify and ("https://open.spotify.com/" in query or "spotify:" in query):
             is_spotify_link = True
             try:
-                if "spotify.com/track" in query:
-                    track_id = query.split('/')[-1].split('?')[0]
-                    track = self.spotify.track(track_id)
+                if "track" in query:
+                    track = self.spotify.track(query)
                     spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query, 'requester': ctx.author.mention}
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "spotify.com/playlist" in query:
-                    playlist_id = query.split('/')[-1].split('?')[0]
-                    results = self.spotify.playlist_tracks(playlist_id)
+                elif "playlist" in query:
+                    results = self.spotify.playlist_tracks(query)
                     for item in results['items']:
                         track = item['track']
                         if track:
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
-                elif "spotify.com/album" in query:
-                    album_id = query.split('/')[-1].split('?')[0]
-                    results = self.spotify.album_tracks(album_id)
+                elif "album" in query:
+                    results = self.spotify.album_tracks(query)
                     for item in results['items']:
                         track = item
                         if track:
@@ -1270,7 +1288,7 @@ class ReswanBot(commands.Cog):
                     await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
                     return
             except Exception as e:
-                logging.error(f"Error processing Spotify link: {e}")
+                logging.error(f"Error processing Spotify link: {e}", exc_info=True)
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
         else:
@@ -1321,7 +1339,16 @@ class ReswanBot(commands.Cog):
                             item.emoji = "🔇"
                             break
 
-                # Kirim pesan baru dan simpan infonya
+                if ctx.guild.id in self.current_music_message_info:
+                    message_info = self.current_music_message_info.pop(ctx.guild.id)
+                    try:
+                        old_channel = ctx.guild.get_channel(message_info['channel_id']) or await ctx.guild.fetch_channel(message_info['channel_id'])
+                        if old_channel:
+                            old_message = await old_channel.fetch_message(message_info['message_id'])
+                            await old_message.delete()
+                    except (discord.NotFound, discord.HTTPException):
+                        log.warning(f"Could not delete old music message for play command.")
+                
                 message_sent = await ctx.send(embed=embed, view=view_instance)
                 
                 if message_sent:
@@ -1333,13 +1360,17 @@ class ReswanBot(commands.Cog):
                     await message_sent.add_reaction('👎')
             
             except Exception as e:
-                logging.error(f'Failed to play song: {e}')
+                logging.error(f'Failed to play song: {e}', exc_info=True)
                 await ctx.send(f'Gagal memutar lagu: {e}', ephemeral=True)
                 if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                     ctx.voice_client.stop()
                 return
         else:
-            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrean: **{urls[0]}**.", ephemeral=True)
+            if is_spotify_link:
+                await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**.", ephemeral=True)
+            else:
+                song_info = await self.get_song_info_from_url(urls[0])
+                await ctx.send(f"Ditambahkan ke antrean: **{song_info['title']}**.", ephemeral=True)
             queue.extend(urls)
             
             if ctx.guild.id in self.current_music_message_info:
@@ -1547,8 +1578,8 @@ class ReswanBot(commands.Cog):
             return
         
         guild_id = reaction.message.guild.id
-        current_music_message = self.current_music_message_info.get(guild_id)
-        if not current_music_message or reaction.message.id != current_music_message['message_id']:
+        current_message_info = self.current_music_message_info.get(guild_id)
+        if not current_message_info or reaction.message.id != current_message_info['message_id']:
             return
 
         now_playing_info = self.now_playing_info.get(guild_id)
@@ -1557,18 +1588,28 @@ class ReswanBot(commands.Cog):
 
         if str(reaction.emoji) == '👍':
             self.add_liked_song(user.id, now_playing_info)
-            await reaction.message.remove_reaction('👍', user)
+            try:
+                await reaction.message.remove_reaction('👍', user)
+            except discord.Forbidden:
+                pass
             try:
                 await reaction.message.remove_reaction('👎', user)
+            except discord.Forbidden:
+                pass
             except discord.NotFound:
                 pass
             log.info(f"User {user.display_name} liked the song: '{now_playing_info['title']}'.")
 
         elif str(reaction.emoji) == '👎':
             self.add_disliked_song(user.id, now_playing_info)
-            await reaction.message.remove_reaction('👎', user)
+            try:
+                await reaction.message.remove_reaction('👎', user)
+            except discord.Forbidden:
+                pass
             try:
                 await reaction.message.remove_reaction('👍', user)
+            except discord.Forbidden:
+                pass
             except discord.NotFound:
                 pass
             log.info(f"User {user.display_name} disliked the song: '{now_playing_info['title']}'.")
