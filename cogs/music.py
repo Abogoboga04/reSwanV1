@@ -32,7 +32,7 @@ def load_temp_channels():
         log.info(f"Created new {TEMP_CHANNELS_FILE}.")
         return {}
     try:
-        with open(TEMP_CHANNELS_FILE, 'r', encoding='utf-8') as f:
+        with open(TEMP_CHANNELSFILENAME, 'r', encoding='utf-8') as f:
             data = json.load(f)
             cleaned_data = {}
             for ch_id, info in data.items():
@@ -224,9 +224,9 @@ class MusicControlView(discord.ui.View):
             
             if not vc or (not vc.is_playing() and not vc.is_paused()):
                 if item.custom_id not in ["music:stop"]:
-                     item.disabled = True
+                    item.disabled = True
             else:
-                 item.disabled = False
+                item.disabled = False
         
         try:
             new_message = await target_channel.send(embed=embed_to_send, view=new_view_instance)
@@ -603,9 +603,7 @@ class ReswanBot(commands.Cog):
         eq_settings = self.get_current_eq_settings(guild_id)
         bass_gain = eq_settings['bass']
         treble_gain = eq_settings['treble']
-
         eq_filter = f"equalizer=f=80:width=80:g={bass_gain},equalizer=f=10000:width=2000:g={treble_gain}"
-
         return {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
             'options': f'-vn -b:a 128k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header -af "{eq_filter}"'
@@ -618,47 +616,42 @@ class ReswanBot(commands.Cog):
 
     @tasks.loop(seconds=10) # Tetap 10 detik untuk temp voice cleanup
     async def cleanup_task(self):
-        log.debug("Running TempVoice cleanup task.") 
+        log.debug("Running TempVoice cleanup task.")
         channels_to_remove = []
-        for channel_id_str, channel_info in list(self.active_temp_channels.items()): 
-            channel_id = int(channel_id_str) 
-            guild_id = int(channel_info["guild_id"]) 
+        for channel_id_str, channel_info in list(self.active_temp_channels.items()):
+            channel_id = int(channel_id_str)
+            guild_id = int(channel_info["guild_id"])
             guild = self.bot.get_guild(guild_id)
-            
             if not guild:
                 log.warning(f"Guild {guild_id} not found for channel {channel_id}. Removing from tracking.")
                 channels_to_remove.append(channel_id_str)
                 continue
-
             channel = guild.get_channel(channel_id)
-            
-            if not channel: 
+            if not channel:
                 log.info(f"Temporary voice channel {channel_id} no longer exists in guild {guild.name}. Removing from tracking.")
                 channels_to_remove.append(channel_id_str)
                 continue
-
             human_members_in_custom_channel = [
                 member for member in channel.members
                 if not member.bot
             ]
-
             if not human_members_in_custom_channel:
                 try:
                     await channel.delete(reason="Custom voice channel is empty of human users.")
                     log.info(f"Deleted empty (of humans) temporary voice channel: {channel.name} ({channel_id}).")
                     channels_to_remove.append(channel_id_str)
-                except discord.NotFound: 
+                except discord.NotFound:
                     log.info(f"Temporary voice channel {channel_id} already deleted (from Discord). Removing from tracking.")
                     channels_to_remove.append(channel_id_str)
                 except discord.Forbidden:
                     log.error(f"Bot lacks permissions to delete temporary voice channel {channel.name} ({channel_id}). Please check 'Manage Channels' permission.")
                 except Exception as e:
                     log.error(f"Error deleting temporary voice channel {channel.name} ({channel_id}): {e}", exc_info=True)
-            
+        
         for ch_id in channels_to_remove:
             self.active_temp_channels.pop(ch_id, None)
-        if channels_to_remove: 
-            self._save_temp_channels_state() 
+        if channels_to_remove:
+            self._save_temp_channels_state()
             log.debug(f"Temporary channel data saved after cleanup. Remaining: {len(self.active_temp_channels)}.")
 
     @cleanup_task.before_loop
@@ -1243,9 +1236,9 @@ class ReswanBot(commands.Cog):
             
             if not vc or (not vc.is_playing() and not vc.is_paused()):
                 if item.custom_id not in ["music:stop"]:
-                     item.disabled = True
+                    item.disabled = True
             else:
-                 item.disabled = False
+                item.disabled = False
         
         try:
             new_message = await target_channel.send(embed=embed_to_send, view=new_view_instance)
@@ -1569,7 +1562,7 @@ class ReswanBot(commands.Cog):
             vc.stop()
             await ctx.send(f"✅ Equalizer diatur ke preset **{preset_name}**. Perubahan akan diterapkan pada lagu berikutnya atau setelah lagu saat ini dimulai ulang.", ephemeral=True)
         else:
-            await ctx.send(f"✅ Equalizer diatur ke preset **{preset_name}**. Ini akan diterapkan pada lagu yang akan diputar.", ephemeral=True)
+            await ctx.send(f"✅ Equalizer diatur ke **{preset_name}**. Ini akan diterapkan pada lagu yang akan diputar.", ephemeral=True)
         
         if ctx.guild.id in self.current_music_message_info:
             await self._update_music_message_from_ctx(ctx)
@@ -1759,7 +1752,7 @@ class ReswanBot(commands.Cog):
             return await ctx.send("❌ Kamu tidak bisa menendang dirimu sendiri dari channelmu!", ephemeral=True)
         if member.bot:
             return await ctx.send("❌ Kamu tidak bisa menendang bot.", ephemeral=True)
-            
+        
         vc = ctx.author.voice.channel
         if member.voice and member.voice.channel == vc:
             try:
