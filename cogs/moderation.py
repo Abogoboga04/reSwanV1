@@ -144,7 +144,7 @@ class AnnouncementModalGlobal(discord.ui.Modal, title="Buat Pengumuman"):
             await interaction.followup.send(embed=self.cog._create_embed(description="❌ Deskripsi pengumuman dari URL GitHub Raw kosong atau hanya berisi spasi. Pastikan file teks memiliki konten.", color=self.cog.color_error), ephemeral=True); return
         
         description_chunks = [full_description[i:i+4096] for i in range(0, len(full_description), 4096)]
-        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Description split into {len(description_chunks)} chunks.")
+        print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Description split into 1 chunks.")
 
         # --- Get or Create Webhook ---
         try:
@@ -545,7 +545,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         # Periksa apakah URL webhook valid dan masih berfungsi
         if webhook_url:
             try:
-                webhook = discord.Webhook.from_url(webhook_url, client=self.bot.session)
+                # --- PERBAIKAN DI SINI: client=self.bot, bukan client=self.bot.session ---
+                webhook = discord.Webhook.from_url(webhook_url, client=self.bot)
                 await webhook.fetch() # Memastikan webhook masih ada
                 print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Using existing webhook for channel {channel.name}.")
                 return webhook
@@ -762,7 +763,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             try:
                 dm_embed = self._create_embed(title="Warning: Rule Violation", color=self.color_warning)
                 dm_embed.add_field(name="Server", value=message.guild.name, inline=False)
-                dm_embed.add_field(name="Violation", value="Your message was deleted because it contained **media/files** in a channel where they are not allowed.", inline=False)
+                dm_embed.add_field(name="Violation", value="Your message was deleted because it contained a **URL/link** in a channel where they are not allowed.", inline=False)
                 dm_embed.add_field(name="Suggestion", value="Please send media in designated channels. Review server rules.", inline=False)
                 await message.author.send(embed=dm_embed)
             except discord.Forbidden: print(f"[{datetime.now()}] [DEBUG ADMIN] Failed to send DM warning to {message.author.display_name} (Forbidden).")
