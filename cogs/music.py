@@ -213,7 +213,6 @@ class MusicControlView(discord.ui.View):
                         item.style = discord.ButtonStyle.grey
                 item.disabled = False
         
-        # Logika baru: hapus pesan lama dan kirim yang baru
         if current_message_info:
             try:
                 old_channel = interaction.guild.get_channel(current_message_info['channel_id']) or await interaction.guild.fetch_channel(current_message_info['channel_id'])
@@ -1117,7 +1116,6 @@ class ReswanBot(commands.Cog):
     async def refill_queue_for_random(self, ctx, num_songs=10):
         user_id_str = str(ctx.author.id)
         
-        # Perbaikan bug: Pastikan self.user_preferences adalah dictionary
         if not isinstance(self.user_preferences, dict):
             log.warning("user_preferences is not a dict. Resetting it.")
             self.user_preferences = {}
@@ -1145,6 +1143,7 @@ class ReswanBot(commands.Cog):
                     new_urls.extend(urls_from_history)
 
         if len(new_urls) < num_songs:
+            log.info(f"No user preferences or history found for {ctx.author.display_name}. Falling back to general random search.")
             search_query = "trending music"
             try:
                 info = await asyncio.to_thread(lambda: ytdl.extract_info(search_query, download=False, process=True))
@@ -1476,7 +1475,7 @@ class ReswanBot(commands.Cog):
                 return await ctx.send("Tentukan nama lagu atau putar lagu terlebih dahulu untuk mencari liriknya.", ephemeral=True)
             
         await ctx.defer(ephemeral=True)
-        await self._send_lyrics(ctx, song_name_override=song_name)
+        await self.cog._send_lyrics(interaction_or_ctx=ctx, song_name_override=song_name)
 
     @commands.command(name="resvolume")
     async def volume_cmd(self, ctx, volume: int):
