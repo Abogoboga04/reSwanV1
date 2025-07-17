@@ -11,3 +11,4 @@ pymongo
 spotipy
 spotify
 pytz
+deemix
