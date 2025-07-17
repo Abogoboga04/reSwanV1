@@ -301,7 +301,7 @@ class MusicControlView(discord.ui.View):
                     if old_channel:
                         old_message = await old_channel.fetch_message(old_message_info['message_id'])
                         await old_message.delete()
-                except (discord.NotFound, discord.HTTPException) as e:
+                except (discord.NotFound, discord.HTTPException):
                     logging.warning(f"Could not delete old music message on stop: {e}")
                 finally:
                     del self.cog.current_music_message_info[interaction.guild.id]
@@ -556,6 +556,11 @@ class ReswanBot(commands.Cog):
                 continue
 
             channel_id = int(channel_id_str)
+            if 'guild_id' not in channel_info or 'owner_id' not in channel_info:
+                log.warning(f"Incomplete entry for channel ID {channel_id_str}. Removing it.")
+                channels_to_remove.append(channel_id_str)
+                continue
+
             guild_id = int(channel_info["guild_id"])
             guild = self.bot.get_guild(guild_id)
             
@@ -594,6 +599,12 @@ class ReswanBot(commands.Cog):
         if channels_to_remove:
             save_temp_channels(self.active_temp_channels)
             log.debug(f"Temporary channel data saved after cleanup. Remaining: {len(self.active_temp_channels)}.")
+
+    @cleanup_task.before_loop
+    async def before_cleanup_task(self):
+        log.info("Waiting for bot to be ready before starting TempVoice cleanup task.")
+        await self.bot.wait_until_ready()
+        log.info("Bot ready, TempVoice cleanup task is about to start.")
 
     @tasks.loop(seconds=5)
     async def idle_check_task(self):
@@ -1263,7 +1274,7 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         
         # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
-        if self.spotify and ("spotify.com/" in query or "spotify:" in query):
+        if self.spotify and ("http" in query or "spotify:" in query):
             is_spotify_link = True
             try:
                 if "track" in query:
@@ -1286,14 +1297,14 @@ class ReswanBot(commands.Cog):
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
                 else:
-                    await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
-                    return
+                    is_spotify_link = False
             except Exception as e:
+                is_spotify_link = False
                 logging.error(f"Error processing Spotify link: {e}", exc_info=True)
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
-        else:
-            # Ini adalah logika untuk URL YouTube, SoundCloud, atau pencarian teks
+        
+        if not is_spotify_link:
             urls.append(query)
 
         queue = self.get_queue(ctx.guild.id)
@@ -1542,12 +1553,13 @@ class ReswanBot(commands.Cog):
                 self.user_preferences = {}
                 save_user_preferences(self.user_preferences)
         
-        # Logika baru untuk mengambil lagu dari URL Spotify yang diberikan
-        if urls and self.spotify and ("spotify.com/" in urls[0] or "spotify:" in urls[0]):
-            spotify_urls = [url for url in urls if "spotify.com/" in url or "spotify:" in url]
-            await ctx.send(f"🎧 Mengambil lagu dari {len(spotify_urls)} playlist/album Spotify...", ephemeral=True)
+        # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
+        is_spotify_request = False
+        if urls and self.spotify and ("http" in urls[0] or "spotify:" in urls[0]):
+            is_spotify_request = True
+            await ctx.send(f"🎧 Mengambil lagu dari {len(urls)} playlist/album Spotify...", ephemeral=True)
             search_queries = []
-            for url in spotify_urls:
+            for url in urls:
                 try:
                     if "track" in url:
                         track = self.spotify.track(url)
@@ -1586,7 +1598,7 @@ class ReswanBot(commands.Cog):
                 await self._update_music_message_from_ctx(ctx)
             return
 
-        # Jika tidak ada URL Spotify atau kosong, jalankan logika random
+        # Jika bukan permintaan Spotify, jalankan logika random
         await self.refill_queue_for_random(ctx, num_songs=10)
         
         queue = self.get_queue(ctx.guild.id)
@@ -1602,7 +1614,40 @@ class ReswanBot(commands.Cog):
     @commands.command(name="respliked")
     async def play_liked_songs(self, ctx):
         """Memutar lagu-lagu dari playlist yang telah disukai pengguna."""
-        await ctx.send("❌ Perintah ini dinonaktifkan sementara untuk perbaikan bug.", ephemeral=True)
+        if not ctx.voice_client:
+            await ctx.invoke(self.join)
+            if not ctx.voice_client:
+                return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
+
+        user_id_str = str(ctx.author.id)
+        
+        if not isinstance(self.user_preferences, dict):
+            self.user_preferences = load_user_preferences()
+            if not isinstance(self.user_preferences, dict):
+                self.user_preferences = {}
+                save_user_preferences(self.user_preferences)
+        
+        user_preferences = self.user_preferences.get(user_id_str, {})
+        liked_songs = user_preferences.get('liked_songs', [])
+        
+        if not isinstance(liked_songs, list) or not liked_songs:
+            return await ctx.send("❌ Anda belum memiliki lagu yang disukai (gunakan `👍` pada pesan musik yang sedang diputar).", ephemeral=True)
+
+        await ctx.defer()
+
+        liked_urls = [song['webpage_url'] for song in liked_songs]
+        random.shuffle(liked_urls)
+
+        queue = self.get_queue(ctx.guild.id)
+        self.queues[ctx.guild.id] = []
+        self.queues[ctx.guild.id].extend(liked_urls)
+
+        await ctx.send(f"▶️ Memulai playlist lagu kesukaan Anda dengan {len(liked_urls)} lagu.", ephemeral=True)
+        
+        if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
+            await self.play_next(ctx)
+        else:
+            await self._update_music_message_from_ctx(ctx)
             
     # Listener untuk mendeteksi reaksi
     @commands.Cog.listener()
