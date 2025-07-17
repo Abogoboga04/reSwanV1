@@ -615,7 +615,7 @@ class ReswanBot(commands.Cog):
         self.cleanup_task.cancel()
         self._check_and_disconnect_idle_bots.cancel() # Pastikan juga untuk membatalkan task ini
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=10) # <--- DIKEMBALIKAN KE INTERVAL ASLI
     async def cleanup_task(self):
         log.debug("Running TempVoice cleanup task.") 
         channels_to_remove = []
@@ -666,7 +666,7 @@ class ReswanBot(commands.Cog):
         await self.bot.wait_until_ready()
         log.info("Bot ready, TempVoice cleanup task is about to start.")
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=5) # <--- DIKEMBALIKAN KE INTERVAL ASLI
     async def _check_and_disconnect_idle_bots(self):
         log.info("Running idle check task...")
         for guild in self.bot.guilds:
@@ -1132,10 +1132,10 @@ class ReswanBot(commands.Cog):
         else:
             log.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
             self.queues.pop(guild_id, None)
-            self.loop_status.pop(guild_id, None)
-            self.is_muted.pop(guild_id, None)
-            self.old_volume.pop(guild_id, None)
-            self.now_playing_info.pop(guild_id, None)
+            self.loop_status.pop(guild.id, None)
+            self.is_muted.pop(guild.id, None)
+            self.old_volume.pop(guild.id, None)
+            self.now_playing_info.pop(guild.id, None)
             
             if guild_id in self.current_music_message_info:
                 old_message_info = self.current_music_message_info[guild_id]
@@ -1274,16 +1274,14 @@ class ReswanBot(commands.Cog):
 
         search_query = query
         is_spotify_link = False
-        spotify_track_info = None
-
+        
         if self.spotify and ("https://open.spotify.com/track/" in query or "https://open.spotify.com/playlist/" in query or "https://open.spotify.com/album/" in query):
             is_spotify_link = True
             try:
                 if "https://open.spotify.com/track/" in query:
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
-                    spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
-                    search_query = f"{track['name']} {track['artists'][0]['name']} audio" # Kueri pencarian yang lebih umum
+                    search_query = f"{track['name']} {track['artists'][0]['name']} -official -musicvideo"
                 elif "https://open.spotify.com/playlist/" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
@@ -1291,7 +1289,7 @@ class ReswanBot(commands.Cog):
                     for item in results['items']:
                         track = item['track']
                         if track: 
-                            tracks_to_queue.append(f"{track['name']} {track['artists'][0]['name']} audio")
+                            tracks_to_queue.append(f"{track['name']} {track['artists'][0]['name']} -official -musicvideo")
                     self.get_queue(ctx.guild.id).extend(tracks_to_queue)
                     await ctx.send(f"Ditambahkan ke antrean: **{len(tracks_to_queue)} lagu**.", ephemeral=True)
                     if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
@@ -1304,7 +1302,7 @@ class ReswanBot(commands.Cog):
                     for item in results['items']:
                         track = item
                         if track: 
-                            tracks_to_queue.append(f"{track['name']} {track['artists'][0]['name']} audio")
+                            tracks_to_queue.append(f"{track['name']} {track['artists'][0]['name']} -official -musicvideo")
                     self.get_queue(ctx.guild.id).extend(tracks_to_queue)
                     await ctx.send(f"Ditambahkan ke antrean: **{len(tracks_to_queue)} lagu**.", ephemeral=True)
                     if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
@@ -1317,7 +1315,7 @@ class ReswanBot(commands.Cog):
                 log.error(f"Error processing Spotify link: {e}")
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
-        
+    
         queue = self.get_queue(ctx.guild.id)
         
         # Hapus pesan kontrol musik lama sebelum memutar lagu baru
@@ -1337,7 +1335,6 @@ class ReswanBot(commands.Cog):
             # Logika baru untuk mencari dan memutar
             urls_to_add = []
             try:
-                # Ambil 5 hasil pencarian teratas
                 search_results = await asyncio.to_thread(ytdl.extract_info, f"ytsearch5:{search_query}", download=False)
                 if 'entries' in search_results:
                     urls_to_add = [entry['webpage_url'] for entry in search_results['entries']]
