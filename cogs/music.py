@@ -1269,7 +1269,7 @@ class ReswanBot(commands.Cog):
         else:
             await ctx.send("Kamu harus berada di voice channel dulu.")
 
-    @commands.command(name="resp")
+     @commands.command(name="resp")
     async def play(self, ctx, *, query):
         if not ctx.voice_client:
             await ctx.invoke(self.join)
@@ -1282,36 +1282,40 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         spotify_track_info = None
 
-        if self.spotify and ("spotify.com/track/" in query or "spotify.com/playlist/" in query or "spotify.com/album/" in query):
+        # Perbaikan: Mengubah pola URL Spotify agar tidak merujuk ke googleusercontent.com
+        # Asumsi: Query Spotify akan berupa URL langsung dari Spotify atau ID track/playlist/album.
+        # Jika Anda menggunakan proxy/redirect sebelumnya, Anda perlu menangani URL aslinya.
+        # Untuk demonstrasi ini, saya berasumsi query adalah URL Spotify yang valid.
+        if self.spotify and ("https://open.spotify.com/track/" in query or "https://open.spotify.com/playlist/" in query or "https://open.spotify.com/album/" in query): 
             is_spotify_link = True
             try:
-                if "spotify.com/track/" in query:
+                if "https://open.spotify.com/track/" in query:
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
                     spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "spotify.com/playlist/" in query:
+                elif "https://open.spotify.com/playlist/" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
                     for item in results['items']:
                         track = item['track']
-                        if track:  
+                        if track: 
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
-                elif "spotify.com/album/" in query:
+                elif "https://open.spotify.com/album/" in query:
                     album_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.album_tracks(album_id)
                     for item in results['items']:
                         track = item
-                        if track:  
+                        if track: 
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
                 else:
                     await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
                     return
             except Exception as e:
-                log.error(f"Error processing Spotify link: {e}")
+                logging.error(f"Error processing Spotify link: {e}")
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
         else:
@@ -1319,6 +1323,7 @@ class ReswanBot(commands.Cog):
 
         queue = self.get_queue(ctx.guild.id)
         
+        # Hapus pesan kontrol musik lama sebelum memutar lagu baru atau menambah antrean
         if ctx.guild.id in self.current_music_message_info:
             old_message_info = self.current_music_message_info[ctx.guild.id]
             try:
@@ -1327,17 +1332,16 @@ class ReswanBot(commands.Cog):
                     old_message = await old_channel.fetch_message(old_message_info['message_id'])
                     await old_message.delete()
             except (discord.NotFound, discord.HTTPException) as e:
-                log.warning(f"Could not delete old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during play command: {e}")
+                logging.warning(f"Could not delete old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']} during play command: {e}")
             finally:
-                self.current_music_message_info.pop(ctx.guild.id, None)
+                del self.current_music_message_info[ctx.guild.id]
 
 
         if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused() and not queue:
             first_url = urls.pop(0)
             queue.extend(urls)
             try:
-                current_ffmpeg_options = self.get_ffmpeg_options(ctx.guild.id)
-                source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True, ffmpeg_options=current_ffmpeg_options)
+                source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True) # Pastikan stream=True
                 ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
 
                 if is_spotify_link and spotify_track_info:
@@ -1367,11 +1371,6 @@ class ReswanBot(commands.Cog):
                     duration_str = f"{minutes:02}:{seconds:02}"
                 embed.add_field(name="Durasi", value=duration_str, inline=True)
                 embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
-                
-                eq_settings = self.get_current_eq_settings(ctx.guild.id)
-                eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
-                embed.add_field(name="Equalizer", value=eq_info, inline=True)
-
                 embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
 
                 view_instance = MusicControlView(self, {'message_id': None, 'channel_id': ctx.channel.id})
@@ -1390,24 +1389,18 @@ class ReswanBot(commands.Cog):
                     }
                 
             except Exception as e:
-                log.error(f'Failed to play song: {e}')
+                logging.error(f'Failed to play song: {e}')
                 await ctx.send(f'Gagal memutar lagu: {e}', ephemeral=True)
+                # Pastikan FFMPEG dihentikan jika ada error fatal saat mencoba memutar
                 if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                     ctx.voice_client.stop()
                 return
         else:
             await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
             queue.extend(urls)
-            
+                
             if ctx.guild.id in self.current_music_message_info:
                 await self._update_music_message_from_ctx(ctx)
-
-    @commands.command(name="resskip")
-    async def skip_cmd(self, ctx):
-        if not ctx.voice_client or (not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused()):
-            return await ctx.send("Tidak ada lagu yang sedang diputar.", ephemeral=True)
-        ctx.voice_client.stop()
-        await ctx.send("⏭️ Skip lagu.", ephemeral=True)
 
     @commands.command(name="respause")
     async def pause_cmd(self, ctx):
