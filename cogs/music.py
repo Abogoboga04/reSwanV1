@@ -283,7 +283,7 @@ class MusicControlView(discord.ui.View):
                 finally:
                     del self.cog.current_music_message_info[interaction.guild.id]
 
-            await interaction.followup.send("⏹️ Stop dan keluar dari voice.", ephemeral=True)
+            await interaction.response.send_message("⏹️ Stop dan keluar dari voice.", ephemeral=True)
             
     @discord.ui.button(emoji="📜", style=discord.ButtonStyle.grey, custom_id="music:queue", row=1)
     async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -632,6 +632,8 @@ class ReswanBot(commands.Cog):
                         finally:
                             del self.current_music_message_info[guild.id]
                 else:
+                    is_playing_or_paused = vc.is_playing() or vc.is_paused()
+                    is_queue_empty = not self.queues.get(guild.id, [])
                     log.info(f"Bot {self.bot.user.name} not idle in {vc.channel.name}. Conditions: Human Members={num_human_members}, Playing/Paused={is_playing_or_paused}, Queue Empty={is_queue_empty}.")
 
 
@@ -737,7 +739,7 @@ class ReswanBot(commands.Cog):
                 log.info(f"Moved {member.display_name} to new VC {new_vc.name}.")
 
                 self.active_temp_channels[str(new_vc.id)] = {"owner_id": str(member.id), "guild_id": str(guild.id)}
-                self. _save_temp_channels_state() 
+                self._save_temp_channels_state() 
                 log.debug(f"Temporary VC {new_vc.id} added to tracking.")
 
                 await new_vc.send(
@@ -1037,8 +1039,9 @@ class ReswanBot(commands.Cog):
             view_instance = MusicControlView(self, {'message_id': None, 'channel_id': target_channel.id})
             for item in view_instance.children:
                 if item.custom_id == "music:play_pause":
-                    item.emoji = "▶️"
-                    item.style = discord.ButtonStyle.primary
+                    if item.style != discord.ButtonStyle.green: # Cek jika belum diubah
+                        item.emoji = "▶️"
+                        item.style = discord.ButtonStyle.primary
                 elif item.custom_id == "music:mute_unmute":
                     if self.is_muted.get(guild_id, False):
                         item.emoji = "🔇"
@@ -1480,6 +1483,11 @@ class ReswanBot(commands.Cog):
     # --- PERINTAH BARU UNTUK FITUR RANDOM PRIBADI ---
     @commands.command(name="resprandom")
     async def personal_random(self, ctx):
+        if not ctx.voice_client:
+            await ctx.invoke(self.join)
+            if not ctx.voice_client:
+                return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
+        
         user_id_str = str(ctx.author.id)
         
         if user_id_str not in self.listening_history or not self.listening_history[user_id_str]:
@@ -1606,7 +1614,6 @@ class ReswanBot(commands.Cog):
             try:
                 await member.move_to(None, reason=f"Kicked by VC owner {ctx.author.display_name}.")
                 await ctx.send(f"✅ **{member.display_name}** telah ditendang dari channelmu.", ephemeral=True)
-                log.info(f"VC owner {ctx.author.display_name} kicked {member.display_name} from {vc.name}.")
             except discord.Forbidden:
                 await ctx.send("❌ Bot tidak memiliki izin untuk menendang pengguna ini. Pastikan bot memiliki izin 'Move Members'.", ephemeral=True)
                 log.error(f"Bot lacks permissions to kick {member.display_name} from VC {vc.name}.")
