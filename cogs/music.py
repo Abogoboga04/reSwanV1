@@ -91,7 +91,6 @@ ytdl_opts = {
     }],
 }
 
-# --- Perbaikan: Menambahkan filter untuk suara yang lebih jernih ---
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn -b:a 128k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header -af "afftdn,equalizer=f=80:width=80:g=4,equalizer=f=10000:width=2000:g=4,loudnorm"'
@@ -1266,40 +1265,36 @@ class ReswanBot(commands.Cog):
         await ctx.defer()
         
         urls = []
+        is_spotify_request = False
         
         # Perbaikan: Inisialisasi variabel di awal untuk menghindari UnboundLocalError
-        song_info_from_ytdl = None
+        spotify_track_info = None
         
-        # Perbaikan: Periksa URL Spotify terlebih dahulu
-        is_spotify_request = self.spotify and ("http" in query and ("open.spotify.com" in query or "https://open.spotify.com/playlist/8" in query or "https://open.spotify.com/playlist/9" in query) or "spotify:" in query)
-        
-        if is_spotify_request:
+        # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
+        if self.spotify and ("http" in query and ("open.spotify.com/track/" in query or "open.spotify.com/playlist/" in query or "open.spotify.com/album/" in query) or "spotify:" in query):
+            is_spotify_request = True
             try:
-                await ctx.send(f"🎧 Mengambil lagu dari playlist/album Spotify...", ephemeral=True)
-                search_queries = []
                 if "track" in query:
                     track = self.spotify.track(query)
-                    song_info_from_ytdl = {
+                    spotify_track_info = {
                         'title': track['name'],
                         'artist': track['artists'][0]['name'],
                         'webpage_url': track['external_urls']['spotify'],
                         'requester': ctx.author.mention
                     }
-                    search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
+                    urls.append(f"{track['name']} {track['artists'][0]['name']}")
                 elif "playlist" in query:
                     results = self.spotify.playlist_tracks(query)
                     for item in results['items']:
                         track = item['track']
                         if track:
-                            search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
+                            urls.append(f"{track['name']} {track['artists'][0]['name']}")
                 elif "album" in query:
                     results = self.spotify.album_tracks(query)
                     for item in results['items']:
                         track = item
                         if track:
-                            search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
-                
-                urls.extend(search_queries)
+                            urls.append(f"{track['name']} {track['artists'][0]['name']}")
             except Exception as e:
                 log.error(f"Error processing Spotify link: {e}", exc_info=True)
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
@@ -1317,10 +1312,18 @@ class ReswanBot(commands.Cog):
                 source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True)
                 ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
 
-                if not song_info_from_ytdl:
+                # Perbaikan: Periksa apakah spotify_track_info telah diisi
+                if is_spotify_request and spotify_track_info:
+                    self.now_playing_info[ctx.guild.id] = spotify_track_info
+                else:
                     song_info_from_ytdl = await self.get_song_info_from_url(first_url)
+                    self.now_playing_info[ctx.guild.id] = {
+                        'title': song_info_from_ytdl['title'],
+                        'artist': song_info_from_ytdl['artist'],
+                        'webpage_url': song_info_from_ytdl['webpage_url'],
+                        'requester': ctx.author.mention
+                    }
                 
-                self.now_playing_info[ctx.guild.id] = song_info_from_ytdl
                 self.add_song_to_history(ctx.author.id, self.now_playing_info[ctx.guild.id])
 
                 embed = discord.Embed(
@@ -1548,13 +1551,13 @@ class ReswanBot(commands.Cog):
                 save_user_preferences(self.user_preferences)
         
         # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
-        is_spotify_request = self.spotify and urls and ("http" in urls[0] and ("spotify.com" in urls[0]) or "spotify:" in urls[0])
-        
-        if is_spotify_request:
-            try:
-                await ctx.send(f"🎧 Mengambil lagu dari playlist/album Spotify...", ephemeral=True)
-                search_queries = []
-                for url in urls:
+        is_spotify_request = False
+        if urls and self.spotify and ("open.spotify.com" in urls[0] or "spotify:" in urls[0]):
+            is_spotify_request = True
+            await ctx.send(f"🎧 Mengambil lagu dari {len(urls)} playlist/album Spotify...", ephemeral=True)
+            search_queries = []
+            for url in urls:
+                try:
                     if "track" in url:
                         track = self.spotify.track(url)
                         search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
@@ -1570,29 +1573,27 @@ class ReswanBot(commands.Cog):
                             track = item
                             if track:
                                 search_queries.append(f"{track['name']} {track['artists'][0]['name']}")
-                
-                new_urls = []
-                for query in search_queries:
-                    try:
-                        info = await asyncio.to_thread(lambda: ytdl.extract_info(query, download=False, process=True))
-                        if 'entries' in info and isinstance(info.get('entries'), list):
-                            new_urls.append(info['entries'][0]['webpage_url'])
-                    except Exception as e:
-                        log.error(f"Error searching YouTube for '{query}': {e}")
-                
-                queue = self.get_queue(ctx.guild.id)
-                queue.extend(new_urls)
-                await ctx.send(f"🎧 Menambahkan {len(new_urls)} lagu dari Spotify ke antrean.", ephemeral=True)
-                if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
-                    await self.play_next(ctx)
-                else:
-                    await self._update_music_message_from_ctx(ctx)
-                return
-
-            except Exception as e:
-                log.error(f"Error processing Spotify request: {e}", exc_info=True)
-                await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
-                return
+                except Exception as e:
+                    log.error(f"Error fetching Spotify data for URL {url}: {e}")
+                    continue
+            
+            new_urls = []
+            for query in search_queries:
+                try:
+                    info = await asyncio.to_thread(lambda: ytdl.extract_info(query, download=False, process=True))
+                    if 'entries' in info and isinstance(info.get('entries'), list):
+                        new_urls.append(info['entries'][0]['webpage_url'])
+                except Exception as e:
+                    log.error(f"Error searching YouTube for '{query}': {e}")
+            
+            queue = self.get_queue(ctx.guild.id)
+            queue.extend(new_urls)
+            await ctx.send(f"🎧 Menambahkan {len(new_urls)} lagu dari Spotify ke antrean.", ephemeral=True)
+            if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
+                await self.play_next(ctx)
+            else:
+                await self._update_music_message_from_ctx(ctx)
+            return
 
         # Jika bukan permintaan Spotify, jalankan logika random
         await self.refill_queue_for_random(ctx, num_songs=10)
