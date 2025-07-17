@@ -49,7 +49,11 @@ def save_json_file(file_path, data):
         json.dump(data, f, indent=4)
 
 def load_temp_channels():
-    return load_json_file(TEMP_CHANNELS_FILE)
+    data = load_json_file(TEMP_CHANNELS_FILE)
+    if isinstance(data, list): # Tambahan pengecekan untuk file yang rusak
+        log.warning(f"File {TEMP_CHANNELS_FILE} is a list, expected a dict. Resetting it.")
+        return {}
+    return data
 
 def save_temp_channels(data):
     save_json_file(TEMP_CHANNELS_FILE, {str(k): v for k, v in data.items()})
@@ -88,11 +92,32 @@ FFMPEG_OPTIONS = {
 
 ytdl = yt_dlp.YoutubeDL(ytdl_opts)
 
+# Pastikan kelas-kelas ini ada dan dapat diakses
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.8):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get('title')
+        self.url = data.get('url')
+        self.thumbnail = data.get('thumbnail')
+        self.webpage_url = data.get('webpage_url')
+        self.duration = data.get('duration')
+        self.uploader = data.get('uploader')
+        self.requester = data.get('requester', 'N/A')
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=True):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        if 'entries' in data:
+            data = data['entries'][0]
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), data=data)
+
 class MusicControlView(discord.ui.View):
-    def __init__(self, cog_instance, original_message=None):
+    def __init__(self, cog_instance):
         super().__init__(timeout=None)
         self.cog = cog_instance
-        self.original_message = original_message
         
         self.load_donation_buttons()
 
@@ -123,11 +148,10 @@ class MusicControlView(discord.ui.View):
             return False
         return True
 
-    async def _update_music_message(self, interaction: discord.Interaction):
+    async def _update_music_message(self, interaction: discord.Interaction, new_embed=None):
         guild_id = interaction.guild.id
         current_message_info = self.cog.current_music_message_info.get(guild_id)
         if not current_message_info:
-            log.warning("No music message info found to update.")
             return
 
         message_id = current_message_info['message_id']
@@ -140,40 +164,39 @@ class MusicControlView(discord.ui.View):
                 return
 
             message = await channel.fetch_message(message_id)
-
-            vc = interaction.guild.voice_client
-            guild_id = interaction.guild.id
-            queue = self.cog.get_queue(guild_id)
             
-            # Buat embed baru atau ambil yang sudah ada
-            if vc and vc.is_playing() and vc.source and guild_id in self.cog.now_playing_info:
-                info = self.cog.now_playing_info[guild_id]
-                source = vc.source
+            # Jika embed baru tidak disediakan, buat embed dari status saat ini
+            if not new_embed:
+                vc = interaction.guild.voice_client
+                queue = self.cog.get_queue(guild_id)
+                if vc and vc.is_playing() and vc.source and guild_id in self.cog.now_playing_info:
+                    info = self.cog.now_playing_info[guild_id]
+                    source = vc.source
 
-                embed = discord.Embed(
-                    title="🎶 Sedang Memutar",
-                    description=f"**[{info['title']}]({info['webpage_url']})**",
-                    color=discord.Color.purple()
-                )
-                if source.thumbnail:
-                    embed.set_thumbnail(url=source.thumbnail)
-                
-                duration_str = "N/A"
-                if source.duration:
-                    minutes, seconds = divmod(source.duration, 60)
-                    duration_str = f"{minutes:02}:{seconds:02}"
-                embed.add_field(name="Durasi", value=duration_str, inline=True)
-                embed.add_field(name="Diminta oleh", value=info.get('requester', 'N/A'), inline=True)
-                embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
-            else:
-                embed = discord.Embed(
-                    title="Musik Bot",
-                    description="Status musik...",
-                    color=discord.Color.light_grey()
-                )
+                    new_embed = discord.Embed(
+                        title="🎶 Sedang Memutar",
+                        description=f"**[{info['title']}]({info['webpage_url']})**",
+                        color=discord.Color.purple()
+                    )
+                    if source.thumbnail:
+                        new_embed.set_thumbnail(url=source.thumbnail)
+                    
+                    duration_str = "N/A"
+                    if source.duration:
+                        minutes, seconds = divmod(source.duration, 60)
+                        duration_str = f"{minutes:02}:{seconds:02}"
+                    new_embed.add_field(name="Durasi", value=duration_str, inline=True)
+                    new_embed.add_field(name="Diminta oleh", value=info.get('requester', 'N/A'), inline=True)
+                    new_embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
+                else:
+                    new_embed = discord.Embed(
+                        title="Musik Bot",
+                        description="Status musik...",
+                        color=discord.Color.light_grey()
+                    )
 
             # Buat view baru dengan status tombol yang diperbarui
-            updated_view = MusicControlView(self.cog, message)
+            updated_view = MusicControlView(self.cog)
             vc = interaction.guild.voice_client
             for item in updated_view.children:
                 if item.custom_id == "music:play_pause":
@@ -197,10 +220,10 @@ class MusicControlView(discord.ui.View):
                     else:
                         item.style = discord.ButtonStyle.grey
                 item.disabled = False
-
-            await message.edit(embed=embed, view=updated_view)
+            
+            await message.edit(embed=new_embed, view=updated_view)
             log.debug(f"Edited music control message {message_id} in channel {channel_id}.")
-
+            
         except (discord.NotFound, discord.HTTPException) as e:
             log.warning(f"Failed to edit music message {message_id} in channel {channel_id}: {e}. Message might have been deleted.")
             self.cog.current_music_message_info.pop(guild_id, None)
@@ -212,16 +235,18 @@ class MusicControlView(discord.ui.View):
     async def play_pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check_voice_channel(interaction):
             return
+        
+        await interaction.response.defer(ephemeral=True)
 
         vc = interaction.guild.voice_client
         if vc.is_playing():
             vc.pause()
-            await interaction.response.send_message("⏸️ Lagu dijeda.", ephemeral=True)
+            await interaction.followup.send("⏸️ Lagu dijeda.", ephemeral=True)
         elif vc.is_paused():
             vc.resume()
-            await interaction.response.send_message("▶️ Lanjut lagu.", ephemeral=True)
+            await interaction.followup.send("▶️ Lanjut lagu.", ephemeral=True)
         else:
-            await interaction.response.send_message("Tidak ada lagu yang sedang diputar/dijeda.", ephemeral=True)
+            await interaction.followup.send("Tidak ada lagu yang sedang diputar/dijeda.", ephemeral=True)
         
         await self._update_music_message(interaction)
 
@@ -231,12 +256,14 @@ class MusicControlView(discord.ui.View):
         if not await self._check_voice_channel(interaction):
             return
         
+        await interaction.response.defer(ephemeral=True)
+
         vc = interaction.guild.voice_client
         if vc and (vc.is_playing() or vc.is_paused()):
             vc.stop()
-            await interaction.response.send_message("⏭️ Skip lagu.", ephemeral=True)
+            await interaction.followup.send("⏭️ Skip lagu.", ephemeral=True)
         else:
-            await interaction.response.send_message("Tidak ada lagu yang sedang diputar.", ephemeral=True)
+            await interaction.followup.send("Tidak ada lagu yang sedang diputar.", ephemeral=True)
         
 
     @discord.ui.button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="music:stop", row=0)
@@ -457,7 +484,6 @@ class ReswanBot(commands.Cog):
         self.is_muted = {}
         self.old_volume = {}
         self.now_playing_info = {}
-        self.playing_tracks = {}
         self.listening_history = load_listening_history()
         self.user_preferences = load_user_preferences()
 
@@ -509,6 +535,12 @@ class ReswanBot(commands.Cog):
         log.debug("Running TempVoice cleanup task.")
         channels_to_remove = []
         for channel_id_str, channel_info in list(self.active_temp_channels.items()):
+            # Perbaikan: Tambahkan pengecekan tipe data
+            if not isinstance(channel_info, dict):
+                log.warning(f"Corrupted entry found for channel ID {channel_id_str}. Removing it.")
+                channels_to_remove.append(channel_id_str)
+                continue
+
             channel_id = int(channel_id_str)
             guild_id = int(channel_info["guild_id"])
             guild = self.bot.get_guild(guild_id)
@@ -601,6 +633,7 @@ class ReswanBot(commands.Cog):
 
     @idle_check_task.before_loop
     async def before_idle_check_task(self):
+        log.info("Waiting for bot to be ready before starting idle check task.")
         await self.bot.wait_until_ready()
         log.info("Bot ready, idle check task is about to start.")
 
@@ -973,6 +1006,9 @@ class ReswanBot(commands.Cog):
             song_info_from_ytdl = await self.get_song_info_from_url(url)
             self.add_song_to_history(ctx.author.id, song_info_from_ytdl)
             
+            # Tambahkan info requester ke data lagu
+            song_info_from_ytdl['requester'] = ctx.author.mention
+            
             source = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
             
             if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
@@ -980,12 +1016,7 @@ class ReswanBot(commands.Cog):
 
             ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
             
-            self.now_playing_info[guild_id] = {
-                'title': song_info_from_ytdl['title'],
-                'artist': song_info_from_ytdl['artist'],
-                'webpage_url': song_info_from_ytdl['webpage_url'],
-                'requester': ctx.author.mention,
-            }
+            self.now_playing_info[guild_id] = song_info_from_ytdl
 
             embed = discord.Embed(
                 title="🎶 Sedang Memutar",
@@ -1023,7 +1054,7 @@ class ReswanBot(commands.Cog):
                 self.current_music_message_info[guild_id] = {'message_id': message_sent.id, 'channel_id': message_sent.channel.id}
                 await message_sent.add_reaction('👍')
                 await message_sent.add_reaction('👎')
-                log.info("Sent new music message for guild {guild_id}.")
+                log.info(f"Sent new music message for guild {guild_id}.")
 
         except Exception as e:
             logging.error(f'Failed to play song for guild {guild_id}: {e}')
@@ -1152,7 +1183,7 @@ class ReswanBot(commands.Cog):
             else:
                 embed_to_send = discord.Embed(title="Musik Bot", description="Status musik...", color=discord.Color.light_grey())
 
-            updated_view = MusicControlView(self, message_obj)
+            updated_view = MusicControlView(self)
             vc = ctx.voice_client
             for item in updated_view.children:
                 if item.custom_id == "music:play_pause":
@@ -1210,16 +1241,16 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         spotify_track_info = None
 
-        if self.spotify and ("https://open.spotify.com/track/" in query or "https://open.spotify.com/playlist/" in query or "https://open.spotify.com/album/" in query):
+        if self.spotify and ("spotify.com/track" in query or "spotify.com/playlist" in query or "spotify.com/album" in query):
             is_spotify_link = True
             try:
-                if "https://open.spotify.com/track/" in query:
+                if "spotify.com/track" in query:
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
-                    spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
+                    spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query, 'requester': ctx.author.mention}
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "https://open.spotify.com/playlist/" in query:
+                elif "spotify.com/playlist" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
                     for item in results['items']:
@@ -1227,7 +1258,7 @@ class ReswanBot(commands.Cog):
                         if track:
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
-                elif "https://open.spotify.com/album/" in query:
+                elif "spotify.com/album" in query:
                     album_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.album_tracks(album_id)
                     for item in results['items']:
@@ -1290,6 +1321,7 @@ class ReswanBot(commands.Cog):
                             item.emoji = "🔇"
                             break
 
+                # Kirim pesan baru dan simpan infonya
                 message_sent = await ctx.send(embed=embed, view=view_instance)
                 
                 if message_sent:
