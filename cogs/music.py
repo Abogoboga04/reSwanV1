@@ -189,7 +189,7 @@ class MusicControlView(discord.ui.View):
 
         updated_view = MusicControlView(self.cog)
         vc = interaction.guild.voice_client
-        if not vc: # Jika bot tidak terhubung, nonaktifkan semua tombol
+        if not vc:
             for item in updated_view.children:
                 item.disabled = True
         else:
@@ -816,7 +816,6 @@ class ReswanBot(commands.Cog):
         if user_id_str not in self.listening_history:
             self.listening_history[user_id_str] = []
         
-        # Perbaikan bug: Pastikan data untuk user adalah list sebelum mencoba insert
         if not isinstance(self.listening_history[user_id_str], list):
              self.listening_history[user_id_str] = []
 
@@ -830,10 +829,9 @@ class ReswanBot(commands.Cog):
 
     def add_liked_song(self, user_id, song_info):
         user_id_str = str(user_id)
-        if user_id_str not in self.user_preferences:
+        if user_id_str not in self.user_preferences or not isinstance(self.user_preferences[user_id_str], dict):
             self.user_preferences[user_id_str] = {'liked_songs': [], 'disliked_songs': []}
         
-        # Perbaikan bug: Pastikan liked_songs dan disliked_songs adalah list
         if not isinstance(self.user_preferences[user_id_str].get('disliked_songs'), list):
              self.user_preferences[user_id_str]['disliked_songs'] = []
         if not isinstance(self.user_preferences[user_id_str].get('liked_songs'), list):
@@ -854,7 +852,7 @@ class ReswanBot(commands.Cog):
 
     def add_disliked_song(self, user_id, song_info):
         user_id_str = str(user_id)
-        if user_id_str not in self.user_preferences:
+        if user_id_str not in self.user_preferences or not isinstance(self.user_preferences[user_id_str], dict):
             self.user_preferences[user_id_str] = {'liked_songs': [], 'disliked_songs': []}
 
         if not isinstance(self.user_preferences[user_id_str].get('disliked_songs'), list):
@@ -996,7 +994,6 @@ class ReswanBot(commands.Cog):
             if current_song_url:
                 queue.insert(0, current_song_url)
         
-        # Logika baru untuk mengisi antrean secara otomatis
         if not queue:
             vc = ctx.voice_client
             if vc and len([member for member in vc.channel.members if not member.bot]) > 0:
@@ -1055,7 +1052,6 @@ class ReswanBot(commands.Cog):
             
             view = MusicControlView(self)
             
-            # Hapus pesan lama dan kirim yang baru
             if guild_id in self.current_music_message_info:
                 message_info = self.current_music_message_info.pop(guild_id)
                 try:
@@ -1120,7 +1116,14 @@ class ReswanBot(commands.Cog):
 
     async def refill_queue_for_random(self, ctx, num_songs=10):
         user_id_str = str(ctx.author.id)
-        user_preferences = self.user_preferences.get(user_id_str, {})
+        
+        # Perbaikan bug: Pastikan self.user_preferences adalah dictionary
+        if not isinstance(self.user_preferences, dict):
+            log.warning("user_preferences is not a dict. Resetting it.")
+            self.user_preferences = {}
+            save_user_preferences(self.user_preferences)
+            
+        user_preferences = self.user_preferences.get(user_id_str, {'liked_songs': [], 'disliked_songs': []})
         disliked_urls = {s.get('webpage_url') for s in user_preferences.get('disliked_songs', [])}
         
         new_urls = []
@@ -1214,7 +1217,6 @@ class ReswanBot(commands.Cog):
                         item.style = discord.ButtonStyle.grey
                 item.disabled = False
         
-        # Hapus pesan lama dan kirim yang baru
         if guild_id in self.current_music_message_info:
             message_info = self.current_music_message_info.pop(guild_id)
             try:
@@ -1222,7 +1224,7 @@ class ReswanBot(commands.Cog):
                 if channel:
                     old_message = await channel.fetch_message(message_info['message_id'])
                     await old_message.delete()
-            except (discord.NotFound, discord.HTTPException) as e:
+            except (discord.NotFound, discord.HTTPException):
                 log.warning(f"Could not delete old music message on command {ctx.command.name}: {e}.")
 
         new_message = await ctx.send(embed=embed_to_send, view=updated_view)
@@ -1262,7 +1264,7 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         spotify_track_info = None
 
-        if self.spotify and ("https://open.spotify.com/" in query or "spotify:" in query):
+        if self.spotify and ("http" in query or "spotify:" in query):
             is_spotify_link = True
             try:
                 if "track" in query:
@@ -1527,7 +1529,6 @@ class ReswanBot(commands.Cog):
         
         await ctx.defer()
         
-        # Isi antrean dengan 10 lagu
         await self.refill_queue_for_random(ctx, num_songs=10)
         
         queue = self.get_queue(ctx.guild.id)
@@ -1549,10 +1550,11 @@ class ReswanBot(commands.Cog):
                 return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
 
         user_id_str = str(ctx.author.id)
-        user_preferences = self.user_preferences.get(user_id_str, {})
-        liked_songs = user_preferences.get('liked_songs', [])
-
-        if not liked_songs:
+        if user_id_str not in self.user_preferences or not isinstance(self.user_preferences.get(user_id_str), dict):
+            return await ctx.send("❌ Anda belum memiliki lagu yang disukai (gunakan `👍` pada pesan musik yang sedang diputar).", ephemeral=True)
+            
+        liked_songs = self.user_preferences[user_id_str].get('liked_songs', [])
+        if not isinstance(liked_songs, list) or not liked_songs:
             return await ctx.send("❌ Anda belum memiliki lagu yang disukai (gunakan `👍` pada pesan musik yang sedang diputar).", ephemeral=True)
 
         await ctx.defer()
@@ -1588,30 +1590,10 @@ class ReswanBot(commands.Cog):
 
         if str(reaction.emoji) == '👍':
             self.add_liked_song(user.id, now_playing_info)
-            try:
-                await reaction.message.remove_reaction('👍', user)
-            except discord.Forbidden:
-                pass
-            try:
-                await reaction.message.remove_reaction('👎', user)
-            except discord.Forbidden:
-                pass
-            except discord.NotFound:
-                pass
             log.info(f"User {user.display_name} liked the song: '{now_playing_info['title']}'.")
 
         elif str(reaction.emoji) == '👎':
             self.add_disliked_song(user.id, now_playing_info)
-            try:
-                await reaction.message.remove_reaction('👎', user)
-            except discord.Forbidden:
-                pass
-            try:
-                await reaction.message.remove_reaction('👍', user)
-            except discord.Forbidden:
-                pass
-            except discord.NotFound:
-                pass
             log.info(f"User {user.display_name} disliked the song: '{now_playing_info['title']}'.")
 
     # --- TempVoice Commands ---
@@ -1760,6 +1742,9 @@ class ReswanBot(commands.Cog):
             return await ctx.send("❌ Kamu sudah menjadi pemilik channel ini!", ephemeral=True)
 
         try:
+            if vc_id_str not in self.active_temp_channels or not isinstance(self.active_temp_channels[vc_id_str], dict):
+                return await ctx.send("❌ Terjadi kesalahan internal. Data channelmu rusak.", ephemeral=True)
+
             self.active_temp_channels[vc_id_str]["owner_id"] = str(new_owner.id)
             save_temp_channels(self.active_temp_channels)
             
@@ -1802,8 +1787,8 @@ class ReswanBot(commands.Cog):
     async def admin_vc_transfer_owner(self, ctx, channel: discord.VoiceChannel, new_owner: discord.Member):
         channel_id_str = str(channel.id)
 
-        if channel_id_str not in self.active_temp_channels:
-            await ctx.send("❌ Saluran ini bukan saluran suara sementara yang terdaftar.", ephemeral=True)
+        if channel_id_str not in self.active_temp_channels or not isinstance(self.active_temp_channels[channel_id_str], dict):
+            await ctx.send("❌ Saluran ini bukan saluran suara sementara yang terdaftar atau datanya rusak.", ephemeral=True)
             return
         
         if new_owner.bot:
