@@ -32,7 +32,7 @@ def load_temp_channels():
         log.info(f"Created new {TEMP_CHANNELS_FILE}.")
         return {}
     try:
-        with open(TEMP_CHANNELSFILENAME, 'r', encoding='utf-8') as f:
+        with open(TEMP_CHANNELS_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
             cleaned_data = {}
             for ch_id, info in data.items():
@@ -896,7 +896,7 @@ class ReswanBot(commands.Cog):
             log.error(f"Error getting song info from URL {url}: {e}")
             return {'title': url, 'artist': 'Unknown Artist', 'webpage_url': url}
 
-    async def _send_lyrics(self, interaction_or_ctx, song_name_override=None):
+    async def _send_lyrics(self, interaction_or_ctx, song_name):
         if not self.genius:
             if isinstance(interaction_or_ctx, discord.Interaction):
                 if not interaction_or_ctx.response.is_done():
@@ -912,14 +912,14 @@ class ReswanBot(commands.Cog):
         song_title_for_lyrics = None
         song_artist_for_lyrics = None
 
-        if song_name_override:
-            if ' - ' in song_name_override:
-                parts = song_name_override.split(' - ', 1)
+        if song_name:
+            # Check for artist info in the song name
+            if ' - ' in song_name:
+                parts = song_name.split(' - ', 1)
                 song_title_for_lyrics = parts[0].strip()
                 song_artist_for_lyrics = parts[1].strip()
             else:
-                song_title_for_lyrics = song_name_override
-                song_artist_for_lyrics = None 
+                song_title_for_lyrics = song_name
         elif guild_id in self.now_playing_info:
             info = self.now_playing_info[guild_id]
             song_title_for_lyrics = info.get('title')
@@ -1132,14 +1132,14 @@ class ReswanBot(commands.Cog):
             await self.play_next(ctx) 
         else:
             log.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
-            self.queues.pop(guild_id, None)
-            self.loop_status.pop(guild_id, None)
-            self.is_muted.pop(guild_id, None)
-            self.old_volume.pop(guild_id, None)
-            self.now_playing_info.pop(guild_id, None)
+            self.queues.pop(guild.id, None)
+            self.loop_status.pop(guild.id, None)
+            self.is_muted.pop(guild.id, None)
+            self.old_volume.pop(guild.id, None)
+            self.now_playing_info.pop(guild.id, None)
             
             if guild_id in self.current_music_message_info:
-                old_message_info = self.current_music_message_info[guild_id]
+                old_message_info = self.current_music_message_info[guild.id]
                 try:
                     old_channel = ctx.guild.get_channel(old_message_info['channel_id']) or await ctx.guild.fetch_channel(old_message_info['channel_id'])
                     if old_channel:
@@ -1149,7 +1149,7 @@ class ReswanBot(commands.Cog):
                 except (discord.NotFound, discord.HTTPException):
                     log.warning(f"Could not delete old music message on auto-disconnect: {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
                 finally:
-                    self.current_music_message_info.pop(guild_id, None)
+                    self.current_music_message_info.pop(guild.id, None)
 
 
     async def _update_music_message_from_ctx(self, ctx):
@@ -1274,40 +1274,34 @@ class ReswanBot(commands.Cog):
         await ctx.defer()
 
         urls = []
-        is_spotify_link = False
-        spotify_track_info = None
+        is_spotify = False
 
-        if self.spotify and ("spotify.com/track/" in query or "spotify.com/playlist/" in query or "spotify.com/album/" in query):
-            is_spotify_link = True
+        if self.spotify and "open.spotify.com" in query: # Pengecekan URL Spotify yang benar
+            is_spotify = True
             try:
-                if "spotify.com/track/" in query:
-                    track_id = query.split('/')[-1].split('?')[0]
-                    track = self.spotify.track(track_id)
-                    spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
+                if "track/" in query:
+                    track = self.spotify.track(query)
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "spotify.com/playlist/" in query:
-                    playlist_id = query.split('/')[-1].split('?')[0]
-                    results = self.spotify.playlist_tracks(playlist_id)
+                elif "playlist/" in query or "album/" in query:
+                    results = []
+                    if "playlist/" in query:
+                        results = self.spotify.playlist_tracks(query)
+                    elif "album/" in query:
+                        results = self.spotify.album_tracks(query)
+                    
                     for item in results['items']:
-                        track = item['track']
-                        if track: 
-                            search_query = f"{track['name']} {track['artists'][0]['name']}"
-                            urls.append(search_query)
-                elif "spotify.com/album/" in query:
-                    album_id = query.split('/')[-1].split('?')[0]
-                    results = self.spotify.album_tracks(album_id)
-                    for item in results['items']:
-                        track = item
+                        track = item['track'] if 'track' in item else item
                         if track: 
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
                 else:
-                    await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
+                    await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).")
                     return
+                log.info(f"Spotify link converted to Youtube queries: {urls}") # Log debugging baru
             except Exception as e:
                 log.error(f"Error processing Spotify link: {e}")
-                await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
+                await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}")
                 return
         else:
             urls.append(query)
@@ -1335,7 +1329,7 @@ class ReswanBot(commands.Cog):
                 source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True, ffmpeg_options=current_ffmpeg_options)
                 ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
 
-                if is_spotify_link and spotify_track_info:
+                if is_spotify and spotify_track_info:
                     self.now_playing_info[ctx.guild.id] = spotify_track_info
                     self.playing_tracks[ctx.guild.id] = {'webpage_url': spotify_track_info['webpage_url']}
                 else:
@@ -1391,7 +1385,7 @@ class ReswanBot(commands.Cog):
                     ctx.voice_client.stop()
                 return
         else:
-            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
+            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
             queue.extend(urls)
                 
             if ctx.guild.id in self.current_music_message_info:
@@ -1608,7 +1602,7 @@ class ReswanBot(commands.Cog):
             await ctx.send(f"✅ Bass diatur ke **{gain} dB**. Perubahan akan diterapkan pada lagu berikutnya atau setelah lagu saat ini dimulai ulang.", ephemeral=True)
         else:
             await ctx.send(f"✅ Bass diatur ke **{gain} dB**. Ini akan diterapkan pada lagu yang akan diputar.", ephemeral=True)
-
+        
         if ctx.guild.id in self.current_music_message_info:
             await self._update_music_message_from_ctx(ctx)
 
