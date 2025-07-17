@@ -155,6 +155,9 @@ class AnnouncementModalGlobal(discord.ui.Modal, title="Buat Pengumuman"):
             await interaction.followup.send(embed=self.cog._create_embed(description="❌ Bot tidak memiliki izin `Manage Webhooks` untuk mengirim pengumuman via webhook.", color=self.cog.color_error), ephemeral=True)
             return
 
+        # --- MODIFIKASI: Dapatkan URL avatar server untuk default ---
+        server_icon_url = self.original_ctx.guild.icon.url if self.original_ctx.guild.icon else None
+        
         # --- Create and Send Embeds via Webhook ---
         sent_any_embed = False
         try:
@@ -169,13 +172,21 @@ class AnnouncementModalGlobal(discord.ui.Modal, title="Buat Pengumuman"):
                 
                 if i == 0:
                     embed.title = title
-                    embed.set_author(name=username, icon_url=profile_url if profile_url else discord.Embed.Empty)
+                    # --- MODIFIKASI: Gunakan URL dari modal, jika kosong pakai avatar server ---
+                    final_avatar_url = profile_url if profile_url else server_icon_url
+                    embed.set_author(name=username, icon_url=final_avatar_url)
+                    # --- AKHIR MODIFIKASI ---
+                    
                     if image_url: embed.set_image(url=image_url)
                     embed.set_footer(text=f"Pengumuman dari {self.original_ctx.guild.name}", icon_url=self.original_ctx.guild.icon.url if self.original_ctx.guild.icon else None)
                 else:
                     embed.set_footer(text=f"Lanjutan Pengumuman ({i+1}/{len(description_chunks)})")
 
-                await webhook.send(embed=embed, username=username, avatar_url=profile_url, wait=True)
+                # --- MODIFIKASI: Tambahkan tag @everyone di luar embed, hanya pada chunk pertama ---
+                content_message = "@everyone" if i == 0 else ""
+                await webhook.send(content=content_message, embed=embed, username=username, avatar_url=final_avatar_url, wait=True)
+                # --- AKHIR MODIFIKASI ---
+
                 sent_any_embed = True
                 print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Embed #{i+1} sent via webhook to {self.target_channel_obj.name}.")
         except Exception as e:
@@ -391,8 +402,8 @@ class AnnounceButtonView(discord.ui.View):
             print(f"[{datetime.now()}] [ERROR ADMIN] AnnounceButtonView: Bot Forbidden from sending modal. Check DM permissions or server permissions.", file=sys.stderr)
             await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Bot tidak memiliki izin untuk mengirim modal (pop-up form). Ini mungkin karena bot tidak bisa mengirim DM ke Anda atau ada masalah izin di server.", color=self.cog.color_error), ephemeral=True)
         except Exception as e:
-            print(f"[{datetime.now()}] [ERROR ADMIN] AnnounceButtonView: Error displaying announcement modal: {e}.", file=sys.stderr)
             await interaction.followup.send(embed=self.cog._create_embed(description=f"❌ Terjadi kesalahan saat menampilkan formulir: {e}", color=self.cog.color_error), ephemeral=True)
+            print(f"[{datetime.now()}] [ERROR ADMIN] AnnounceButtonView: Error displaying announcement modal: {e}.", file=sys.stderr)
 
     async def on_timeout(self) -> None:
         print(f"[{datetime.now()}] [DEBUG ADMIN] AnnounceButtonView: View timeout.")
@@ -764,7 +775,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                 dm_embed = self._create_embed(title="Warning: Rule Violation", color=self.color_warning)
                 dm_embed.add_field(name="Server", value=message.guild.name, inline=False)
                 dm_embed.add_field(name="Violation", value="Your message was deleted because it contained a **URL/link** in a channel where they are not allowed.", inline=False)
-                dm_embed.add_field(name="Suggestion", value="Please send media in designated channels. Review server rules.", inline=False)
+                dm_embed.add_field(name="Suggestion", value="Please send links in designated channels. Review server rules.", inline=False)
                 await message.author.send(embed=dm_embed)
             except discord.Forbidden: print(f"[{datetime.now()}] [DEBUG ADMIN] Failed to send DM warning to {message.author.display_name} (Forbidden).")
             return
@@ -1432,8 +1443,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                             print(f"[{datetime.now()}] [DEBUG ADMIN] AutoDeleteModal: Duration input is not a number.")
                             await modal_interaction.followup.send(embed=self.cog._create_embed(description="❌ Duration must be a number.", color=self.cog.color_error), ephemeral=True)
                         except Exception as e:
-                            print(f"[{datetime.now()}] [ERROR ADMIN] AutoDeleteModal: ERROR in on_submit: {e}.", file=sys.stderr)
                             await modal_interaction.followup.send(embed=self.cog._create_embed(description=f"❌ An error occurred: {e}", color=self.cog.color_error), ephemeral=True)
+                            print(f"[{datetime.now()}] [ERROR ADMIN] AutoDeleteModal: ERROR in on_submit: {e}.", file=sys.stderr)
                 
                 rules = self.cog.get_channel_rules(self.guild_id, self.channel_id)
                 current_delay = rules.get("auto_delete_seconds", 0)
