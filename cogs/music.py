@@ -774,7 +774,7 @@ class ReswanBot(commands.Cog):
                 except: pass
             except Exception as e:
                 log.error(f"Unexpected error creating or moving to new VC in guild {guild.name}: {e}", exc_info=True)
-                try: await member.send(f"❌ Terjadi kesalahan saat membuat channel suara pribadi: {e}. Hubungi admin server.", ephemeral=True)
+                try: await member.send(f"❌ Terjadi kesalahan saat memindahkan Anda ke channel pribadi Anda: {e}. Hubungi admin server.", ephemeral=True)
                 except discord.Forbidden: pass
                 try: await member.move_to(None, reason="Unexpected error.")
                 except: pass
@@ -1266,14 +1266,17 @@ class ReswanBot(commands.Cog):
         
         urls = []
         is_spotify_request = False
-        song_info_from_ytdl = None
-
-        if self.spotify and ("http" in query and "spotify.com" in query or "spotify:" in query):
+        
+        # Perbaikan: Inisialisasi variabel di awal untuk menghindari UnboundLocalError
+        spotify_track_info = None
+        
+        # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
+        if self.spotify and ("http" in query and ("open.spotify.com/track/" in query or "open.spotify.com/playlist/" in query or "open.spotify.com/album/" in query) or "spotify:" in query):
             is_spotify_request = True
             try:
                 if "track" in query:
                     track = self.spotify.track(query)
-                    song_info_from_ytdl = {
+                    spotify_track_info = {
                         'title': track['name'],
                         'artist': track['artists'][0]['name'],
                         'webpage_url': track['external_urls']['spotify'],
@@ -1309,10 +1312,18 @@ class ReswanBot(commands.Cog):
                 source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True)
                 ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
 
-                if not song_info_from_ytdl:
+                # Perbaikan: Periksa apakah spotify_track_info telah diisi
+                if is_spotify_request and spotify_track_info:
+                    self.now_playing_info[ctx.guild.id] = spotify_track_info
+                else:
                     song_info_from_ytdl = await self.get_song_info_from_url(first_url)
+                    self.now_playing_info[ctx.guild.id] = {
+                        'title': song_info_from_ytdl['title'],
+                        'artist': song_info_from_ytdl['artist'],
+                        'webpage_url': song_info_from_ytdl['webpage_url'],
+                        'requester': ctx.author.mention
+                    }
                 
-                self.now_playing_info[ctx.guild.id] = song_info_from_ytdl
                 self.add_song_to_history(ctx.author.id, self.now_playing_info[ctx.guild.id])
 
                 embed = discord.Embed(
@@ -1359,7 +1370,7 @@ class ReswanBot(commands.Cog):
                     await message_sent.add_reaction('👎')
             
             except Exception as e:
-                logging.error(f'Failed to play song for guild {guild_id}: {e}', exc_info=True)
+                logging.error(f'Failed to play song: {e}', exc_info=True)
                 await ctx.send(f'Gagal memutar lagu: {e}', ephemeral=True)
                 if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                     ctx.voice_client.stop()
@@ -1541,7 +1552,7 @@ class ReswanBot(commands.Cog):
         
         # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
         is_spotify_request = False
-        if urls and self.spotify and ("http" in urls[0] and "spotify.com" in urls[0] or "spotify:" in urls[0]):
+        if urls and self.spotify and ("open.spotify.com" in urls[0] or "spotify:" in urls[0]):
             is_spotify_request = True
             await ctx.send(f"🎧 Mengambil lagu dari {len(urls)} playlist/album Spotify...", ephemeral=True)
             search_queries = []
@@ -1904,7 +1915,7 @@ class ReswanBot(commands.Cog):
         )
         
         embed.add_field(name="Manajemen Channel:", value="""
-        `!vcsetlimit <angka>`: Atur batas jumlah user yang bisa masuk (0 untuk tak terbatas).
+        `!vcsetlimit <angka>`: Atur batas jumlah user (0 untuk tak terbatas).
         `!vcrename <nama_baru>`: Ubah nama channel suaramu.
         `!vclock`: Kunci channel (hanya bisa masuk via invite)
         `!vcunlock`: Buka kunci channelmu
