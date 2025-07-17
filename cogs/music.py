@@ -552,7 +552,7 @@ class ReswanBot(commands.Cog):
         await self.bot.wait_until_ready()
         log.info("Bot ready, TempVoice cleanup task is about to start.")
 
-    @tasks.loop(seconds=30) # Mengubah timer dari minutes=2 menjadi seconds=30
+    @tasks.loop(seconds=5) # <--- DIUBAH MENJADI 5 DETIK
     async def _check_and_disconnect_idle_bots(self):
         log.info("Running idle check task...")
         for guild in self.bot.guilds:
@@ -560,30 +560,26 @@ class ReswanBot(commands.Cog):
             if vc and vc.is_connected():
                 log.info(f"Checking voice channel {vc.channel.name} in guild {guild.name} (ID: {guild.id})...")
                 
-                # Filter anggota untuk mengecualikan bot itu sendiri
+                # --- START DEBUGGING LOGGING ---
+                all_members_in_vc = []
+                for m in vc.channel.members:
+                    all_members_in_vc.append(f"{m.display_name} (ID: {m.id}, Bot: {m.bot})")
+                log.debug(f"  Semua anggota di {vc.channel.name}: {all_members_in_vc}")
+                # --- END DEBUGGING LOGGING ---
+
                 human_members = [
                     member for member in vc.channel.members
                     if not member.bot
                 ]
                 
                 num_human_members = len(human_members)
-                is_playing_or_paused = vc.is_playing() or vc.is_paused()
-                is_queue_empty = not self.queues.get(guild.id) or len(self.queues.get(guild.id)) == 0
-
-                log.info(f"  Human members: {num_human_members}, Playing/Paused: {is_playing_or_paused}, Queue Empty: {is_queue_empty}")
+                log.info(f"  Jumlah anggota manusia yang terdeteksi: {num_human_members}")
                 
-                # --- LOG DEBUG DETAIL MEMBER ---
-                log.debug(f"  Members in {vc.channel.name}:")
-                for member in vc.channel.members:
-                    log.debug(f"    - {member.display_name} (ID: {member.id}), is_bot: {member.bot}")
-
-                # Jika tidak ada anggota manusia
                 if num_human_members == 0:
-                    log.info(f"Bot {self.bot.user.name} idle in voice channel {vc.channel.name} in guild {guild.name} (no human members). Disconnecting.")
+                    log.info(f"Bot {self.bot.user.name} idle in voice channel {vc.channel.name} in guild {guild.name} (tidak ada anggota manusia). Memutus koneksi.")
                     
-                    # Panggil stop() sebelum disconnect untuk menghentikan FFMPEG dengan bersih
-                    if is_playing_or_paused:
-                        vc.stop()
+                    vc.stop() # Langsung panggil stop() tanpa pengecualian
+                    
                     await vc.disconnect()
                     
                     # Bersihkan state guild ini
