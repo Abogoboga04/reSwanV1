@@ -264,7 +264,15 @@ class MusicControlView(discord.ui.View):
 
         vc = interaction.guild.voice_client
         if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
+            # Perbaikan: Hapus lagu saat ini dari antrean saat di-skip
+            queue = self.cog.get_queue(interaction.guild.id)
+            if len(queue) > 0:
+                # Menghapus lagu yang sedang diputar jika ada
+                # Logika ini dipindahkan ke play_next() agar lebih rapi,
+                # tetapi kita perlu memastikan bot tetap memutar lagu berikutnya
+                vc.stop()
+            else:
+                await interaction.followup.send("Tidak ada lagu lain di antrean.", ephemeral=True)
             await interaction.followup.send("⏭️ Skip lagu.", ephemeral=True)
         else:
             await interaction.followup.send("Tidak ada lagu yang sedang diputar.", ephemeral=True)
@@ -357,7 +365,7 @@ class MusicControlView(discord.ui.View):
             return
 
         await interaction.response.defer(ephemeral=True)
-        await self.cog._send_lyrics(interaction, song_name_override=None)
+        await self.cog._send_lyrics(interaction_or_ctx=interaction, song_name_override=None)
 
     # --- Tombol Volume Baru ---
     @discord.ui.button(emoji="➕", style=discord.ButtonStyle.secondary, custom_id="music:volume_up", row=2)
@@ -590,12 +598,6 @@ class ReswanBot(commands.Cog):
             save_temp_channels(self.active_temp_channels)
             log.debug(f"Temporary channel data saved after cleanup. Remaining: {len(self.active_temp_channels)}.")
 
-    @cleanup_task.before_loop
-    async def before_cleanup_task(self):
-        log.info("Waiting for bot to be ready before starting TempVoice cleanup task.")
-        await self.bot.wait_until_ready()
-        log.info("Bot ready, TempVoice cleanup task is about to start.")
-
     @tasks.loop(seconds=5)
     async def idle_check_task(self):
         log.info("Running idle check task...")
@@ -632,7 +634,6 @@ class ReswanBot(commands.Cog):
                             if old_channel:
                                 old_message = await old_channel.fetch_message(old_message_info['message_id'])
                                 await old_message.delete()
-                                log.info(f"Deleted old music message {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
                         except (discord.NotFound, discord.HTTPException) as e:
                             log.warning(f"Could not delete old music message on idle disconnect: {e}")
                         finally:
@@ -836,11 +837,13 @@ class ReswanBot(commands.Cog):
         if not isinstance(self.user_preferences[user_id_str].get('liked_songs'), list):
              self.user_preferences[user_id_str]['liked_songs'] = []
 
+        # Perbaikan bug: hapus dari dislike list dulu
         self.user_preferences[user_id_str]['disliked_songs'] = [
             s for s in self.user_preferences[user_id_str]['disliked_songs']
             if s['webpage_url'] != song_info['webpage_url']
         ]
 
+        # Perbaikan bug: tambahkan lagu hanya jika belum ada di liked list
         if not any(s['webpage_url'] == song_info['webpage_url'] for s in self.user_preferences[user_id_str]['liked_songs']):
             self.user_preferences[user_id_str]['liked_songs'].insert(0, song_info)
             if len(self.user_preferences[user_id_str]['liked_songs']) > 25:
@@ -988,12 +991,13 @@ class ReswanBot(commands.Cog):
         guild_id = ctx.guild.id
         queue = self.get_queue(guild_id)
         
-        if self.loop_status.get(guild_id, False) and ctx.voice_client and ctx.voice_client.source:
-            current_song_url = ctx.voice_client.source.data.get('webpage_url')
-            if current_song_url:
-                queue.insert(0, current_song_url)
-        
-        if not queue:
+        # Logika baru: hapus lagu yang baru saja diputar dari antrean, kecuali jika mode loop aktif
+        if ctx.voice_client.is_playing() and not self.loop_status.get(guild_id, False):
+            if queue and queue[0] == self.now_playing_info[guild_id]['webpage_url']:
+                queue.pop(0)
+
+        # Cek apakah antrean akan habis dan isi ulang
+        if len(queue) <= 1:
             vc = ctx.voice_client
             if vc and len([member for member in vc.channel.members if not member.bot]) > 0:
                 await self.refill_queue_for_random(ctx)
@@ -1381,6 +1385,13 @@ class ReswanBot(commands.Cog):
     async def skip_cmd(self, ctx):
         if not ctx.voice_client or (not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused()):
             return await ctx.send("Tidak ada lagu yang sedang diputar.", ephemeral=True)
+        
+        # Perbaikan: Hapus lagu saat ini dari antrean saat di-skip
+        guild_id = ctx.guild.id
+        queue = self.get_queue(guild_id)
+        if queue:
+            queue.pop(0)
+            
         ctx.voice_client.stop()
         await ctx.send("⏭️ Skip lagu.", ephemeral=True)
 
@@ -1549,10 +1560,10 @@ class ReswanBot(commands.Cog):
                 return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
 
         user_id_str = str(ctx.author.id)
-        if user_id_str not in self.user_preferences or not isinstance(self.user_preferences.get(user_id_str), dict):
-            return await ctx.send("❌ Anda belum memiliki lagu yang disukai (gunakan `👍` pada pesan musik yang sedang diputar).", ephemeral=True)
-            
-        liked_songs = self.user_preferences[user_id_str].get('liked_songs', [])
+        user_preferences = self.user_preferences.get(user_id_str, {})
+        liked_songs = user_preferences.get('liked_songs', [])
+        
+        # Perbaikan: Pastikan liked_songs adalah list
         if not isinstance(liked_songs, list) or not liked_songs:
             return await ctx.send("❌ Anda belum memiliki lagu yang disukai (gunakan `👍` pada pesan musik yang sedang diputar).", ephemeral=True)
 
