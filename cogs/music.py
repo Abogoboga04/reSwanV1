@@ -65,7 +65,6 @@ ytdl_opts = {
     'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best',
     'cookiefile': 'cookies.txt',
     'quiet': True,
-    'default_search': 'ytsearch',
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
     'postprocessors': [{
@@ -616,7 +615,7 @@ class ReswanBot(commands.Cog):
         self.cleanup_task.cancel()
         self._check_and_disconnect_idle_bots.cancel() # Pastikan juga untuk membatalkan task ini
 
-    @tasks.loop(seconds=60) # <--- DIUBAH MENJADI 60 DETIK
+    @tasks.loop(seconds=60)
     async def cleanup_task(self):
         log.debug("Running TempVoice cleanup task.") 
         channels_to_remove = []
@@ -667,7 +666,7 @@ class ReswanBot(commands.Cog):
         await self.bot.wait_until_ready()
         log.info("Bot ready, TempVoice cleanup task is about to start.")
 
-    @tasks.loop(seconds=60) # <--- DIUBAH MENJADI 60 DETIK
+    @tasks.loop(seconds=60)
     async def _check_and_disconnect_idle_bots(self):
         log.info("Running idle check task...")
         for guild in self.bot.guilds:
@@ -1132,11 +1131,11 @@ class ReswanBot(commands.Cog):
             await self.play_next(ctx) 
         else:
             log.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
-            self.queues.pop(guild.id, None)
-            self.loop_status.pop(guild.id, None)
-            self.is_muted.pop(guild.id, None)
-            self.old_volume.pop(guild.id, None)
-            self.now_playing_info.pop(guild.id, None)
+            self.queues.pop(guild_id, None)
+            self.loop_status.pop(guild_id, None)
+            self.is_muted.pop(guild_id, None)
+            self.old_volume.pop(guild_id, None)
+            self.now_playing_info.pop(guild_id, None)
             
             if guild_id in self.current_music_message_info:
                 old_message_info = self.current_music_message_info[guild_id]
@@ -1273,7 +1272,7 @@ class ReswanBot(commands.Cog):
 
         await ctx.defer()
 
-        urls = []
+        search_query = query
         is_spotify_link = False
         spotify_track_info = None
 
@@ -1284,37 +1283,44 @@ class ReswanBot(commands.Cog):
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
                     spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
-                    # Tambahkan kueri untuk menghindari channel resmi yang ber-DRM
-                    search_query = f"{track['name']} {track['artists'][0]['name']} -vevo -topic"
-                    urls.append(search_query)
+                    search_query = f"{track['name']} {track['artists'][0]['name']} audio" # Kueri pencarian yang lebih umum
                 elif "https://open.spotify.com/playlist/" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
+                    tracks_to_queue = []
                     for item in results['items']:
                         track = item['track']
                         if track: 
-                            search_query = f"{track['name']} {track['artists'][0]['name']} -vevo -topic"
-                            urls.append(search_query)
+                            tracks_to_queue.append(f"{track['name']} {track['artists'][0]['name']} audio")
+                    self.get_queue(ctx.guild.id).extend(tracks_to_queue)
+                    await ctx.send(f"Ditambahkan ke antrean: **{len(tracks_to_queue)} lagu**.", ephemeral=True)
+                    if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
+                        await self.play_next(ctx)
+                    return
                 elif "https://open.spotify.com/album/" in query:
                     album_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.album_tracks(album_id)
+                    tracks_to_queue = []
                     for item in results['items']:
                         track = item
                         if track: 
-                            search_query = f"{track['name']} {track['artists'][0]['name']} -vevo -topic"
-                            urls.append(search_query)
+                            tracks_to_queue.append(f"{track['name']} {track['artists'][0]['name']} audio")
+                    self.get_queue(ctx.guild.id).extend(tracks_to_queue)
+                    await ctx.send(f"Ditambahkan ke antrean: **{len(tracks_to_queue)} lagu**.", ephemeral=True)
+                    if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
+                        await self.play_next(ctx)
+                    return
                 else:
-                    await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
+                    await ctx.send("Link Spotify tidak dikenali.", ephemeral=True)
                     return
             except Exception as e:
                 log.error(f"Error processing Spotify link: {e}")
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
-        else:
-            urls.append(query)
-
+        
         queue = self.get_queue(ctx.guild.id)
         
+        # Hapus pesan kontrol musik lama sebelum memutar lagu baru
         if ctx.guild.id in self.current_music_message_info:
             old_message_info = self.current_music_message_info[ctx.guild.id]
             try:
@@ -1327,72 +1333,76 @@ class ReswanBot(commands.Cog):
             finally:
                 self.current_music_message_info.pop(ctx.guild.id, None)
 
-
         if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused() and not queue:
-            first_url = urls.pop(0)
-            queue.extend(urls)
+            # Logika baru untuk mencari dan memutar
+            urls_to_add = []
             try:
-                current_ffmpeg_options = self.get_ffmpeg_options(ctx.guild.id)
-                source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True, ffmpeg_options=current_ffmpeg_options)
-                ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
-
-                if is_spotify_link and spotify_track_info:
-                    self.now_playing_info[ctx.guild.id] = spotify_track_info
-                    self.playing_tracks[ctx.guild.id] = {'webpage_url': spotify_track_info['webpage_url']}
+                # Ambil 5 hasil pencarian teratas
+                search_results = await asyncio.to_thread(ytdl.extract_info, f"ytsearch5:{search_query}", download=False)
+                if 'entries' in search_results:
+                    urls_to_add = [entry['webpage_url'] for entry in search_results['entries']]
                 else:
-                    song_info_from_ytdl = await self.get_song_info_from_url(first_url)
-                    self.now_playing_info[ctx.guild.id] = {
-                        'title': song_info_from_ytdl['title'],
-                        'artist': song_info_from_ytdl['artist'],
-                        'webpage_url': song_info_from_ytdl['webpage_url']
-                    }
-                    self.playing_tracks[ctx.guild.id] = {'webpage_url': song_info_from_ytdl['webpage_url']}
-
-
-                embed = discord.Embed(
-                    title="🎶 Sedang Memutar",
-                    description=f"**[{self.now_playing_info[ctx.guild.id]['title']}]({self.now_playing_info[ctx.guild.id]['webpage_url']})**",
-                    color=discord.Color.purple()
-                )
-                if source.thumbnail:
-                    embed.set_thumbnail(url=source.thumbnail)
-                
-                duration_str = "N/A"
-                if source.duration:
-                    minutes, seconds = divmod(source.duration, 60)
-                    duration_str = f"{minutes:02}:{seconds:02}"
-                embed.add_field(name="Durasi", value=duration_str, inline=True)
-                embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
-                
-                eq_settings = self.get_current_eq_settings(ctx.guild.id)
-                eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
-                embed.add_field(name="Equalizer", value=eq_info, inline=True)
-
-                embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
-
-                view_instance = MusicControlView(self, {'message_id': None, 'channel_id': ctx.channel.id})
-                if self.is_muted.get(ctx.guild.id, False):
-                    for item in view_instance.children:
-                        if item.custom_id == "music:mute_unmute":
-                            item.emoji = "🔇"
-                            break
-
-                message_sent = await ctx.send(embed=embed, view=view_instance)
-                
-                if message_sent:
-                    self.current_music_message_info[ctx.guild.id] = {
-                        'message_id': message_sent.id,
-                        'channel_id': message_sent.channel.id
-                    }
-                
+                    raise Exception("Tidak ada hasil pencarian yang ditemukan.")
             except Exception as e:
-                log.error(f'Failed to play song: {e}')
-                await ctx.send(f'Gagal memutar lagu: {e}', ephemeral=True)
-                if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
-                    ctx.voice_client.stop()
-                return
+                log.error(f'Error searching for {search_query}: {e}')
+                return await ctx.send(f"Gagal mencari lagu: {e}", ephemeral=True)
+
+            found_source = False
+            for url in urls_to_add:
+                try:
+                    source = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True, ffmpeg_options=self.get_ffmpeg_options(ctx.guild.id))
+                    
+                    if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
+                        ctx.voice_client.stop()
+                    
+                    ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
+                    
+                    self.now_playing_info[ctx.guild.id] = {
+                        'title': source.title,
+                        'artist': source.uploader,
+                        'webpage_url': source.webpage_url
+                    }
+                    self.playing_tracks[ctx.guild.id] = {'webpage_url': source.webpage_url}
+
+                    embed = discord.Embed(
+                        title="🎶 Sedang Memutar",
+                        description=f"**[{source.title}]({source.webpage_url})**",
+                        color=discord.Color.purple()
+                    )
+                    if source.thumbnail:
+                        embed.set_thumbnail(url=source.thumbnail)
+                    duration_str = "N/A"
+                    if source.duration:
+                        minutes, seconds = divmod(source.duration, 60)
+                        duration_str = f"{minutes:02}:{seconds:02}"
+                    embed.add_field(name="Durasi", value=duration_str, inline=True)
+                    embed.add_field(name="Diminta oleh", value=ctx.author.mention, inline=True)
+                    eq_settings = self.get_current_eq_settings(ctx.guild.id)
+                    eq_info = f"Preset: `{eq_settings['preset']}` (B:{eq_settings['bass']} T:{eq_settings['treble']})"
+                    embed.add_field(name="Equalizer", value=eq_info, inline=True)
+                    embed.set_footer(text=f"Antrean: {len(queue)} lagu tersisa")
+
+                    view_instance = MusicControlView(self, {'message_id': None, 'channel_id': ctx.channel.id})
+                    message_sent = await ctx.send(embed=embed, view=view_instance)
+                    
+                    if message_sent:
+                        self.current_music_message_info[ctx.guild.id] = {
+                            'message_id': message_sent.id,
+                            'channel_id': message_sent.channel.id
+                        }
+
+                    found_source = True
+                    break # Keluar dari loop setelah berhasil menemukan sumber
+
+                except Exception as e:
+                    log.warning(f"Failed to play source from {url} due to error: {e}. Trying next one.")
+                    continue
+
+            if not found_source:
+                await ctx.send("❌ Tidak ada versi lagu yang dapat diputar (bebas DRM) ditemukan.", ephemeral=True)
+                log.warning(f"No playable source found after trying all search results for query: {search_query}")
         else:
-            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
+            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{query}**.", ephemeral=True)
             queue.extend(urls)
                 
             if ctx.guild.id in self.current_music_message_info:
