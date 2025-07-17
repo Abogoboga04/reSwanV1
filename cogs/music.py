@@ -13,6 +13,7 @@ import logging
 import json
 import random
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 # Konfigurasi logging
 # Pastikan level logging diatur ke DEBUG untuk melihat semua pesan yang ditambahkan
@@ -603,7 +604,9 @@ class ReswanBot(commands.Cog):
         eq_settings = self.get_current_eq_settings(guild_id)
         bass_gain = eq_settings['bass']
         treble_gain = eq_settings['treble']
+
         eq_filter = f"equalizer=f=80:width=80:g={bass_gain},equalizer=f=10000:width=2000:g={treble_gain}"
+
         return {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
             'options': f'-vn -b:a 128k -bufsize 1024K -probesize 10M -analyzeduration 10M -fflags +discardcorrupt -flags +global_header -af "{eq_filter}"'
@@ -616,42 +619,47 @@ class ReswanBot(commands.Cog):
 
     @tasks.loop(seconds=10) # Tetap 10 detik untuk temp voice cleanup
     async def cleanup_task(self):
-        log.debug("Running TempVoice cleanup task.")
+        log.debug("Running TempVoice cleanup task.") 
         channels_to_remove = []
-        for channel_id_str, channel_info in list(self.active_temp_channels.items()):
-            channel_id = int(channel_id_str)
-            guild_id = int(channel_info["guild_id"])
+        for channel_id_str, channel_info in list(self.active_temp_channels.items()): 
+            channel_id = int(channel_id_str) 
+            guild_id = int(channel_info["guild_id"]) 
             guild = self.bot.get_guild(guild_id)
+            
             if not guild:
                 log.warning(f"Guild {guild_id} not found for channel {channel_id}. Removing from tracking.")
                 channels_to_remove.append(channel_id_str)
                 continue
+
             channel = guild.get_channel(channel_id)
-            if not channel:
+            
+            if not channel: 
                 log.info(f"Temporary voice channel {channel_id} no longer exists in guild {guild.name}. Removing from tracking.")
                 channels_to_remove.append(channel_id_str)
                 continue
+
             human_members_in_custom_channel = [
                 member for member in channel.members
                 if not member.bot
             ]
+
             if not human_members_in_custom_channel:
                 try:
                     await channel.delete(reason="Custom voice channel is empty of human users.")
                     log.info(f"Deleted empty (of humans) temporary voice channel: {channel.name} ({channel_id}).")
                     channels_to_remove.append(channel_id_str)
-                except discord.NotFound:
+                except discord.NotFound: 
                     log.info(f"Temporary voice channel {channel_id} already deleted (from Discord). Removing from tracking.")
                     channels_to_remove.append(channel_id_str)
                 except discord.Forbidden:
                     log.error(f"Bot lacks permissions to delete temporary voice channel {channel.name} ({channel_id}). Please check 'Manage Channels' permission.")
                 except Exception as e:
                     log.error(f"Error deleting temporary voice channel {channel.name} ({channel_id}): {e}", exc_info=True)
-        
+            
         for ch_id in channels_to_remove:
             self.active_temp_channels.pop(ch_id, None)
-        if channels_to_remove:
-            self._save_temp_channels_state()
+        if channels_to_remove: 
+            self._save_temp_channels_state() 
             log.debug(f"Temporary channel data saved after cleanup. Remaining: {len(self.active_temp_channels)}.")
 
     @cleanup_task.before_loop
@@ -896,7 +904,7 @@ class ReswanBot(commands.Cog):
             log.error(f"Error getting song info from URL {url}: {e}")
             return {'title': url, 'artist': 'Unknown Artist', 'webpage_url': url}
 
-    async def _send_lyrics(self, interaction_or_ctx, song_name):
+    async def _send_lyrics(self, interaction_or_ctx, song_name_override=None):
         if not self.genius:
             if isinstance(interaction_or_ctx, discord.Interaction):
                 if not interaction_or_ctx.response.is_done():
@@ -912,14 +920,14 @@ class ReswanBot(commands.Cog):
         song_title_for_lyrics = None
         song_artist_for_lyrics = None
 
-        if song_name:
-            # Check for artist info in the song name
-            if ' - ' in song_name:
-                parts = song_name.split(' - ', 1)
+        if song_name_override:
+            if ' - ' in song_name_override:
+                parts = song_name_override.split(' - ', 1)
                 song_title_for_lyrics = parts[0].strip()
                 song_artist_for_lyrics = parts[1].strip()
             else:
-                song_title_for_lyrics = song_name
+                song_title_for_lyrics = song_name_override
+                song_artist_for_lyrics = None 
         elif guild_id in self.now_playing_info:
             info = self.now_playing_info[guild_id]
             song_title_for_lyrics = info.get('title')
@@ -997,13 +1005,11 @@ class ReswanBot(commands.Cog):
         target_channel = None
         if guild_id in self.current_music_message_info:
             channel_id = self.current_music_message_info[guild_id]['channel_id']
-            target_channel = ctx.guild.get_channel(channel_id)
-            if not target_channel:
-                try:
-                    target_channel = await ctx.guild.fetch_channel(channel_id)
-                except discord.NotFound:
-                    log.warning(f"Target channel {channel_id} not found for guild {guild_id}. Fallback to ctx.channel.")
-                    target_channel = ctx.channel
+            try:
+                target_channel = ctx.guild.get_channel(channel_id) or await ctx.guild.fetch_channel(channel_id)
+            except discord.NotFound:
+                log.warning(f"Target channel {channel_id} not found for guild {guild_id}. Fallback to ctx.channel.")
+                target_channel = ctx.channel
         if not target_channel:
             target_channel = ctx.channel
 
@@ -1139,7 +1145,7 @@ class ReswanBot(commands.Cog):
             self.now_playing_info.pop(guild.id, None)
             
             if guild_id in self.current_music_message_info:
-                old_message_info = self.current_music_message_info[guild.id]
+                old_message_info = self.current_music_message_info[guild_id]
                 try:
                     old_channel = ctx.guild.get_channel(old_message_info['channel_id']) or await ctx.guild.fetch_channel(old_message_info['channel_id'])
                     if old_channel:
@@ -1149,7 +1155,7 @@ class ReswanBot(commands.Cog):
                 except (discord.NotFound, discord.HTTPException):
                     log.warning(f"Could not delete old music message on auto-disconnect: {old_message_info['message_id']} in channel {old_message_info['channel_id']}.")
                 finally:
-                    self.current_music_message_info.pop(guild.id, None)
+                    self.current_music_message_info.pop(guild_id, None)
 
 
     async def _update_music_message_from_ctx(self, ctx):
@@ -1274,38 +1280,52 @@ class ReswanBot(commands.Cog):
         await ctx.defer()
 
         urls = []
-        is_spotify = False
+        is_spotify_link = False
+        spotify_track_info = None
 
-        if self.spotify and "open.spotify.com" in query: # Pengecekan URL Spotify yang benar
-            is_spotify = True
+        if self.spotify:
             try:
-                if "track/" in query:
-                    track = self.spotify.track(query)
-                    search_query = f"{track['name']} {track['artists'][0]['name']}"
-                    urls.append(search_query)
-                elif "playlist/" in query or "album/" in query:
-                    results = []
-                    if "playlist/" in query:
-                        results = self.spotify.playlist_tracks(query)
-                    elif "album/" in query:
-                        results = self.spotify.album_tracks(query)
-                    
-                    for item in results['items']:
-                        track = item['track'] if 'track' in item else item
-                        if track: 
-                            search_query = f"{track['name']} {track['artists'][0]['name']}"
-                            urls.append(search_query)
-                else:
-                    await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).")
-                    return
-                log.info(f"Spotify link converted to Youtube queries: {urls}") # Log debugging baru
+                parsed_url = urlparse(query)
+                if parsed_url.netloc == "open.spotify.com":
+                    is_spotify_link = True
+                    path_parts = parsed_url.path.split('/')
+                    media_type = path_parts[1]
+                    media_id = path_parts[2].split('?')[0]
+
+                    if media_type == "track":
+                        track = self.spotify.track(media_id)
+                        spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
+                        search_query = f"{track['name']} {track['artists'][0]['name']}"
+                        urls.append(search_query)
+                    elif media_type == "playlist":
+                        results = self.spotify.playlist_tracks(media_id)
+                        for item in results['items']:
+                            track = item.get('track')
+                            if track:
+                                search_query = f"{track['name']} {track['artists'][0]['name']}"
+                                urls.append(search_query)
+                    elif media_type == "album":
+                        results = self.spotify.album_tracks(media_id)
+                        for item in results['items']:
+                            track = item
+                            if track:
+                                search_query = f"{track['name']} {track['artists'][0]['name']}"
+                                urls.append(search_query)
+                    else:
+                        await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
+                        return
+            except spotipy.exceptions.SpotifyException as e:
+                log.error(f"Spotify API error: {e}")
+                await ctx.send(f"❌ Terjadi kesalahan dengan Spotify API: {e}", ephemeral=True)
+                return
             except Exception as e:
                 log.error(f"Error processing Spotify link: {e}")
-                await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}")
+                await ctx.send(f"❌ Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
-        else:
+        
+        if not is_spotify_link:
             urls.append(query)
-
+        
         queue = self.get_queue(ctx.guild.id)
         
         if ctx.guild.id in self.current_music_message_info:
@@ -1329,7 +1349,7 @@ class ReswanBot(commands.Cog):
                 source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True, ffmpeg_options=current_ffmpeg_options)
                 ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
 
-                if is_spotify and spotify_track_info:
+                if is_spotify_link and spotify_track_info:
                     self.now_playing_info[ctx.guild.id] = spotify_track_info
                     self.playing_tracks[ctx.guild.id] = {'webpage_url': spotify_track_info['webpage_url']}
                 else:
@@ -1385,7 +1405,7 @@ class ReswanBot(commands.Cog):
                     ctx.voice_client.stop()
                 return
         else:
-            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
+            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
             queue.extend(urls)
                 
             if ctx.guild.id in self.current_music_message_info:
@@ -1556,7 +1576,7 @@ class ReswanBot(commands.Cog):
             vc.stop()
             await ctx.send(f"✅ Equalizer diatur ke preset **{preset_name}**. Perubahan akan diterapkan pada lagu berikutnya atau setelah lagu saat ini dimulai ulang.", ephemeral=True)
         else:
-            await ctx.send(f"✅ Equalizer diatur ke **{preset_name}**. Ini akan diterapkan pada lagu yang akan diputar.", ephemeral=True)
+            await ctx.send(f"✅ Equalizer diatur ke preset **{preset_name}**. Ini akan diterapkan pada lagu yang akan diputar.", ephemeral=True)
         
         if ctx.guild.id in self.current_music_message_info:
             await self._update_music_message_from_ctx(ctx)
@@ -1602,7 +1622,7 @@ class ReswanBot(commands.Cog):
             await ctx.send(f"✅ Bass diatur ke **{gain} dB**. Perubahan akan diterapkan pada lagu berikutnya atau setelah lagu saat ini dimulai ulang.", ephemeral=True)
         else:
             await ctx.send(f"✅ Bass diatur ke **{gain} dB**. Ini akan diterapkan pada lagu yang akan diputar.", ephemeral=True)
-        
+
         if ctx.guild.id in self.current_music_message_info:
             await self._update_music_message_from_ctx(ctx)
 
@@ -1746,7 +1766,7 @@ class ReswanBot(commands.Cog):
             return await ctx.send("❌ Kamu tidak bisa menendang dirimu sendiri dari channelmu!", ephemeral=True)
         if member.bot:
             return await ctx.send("❌ Kamu tidak bisa menendang bot.", ephemeral=True)
-        
+            
         vc = ctx.author.voice.channel
         if member.voice and member.voice.channel == vc:
             try:
