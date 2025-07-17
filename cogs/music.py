@@ -600,12 +600,6 @@ class ReswanBot(commands.Cog):
             save_temp_channels(self.active_temp_channels)
             log.debug(f"Temporary channel data saved after cleanup. Remaining: {len(self.active_temp_channels)}.")
 
-    @cleanup_task.before_loop
-    async def before_cleanup_task(self):
-        log.info("Waiting for bot to be ready before starting TempVoice cleanup task.")
-        await self.bot.wait_until_ready()
-        log.info("Bot ready, TempVoice cleanup task is about to start.")
-
     @tasks.loop(seconds=5)
     async def idle_check_task(self):
         log.info("Running idle check task...")
@@ -1269,42 +1263,41 @@ class ReswanBot(commands.Cog):
                 return await ctx.send("Gagal bergabung ke voice channel.")
 
         await ctx.defer()
-
-        urls = []
-        is_spotify_link = False
         
-        # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
-        if self.spotify and ("http" in query or "spotify:" in query):
-            is_spotify_link = True
+        urls = []
+        is_spotify_request = False
+        song_info_from_ytdl = None
+
+        if self.spotify and ("http" in query and "spotify.com" in query or "spotify:" in query):
+            is_spotify_request = True
             try:
                 if "track" in query:
                     track = self.spotify.track(query)
-                    spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query, 'requester': ctx.author.mention}
-                    search_query = f"{track['name']} {track['artists'][0]['name']}"
-                    urls.append(search_query)
+                    song_info_from_ytdl = {
+                        'title': track['name'],
+                        'artist': track['artists'][0]['name'],
+                        'webpage_url': track['external_urls']['spotify'],
+                        'requester': ctx.author.mention
+                    }
+                    urls.append(f"{track['name']} {track['artists'][0]['name']}")
                 elif "playlist" in query:
                     results = self.spotify.playlist_tracks(query)
                     for item in results['items']:
                         track = item['track']
                         if track:
-                            search_query = f"{track['name']} {track['artists'][0]['name']}"
-                            urls.append(search_query)
+                            urls.append(f"{track['name']} {track['artists'][0]['name']}")
                 elif "album" in query:
                     results = self.spotify.album_tracks(query)
                     for item in results['items']:
                         track = item
                         if track:
-                            search_query = f"{track['name']} {track['artists'][0]['name']}"
-                            urls.append(search_query)
-                else:
-                    is_spotify_link = False
+                            urls.append(f"{track['name']} {track['artists'][0]['name']}")
             except Exception as e:
-                is_spotify_link = False
-                logging.error(f"Error processing Spotify link: {e}", exc_info=True)
+                log.error(f"Error processing Spotify link: {e}", exc_info=True)
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
                 return
-        
-        if not is_spotify_link:
+
+        if not is_spotify_request:
             urls.append(query)
 
         queue = self.get_queue(ctx.guild.id)
@@ -1316,17 +1309,10 @@ class ReswanBot(commands.Cog):
                 source = await YTDLSource.from_url(first_url, loop=self.bot.loop, stream=True)
                 ctx.voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(self._after_play_handler(ctx, e), self.bot.loop))
 
-                if is_spotify_link:
-                    self.now_playing_info[ctx.guild.id] = spotify_track_info
-                else:
+                if not song_info_from_ytdl:
                     song_info_from_ytdl = await self.get_song_info_from_url(first_url)
-                    self.now_playing_info[ctx.guild.id] = {
-                        'title': song_info_from_ytdl['title'],
-                        'artist': song_info_from_ytdl['artist'],
-                        'webpage_url': song_info_from_ytdl['webpage_url'],
-                        'requester': ctx.author.mention
-                    }
                 
+                self.now_playing_info[ctx.guild.id] = song_info_from_ytdl
                 self.add_song_to_history(ctx.author.id, self.now_playing_info[ctx.guild.id])
 
                 embed = discord.Embed(
@@ -1373,13 +1359,13 @@ class ReswanBot(commands.Cog):
                     await message_sent.add_reaction('👎')
             
             except Exception as e:
-                logging.error(f'Failed to play song: {e}', exc_info=True)
+                logging.error(f'Failed to play song for guild {guild_id}: {e}', exc_info=True)
                 await ctx.send(f'Gagal memutar lagu: {e}', ephemeral=True)
                 if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
                     ctx.voice_client.stop()
                 return
         else:
-            if is_spotify_link:
+            if is_spotify_request:
                 await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**.", ephemeral=True)
             else:
                 song_info = await self.get_song_info_from_url(urls[0])
@@ -1555,7 +1541,7 @@ class ReswanBot(commands.Cog):
         
         # Perbaikan: Pisahkan pengecekan Spotify dari logika utama
         is_spotify_request = False
-        if urls and self.spotify and ("http" in urls[0] or "spotify:" in urls[0]):
+        if urls and self.spotify and ("http" in urls[0] and "spotify.com" in urls[0] or "spotify:" in urls[0]):
             is_spotify_request = True
             await ctx.send(f"🎧 Mengambil lagu dari {len(urls)} playlist/album Spotify...", ephemeral=True)
             search_queries = []
@@ -1584,7 +1570,7 @@ class ReswanBot(commands.Cog):
             for query in search_queries:
                 try:
                     info = await asyncio.to_thread(lambda: ytdl.extract_info(query, download=False, process=True))
-                    if 'entries' in info and len(info['entries']) > 0:
+                    if 'entries' in info and isinstance(info.get('entries'), list):
                         new_urls.append(info['entries'][0]['webpage_url'])
                 except Exception as e:
                     log.error(f"Error searching YouTube for '{query}': {e}")
