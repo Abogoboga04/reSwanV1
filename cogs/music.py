@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 # --- FILE DATA UNTUK MELACAK CHANNEL SEMENTARA (Persisten antar restart bot) ---
 TEMP_CHANNELS_FILE = 'data/temp_voice_channels.json'
-EQ_SETTINGS_FILE = 'data/equalizer.json' 
+EQ_SETTINGS_FILE = 'data/equalizer.json'  
 
 def load_temp_channels():
     if not os.path.exists('data'):
@@ -224,9 +224,9 @@ class MusicControlView(discord.ui.View):
             
             if not vc or (not vc.is_playing() and not vc.is_paused()):
                 if item.custom_id not in ["music:stop"]:
-                     item.disabled = True
+                    item.disabled = True
             else:
-                 item.disabled = False
+                item.disabled = False
         
         try:
             new_message = await target_channel.send(embed=embed_to_send, view=new_view_instance)
@@ -357,8 +357,8 @@ class MusicControlView(discord.ui.View):
         song_name = None
         
         if not interaction.guild.id in self.cog.now_playing_info:
-             await interaction.response.send_message("Tidak ada lagu yang sedang diputar. Harap gunakan `!reslyrics <nama lagu>` untuk mencari lirik.", ephemeral=True)
-             return
+            await interaction.response.send_message("Tidak ada lagu yang sedang diputar. Harap gunakan `!reslyrics <nama lagu>` untuk mencari lirik.", ephemeral=True)
+            return
 
         await interaction.response.defer(ephemeral=True)
         await self.cog._send_lyrics(interaction, song_name_override=None)
@@ -495,7 +495,7 @@ class ReswanBot(commands.Cog):
         self.bot = bot
         self.queues = {}
         self.loop_status = {}
-        self.current_music_message_info = {} 
+        self.current_music_message_info = {}  
         self.is_muted = {}
         self.old_volume = {}
         self.now_playing_info = {}
@@ -543,15 +543,14 @@ class ReswanBot(commands.Cog):
         self.bot.add_view(MusicControlView(self))
 
         # ID channel pemicu dan kategori target
-        self.TRIGGER_VOICE_CHANNEL_ID = 1382486705113927811 
-        self.TARGET_CATEGORY_ID = 1255211613326278716 
+        self.TRIGGER_VOICE_CHANNEL_ID = 1382486705113927811  
+        self.TARGET_CATEGORY_ID = 1255211613326278716  
         self.DEFAULT_CHANNEL_NAME_PREFIX = "Music"
-        self.active_temp_channels = load_temp_channels() 
+        self.active_temp_channels = load_temp_channels()  
         log.info(f"ReswanBot cog loaded. Active temporary channels: {self.active_temp_channels}")
         
         self.cleanup_task.start()
-        # Perbaikan: Panggil metode loop langsung untuk memulainya
-        self._check_and_disconnect_idle_bots.start() 
+        self._check_and_disconnect_idle_bots.start()  
 
     def _save_temp_channels_state(self):
         save_temp_channels(self.active_temp_channels)
@@ -568,8 +567,8 @@ class ReswanBot(commands.Cog):
         try:
             with open(EQ_SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                log.info(f"Loaded {len(data)} equalizer settings from {EQ_SETTINGS_FILE}.")
-                return {str(k): v for k, v in data.items()}
+            log.info(f"Loaded {len(data)} equalizer settings from {EQ_SETTINGS_FILE}.")
+            return {str(k): v for k, v in data.items()}
         except json.JSONDecodeError as e:
             log.error(f"Failed to load {EQ_SETTINGS_FILE}: {e}. File might be corrupted. Attempting to reset it.")
             with open(EQ_SETTINGS_FILE, 'w', encoding='utf-8') as f:
@@ -614,15 +613,15 @@ class ReswanBot(commands.Cog):
     def cog_unload(self):
         log.info("ReswanBot cog unloaded. Cancelling cleanup tasks.")
         self.cleanup_task.cancel()
-        self._check_and_disconnect_idle_bots.cancel() # Pastikan juga untuk membatalkan task ini
+        self._check_and_disconnect_idle_bots.cancel()
 
-    @tasks.loop(seconds=10) # Tetap 10 detik untuk temp voice cleanup
+    @tasks.loop(seconds=10)
     async def cleanup_task(self):
-        log.debug("Running TempVoice cleanup task.") 
+        log.debug("Running TempVoice cleanup task.")  
         channels_to_remove = []
-        for channel_id_str, channel_info in list(self.active_temp_channels.items()): 
-            channel_id = int(channel_id_str) 
-            guild_id = int(channel_info["guild_id"]) 
+        for channel_id_str, channel_info in list(self.active_temp_channels.items()):  
+            channel_id = int(channel_id_str)  
+            guild_id = int(channel_info["guild_id"])  
             guild = self.bot.get_guild(guild_id)
             
             if not guild:
@@ -632,7 +631,7 @@ class ReswanBot(commands.Cog):
 
             channel = guild.get_channel(channel_id)
             
-            if not channel: 
+            if not channel:  
                 log.info(f"Temporary voice channel {channel_id} no longer exists in guild {guild.name}. Removing from tracking.")
                 channels_to_remove.append(channel_id_str)
                 continue
@@ -647,7 +646,7 @@ class ReswanBot(commands.Cog):
                     await channel.delete(reason="Custom voice channel is empty of human users.")
                     log.info(f"Deleted empty (of humans) temporary voice channel: {channel.name} ({channel_id}).")
                     channels_to_remove.append(channel_id_str)
-                except discord.NotFound: 
+                except discord.NotFound:  
                     log.info(f"Temporary voice channel {channel_id} already deleted (from Discord). Removing from tracking.")
                     channels_to_remove.append(channel_id_str)
                 except discord.Forbidden:
@@ -657,8 +656,8 @@ class ReswanBot(commands.Cog):
             
         for ch_id in channels_to_remove:
             self.active_temp_channels.pop(ch_id, None)
-        if channels_to_remove: 
-            self._save_temp_channels_state() 
+        if channels_to_remove:  
+            self._save_temp_channels_state()  
             log.debug(f"Temporary channel data saved after cleanup. Remaining: {len(self.active_temp_channels)}.")
 
     @cleanup_task.before_loop
@@ -667,7 +666,7 @@ class ReswanBot(commands.Cog):
         await self.bot.wait_until_ready()
         log.info("Bot ready, TempVoice cleanup task is about to start.")
 
-    @tasks.loop(seconds=5) # <--- DIUBAH MENJADI 5 DETIK
+    @tasks.loop(seconds=5)
     async def _check_and_disconnect_idle_bots(self):
         log.info("Running idle check task...")
         for guild in self.bot.guilds:
@@ -693,7 +692,7 @@ class ReswanBot(commands.Cog):
                 if num_human_members == 0:
                     log.info(f"Bot {self.bot.user.name} idle in voice channel {vc.channel.name} in guild {guild.name} (tidak ada anggota manusia). Memutus koneksi.")
                     
-                    vc.stop() # Langsung panggil stop() tanpa pengecualian
+                    vc.stop()
                     
                     await vc.disconnect()
                     
@@ -702,7 +701,7 @@ class ReswanBot(commands.Cog):
                     self.is_muted.pop(guild.id, None)
                     self.old_volume.pop(guild.id, None)
                     self.now_playing_info.pop(guild.id, None)
-                    self.playing_tracks.pop(guild.id, None) 
+                    self.playing_tracks.pop(guild.id, None)  
 
                     if guild.id in self.current_music_message_info:
                         old_message_info = self.current_music_message_info[guild.id]
@@ -731,34 +730,34 @@ class ReswanBot(commands.Cog):
         if member.bot:
             return
 
-        if after.channel and after.channel.id == self.TRIGGER_VOICE_CHANNEL_ID: 
+        if after.channel and after.channel.id == self.TRIGGER_VOICE_CHANNEL_ID:  
             log.info(f"User {member.display_name} ({member.id}) joined trigger VC ({self.TRIGGER_VOICE_CHANNEL_ID}).")
 
-            for ch_id_str, ch_info in list(self.active_temp_channels.items()): 
+            for ch_id_str, ch_info in list(self.active_temp_channels.items()):  
                 if ch_info["owner_id"] == str(member.id) and ch_info["guild_id"] == str(member.guild.id):
                     existing_channel = member.guild.get_channel(int(ch_id_str))
                     if existing_channel:
                         log.info(f"User {member.display_name} already has active temporary VC {existing_channel.name}. Moving them there.")
                         try:
                             await member.move_to(existing_channel)
-                            return 
+                            return  
                         except discord.Forbidden:
                             log.error(f"Bot lacks permissions to move {member.display_name} to their existing VC {existing_channel.name}.")
                             try: await member.send(f"❌ Gagal memindahkan Anda ke channel pribadi Anda: Bot tidak memiliki izin 'Move Members'. Silakan hubungi admin server.", ephemeral=True)
-                            except discord.Forbidden: pass 
+                            except discord.Forbidden: pass  
                             return
                         except Exception as e:
                             log.error(f"Error moving {member.display_name} to existing VC {existing_channel.name}: {e}", exc_info=True)
                             try: await member.send(f"❌ Terjadi kesalahan saat memindahkan Anda ke channel pribadi Anda: {e}. Hubungi admin server.", ephemeral=True)
                             except discord.Forbidden: pass
                             return
-                    else: 
+                    else:  
                         log.warning(f"Temporary channel {ch_id_str} in data not found on Discord. Removing from tracking.")
                         self.active_temp_channels.pop(ch_id_str)
-                        self._save_temp_channels_state() 
+                        self._save_temp_channels_state()  
 
             guild = member.guild
-            category = guild.get_channel(self.TARGET_CATEGORY_ID) 
+            category = guild.get_channel(self.TARGET_CATEGORY_ID)  
             
             if not category or not isinstance(category, discord.CategoryChannel):
                 log.error(f"Target category {self.TARGET_CATEGORY_ID} not found or is not a category channel in guild {guild.name}. Skipping VC creation.")
@@ -768,14 +767,14 @@ class ReswanBot(commands.Cog):
                 except: pass
                 return
 
-            current_category_channels = [ch for ch in category.voice_channels if ch.name.startswith(self.DEFAULT_CHANNEL_NAME_PREFIX)] 
+            current_category_channels = [ch for ch in category.voice_channels if ch.name.startswith(self.DEFAULT_CHANNEL_NAME_PREFIX)]  
             
             next_channel_number = 1
             if current_category_channels:
                 max_num = 0
                 for ch_obj in current_category_channels:
                     try:
-                        parts = ch_obj.name.rsplit(' ', 1) 
+                        parts = ch_obj.name.rsplit(' ', 1)  
                         if len(parts) > 1 and parts[-1].isdigit():
                             num = int(parts[-1])
                             if num > max_num:
@@ -785,7 +784,7 @@ class ReswanBot(commands.Cog):
                         continue
                 next_channel_number = max_num + 1
 
-            new_channel_name = f"{self.DEFAULT_CHANNEL_NAME_PREFIX} {next_channel_number}" 
+            new_channel_name = f"{self.DEFAULT_CHANNEL_NAME_PREFIX} {next_channel_number}"  
             
             try:
                 everyone_role = guild.default_role
@@ -805,14 +804,14 @@ class ReswanBot(commands.Cog):
                     mute_members=True, deafen_members=True, move_members=True
                 )
                 
-                max_bitrate = guild.bitrate_limit 
+                max_bitrate = guild.bitrate_limit  
                 
                 new_vc = await guild.create_voice_channel(
                     name=new_channel_name,
                     category=category,
                     user_limit=0,
                     overwrites=overwrites,
-                    bitrate=max_bitrate, 
+                    bitrate=max_bitrate,  
                     reason=f"{member.display_name} created a temporary voice channel."
                 )
                 log.info(f"Created new temporary VC: {new_vc.name} ({new_vc.id}) by {member.display_name} with bitrate {max_bitrate}.")
@@ -821,7 +820,7 @@ class ReswanBot(commands.Cog):
                 log.info(f"Moved {member.display_name} to new VC {new_vc.name}.")
 
                 self.active_temp_channels[str(new_vc.id)] = {"owner_id": str(member.id), "guild_id": str(guild.id)}
-                self. _save_temp_channels_state() 
+                self. _save_temp_channels_state()  
                 log.debug(f"Temporary VC {new_vc.id} added to tracking.")
 
                 await new_vc.send(
@@ -842,7 +841,7 @@ class ReswanBot(commands.Cog):
             except discord.Forbidden:
                 log.error(f"Bot lacks permissions to create voice channels or move members in guild {guild.name}. Please check 'Manage Channels' and 'Move Members' permissions.", exc_info=True)
                 try: await member.send(f"❌ Gagal membuat channel suara pribadi: Bot tidak memiliki izin yang cukup (Manage Channels atau Move Members). Hubungi admin server.", ephemeral=True)
-                except discord.Forbidden: pass 
+                except discord.Forbidden: pass  
                 try: await member.move_to(None, reason="Bot lacks permissions.")
                 except: pass
             except Exception as e:
@@ -856,7 +855,7 @@ class ReswanBot(commands.Cog):
             channel_info = self.active_temp_channels[str(before.channel.id)]
             if channel_info["owner_id"] == str(member.id) and not before.channel.members:
                 log.info(f"Owner {member.display_name} left temporary VC ({before.channel.name}). Triggering immediate cleanup check.")
-                pass 
+                pass  
     
     def is_owner_vc(self, ctx):
         if not ctx.author.voice or not ctx.author.voice.channel:
@@ -868,7 +867,7 @@ class ReswanBot(commands.Cog):
         
         if channel_id_str not in self.active_temp_channels:
             log.debug(f"is_owner_vc check failed for {ctx.author.display_name}: channel {channel_id_str} not a tracked temporary VC.")
-            return False 
+            return False  
 
         channel_info = self.active_temp_channels[channel_id_str]
 
@@ -876,7 +875,7 @@ class ReswanBot(commands.Cog):
             log.warning(f"Channel {channel_id_str} tracked but linked to wrong guild {channel_info.get('guild_id')} for {guild_id_str}.")
             return False
 
-        is_owner = channel_info.get("owner_id") == str(ctx.author.id) 
+        is_owner = channel_info.get("owner_id") == str(ctx.author.id)  
         if not is_owner:
             log.debug(f"is_owner_vc check failed for {ctx.author.display_name}: not owner of VC {channel_id_str}. Expected owner: {channel_info.get('owner_id')}.")
             
@@ -926,7 +925,7 @@ class ReswanBot(commands.Cog):
                 song_artist_for_lyrics = parts[1].strip()
             else:
                 song_title_for_lyrics = song_name_override
-                song_artist_for_lyrics = None 
+                song_artist_for_lyrics = None  
         elif guild_id in self.now_playing_info:
             info = self.now_playing_info[guild_id]
             song_title_for_lyrics = info.get('title')
@@ -946,10 +945,10 @@ class ReswanBot(commands.Cog):
             song = None
             if song_artist_for_lyrics and "Unknown Artist" not in song_artist_for_lyrics and "channel" not in song_artist_for_lyrics.lower() and "vevo" not in song_artist_for_lyrics.lower() and "topic" not in song_artist_for_lyrics.lower():
                 song = await asyncio.to_thread(self.genius.search_song, song_title_for_lyrics, song_artist_for_lyrics)
-                if not song: 
+                if not song:  
                     log.info(f"Lyrics not found for '{song_title_for_lyrics}' by '{song_artist_for_lyrics}'. Trying with title only.")
                     song = await asyncio.to_thread(self.genius.search_song, song_title_for_lyrics)
-            else: 
+            else:  
                 song = await asyncio.to_thread(self.genius.search_song, song_title_for_lyrics)
 
             if song:
@@ -1136,7 +1135,7 @@ class ReswanBot(commands.Cog):
         self.playing_tracks.pop(guild_id, None)
 
         if ctx.voice_client and ctx.voice_client.is_connected():
-            await self.play_next(ctx) 
+            await self.play_next(ctx)  
         else:
             log.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
             self.queues.pop(guild_id, None)
@@ -1243,9 +1242,9 @@ class ReswanBot(commands.Cog):
             
             if not vc or (not vc.is_playing() and not vc.is_paused()):
                 if item.custom_id not in ["music:stop"]:
-                     item.disabled = True
+                    item.disabled = True
             else:
-                 item.disabled = False
+                item.disabled = False
         
         try:
             new_message = await target_channel.send(embed=embed_to_send, view=new_view_instance)
@@ -1264,7 +1263,6 @@ class ReswanBot(commands.Cog):
         if ctx.voice_client:
             if ctx.voice_client.channel != ctx.author.voice.channel:
                 return await ctx.send("Bot sudah berada di voice channel lain. Harap keluarkan dulu.")
-            return
         if ctx.author.voice:
             await ctx.author.voice.channel.connect()
             await ctx.send(f"Joined **{ctx.author.voice.channel.name}**")
@@ -1284,38 +1282,34 @@ class ReswanBot(commands.Cog):
         is_spotify_link = False
         spotify_track_info = None
 
-        if self.spotify and ("https://open.spotify.com/track/" in query or "https://open.spotify.com/playlist/" in query or "https://open.spotify.com/album/" in query): 
+        if self.spotify and ("spotify.com/track/" in query or "spotify.com/playlist/" in query or "spotify.com/album/" in query):
             is_spotify_link = True
             try:
-                if "https://open.spotify.com/track/" in query:
+                if "spotify.com/track/" in query:
                     track_id = query.split('/')[-1].split('?')[0]
                     track = self.spotify.track(track_id)
                     spotify_track_info = {'title': track['name'], 'artist': track['artists'][0]['name'], 'webpage_url': query}
                     search_query = f"{track['name']} {track['artists'][0]['name']}"
                     urls.append(search_query)
-                elif "https://open.spotify.com/playlist/" in query:
+                elif "spotify.com/playlist/" in query:
                     playlist_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.playlist_tracks(playlist_id)
                     for item in results['items']:
                         track = item['track']
-                        if track: 
+                        if track:  
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
-                elif "https://open.spotify.com/album/" in query:
+                elif "spotify.com/album/" in query:
                     album_id = query.split('/')[-1].split('?')[0]
                     results = self.spotify.album_tracks(album_id)
                     for item in results['items']:
                         track = item
-                        if track: 
+                        if track:  
                             search_query = f"{track['name']} {track['artists'][0]['name']}"
                             urls.append(search_query)
                 else:
                     await ctx.send("Link Spotify tidak dikenali (hanya track, playlist, atau album).", ephemeral=True)
                     return
-            except Exception as e:
-                logging.error(f"Error processing Spotify link: {e}")
-                await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
-                return
             except Exception as e:
                 log.error(f"Error processing Spotify link: {e}")
                 await ctx.send(f"Terjadi kesalahan saat memproses link Spotify: {e}", ephemeral=True)
@@ -1404,7 +1398,7 @@ class ReswanBot(commands.Cog):
         else:
             await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
             queue.extend(urls)
-                
+            
             if ctx.guild.id in self.current_music_message_info:
                 await self._update_music_message_from_ctx(ctx)
 
@@ -1523,7 +1517,7 @@ class ReswanBot(commands.Cog):
             self.is_muted[guild_id] = False
         else:
             self.is_muted[guild_id] = True
-            self.old_volume[guild_id] = ctx.voice_client.source.volume 
+            self.old_volume[guild_id] = ctx.voice_client.source.volume  
 
         await ctx.send(f"Volume diatur ke: {volume}%", ephemeral=True)
         if ctx.guild.id in self.current_music_message_info:
@@ -1825,8 +1819,8 @@ class ReswanBot(commands.Cog):
             return await ctx.send("❌ Kamu sudah menjadi pemilik channel ini!", ephemeral=True)
 
         try:
-            self.active_temp_channels[vc_id_str]["owner_id"] = str(new_owner.id) 
-            self._save_temp_channels_state() 
+            self.active_temp_channels[vc_id_str]["owner_id"] = str(new_owner.id)  
+            self._save_temp_channels_state()  
             
             old_owner_overwrites = vc.overwrites_for(ctx.author)
             old_owner_overwrites.manage_channels = None
@@ -1975,7 +1969,7 @@ class ReswanBot(commands.Cog):
             await ctx.send(f"❌ Terjadi kesalahan saat menjalankan perintah: {original_error}", ephemeral=True)
             log.error(f"Command '{ctx.command.name}' invoked by {ctx.author.display_name} raised an error: {original_error}", exc_info=True)
         else:
-            await ctx.send(f"❌ Terjadi kesalahan yang tidak terduga: {error}", exc_info=True)
+            await ctx.send(f"❌ Terjadi kesalahan yang tidak terduga: {error}", ephemeral=True)
             log.error(f"Unhandled error in VC command {ctx.command.name} by {ctx.author.display_name}: {error}", exc_info=True)
 
 
