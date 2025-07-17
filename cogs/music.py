@@ -854,132 +854,6 @@ class ReswanBot(commands.Cog):
         if member.bot:
             return
 
-        if after.channel and after.channel.id == self.TRIGGER_VOICE_CHANNEL_ID:  
-            log.info(f"User {member.display_name} ({member.id}) joined trigger VC ({self.TRIGGER_VOICE_CHANNEL_ID}).")
-
-            for ch_id_str, ch_info in list(self.active_temp_channels.items()):  
-                if ch_info["owner_id"] == str(member.id) and ch_info["guild_id"] == str(member.guild.id):
-                    existing_channel = member.guild.get_channel(int(ch_id_str))
-                    if existing_channel:
-                        log.info(f"User {member.display_name} already has active temporary VC {existing_channel.name}. Moving them there.")
-                        try:
-                            await member.move_to(existing_channel)
-                            return  
-                        except discord.Forbidden:
-                            log.error(f"Bot lacks permissions to move {member.display_name} to their existing VC {existing_channel.name}.")
-                            try: await member.send(f"❌ Gagal memindahkan Anda ke channel pribadi Anda: Bot tidak memiliki izin 'Move Members'. Silakan hubungi admin server.", ephemeral=True)
-                            except discord.Forbidden: pass  
-                            return
-                        except Exception as e:
-                            log.error(f"Error moving {member.display_name} to existing VC {existing_channel.name}: {e}", exc_info=True)
-                            try: await member.send(f"❌ Terjadi kesalahan saat memindahkan Anda ke channel pribadi Anda: {e}. Hubungi admin server.", ephemeral=True)
-                            except discord.Forbidden: pass
-                            return
-                    else:  
-                        log.warning(f"Temporary channel {ch_id_str} in data not found on Discord. Removing from tracking.")
-                        self.active_temp_channels.pop(ch_id_str)
-                        self._save_temp_channels_state()  
-
-            guild = member.guild
-            category = guild.get_channel(self.TARGET_CATEGORY_ID)  
-            
-            if not category or not isinstance(category, discord.CategoryChannel):
-                log.error(f"Target category {self.TARGET_CATEGORY_ID} not found or is not a category channel in guild {guild.name}. Skipping VC creation.")
-                try: await member.send("❌ Gagal membuat channel suara pribadi: Kategori tujuan tidak ditemukan atau tidak valid. Hubungi admin server.", ephemeral=True)
-                except discord.Forbidden: pass
-                try: await member.move_to(None, reason="Target category invalid.")
-                except: pass
-                return
-
-            current_category_channels = [ch for ch in category.voice_channels if ch.name.startswith(self.DEFAULT_CHANNEL_NAME_PREFIX)]  
-            
-            next_channel_number = 1
-            if current_category_channels:
-                max_num = 0
-                for ch_obj in current_category_channels:
-                    try:
-                        parts = ch_obj.name.rsplit(' ', 1)  
-                        if len(parts) > 1 and parts[-1].isdigit():
-                            num = int(parts[-1])
-                            if num > max_num:
-                                max_num = num
-                    except Exception as e:
-                        log.debug(f"Could not parse number from channel name {ch_obj.name}: {e}")
-                        continue
-                next_channel_number = max_num + 1
-
-            new_channel_name = f"{self.DEFAULT_CHANNEL_NAME_PREFIX} {next_channel_number}"  
-            
-            try:
-                everyone_role = guild.default_role
-                admin_role = discord.utils.get(guild.roles, permissions=discord.Permissions(administrator=True))
-                
-                overwrites = {
-                    everyone_role: discord.PermissionOverwrite(connect=False, speak=False, send_messages=False, view_channel=False),
-                    guild.me: discord.PermissionOverwrite(connect=True, speak=True, send_messages=True, view_channel=True, read_message_history=True)
-                }
-                
-                if admin_role:
-                    overwrites[admin_role] = discord.PermissionOverwrite(connect=True, speak=True, send_messages=True, view_channel=True)
-
-                overwrites[member] = discord.PermissionOverwrite(
-                    connect=True, speak=True, send_messages=True, view_channel=True,
-                    manage_channels=True, manage_roles=True,
-                    mute_members=True, deafen_members=True, move_members=True
-                )
-                
-                max_bitrate = guild.bitrate_limit  
-                
-                new_vc = await guild.create_voice_channel(
-                    name=new_channel_name,
-                    category=category,
-                    user_limit=0,
-                    overwrites=overwrites,
-                    bitrate=max_bitrate,  
-                    reason=f"{member.display_name} created a temporary voice channel."
-                )
-                log.info(f"Created new temporary VC: {new_vc.name} ({new_vc.id}) by {member.display_name} with bitrate {max_bitrate}.")
-
-                await member.move_to(new_vc)
-                log.info(f"Moved {member.display_name} to new VC {new_vc.name}.")
-
-                self.active_temp_channels[str(new_vc.id)] = {"owner_id": str(member.id), "guild_id": str(guild.id)}
-                self. _save_temp_channels_state()  
-                log.debug(f"Temporary VC {new_vc.id} added to tracking.")
-
-                await new_vc.send(
-                    f"🎉 Selamat datang di channel pribadimu, {member.mention}! Kamu adalah pemilik channel ini.\n"
-                    f"Channel ini diset dengan kualitas suara **maksimal** yang diizinkan server ini.\n"
-                    f"Gunakan perintah di bawah untuk mengelola channel-mu:\n"
-                    f"`!vcsetlimit <angka>` - Atur batas user (0 untuk tak terbatas)\n"
-                    f"`!vcrename <nama_baru>` - Ubah nama channel\n"
-                    f"`!vclock` - Kunci channel (hanya bisa masuk via invite)\n"
-                    f"`!vcunlock` - Buka kunci channel\n"
-                    f"`!vckick @user` - Tendang user dari channel\n"
-                    f"`!vcgrant @user` - Beri user izin masuk channel yang terkunci\n"
-                    f"`!vcrevoke @user` - Cabut izin masuk channel yang terkunci\n"
-                    f"`!vcowner @user` - Transfer kepemilikan channel ke user lain (hanya bisa 1 pemilik)\n"
-                    f"`!vchelp` - Menampilkan panduan ini lagi."
-                )
-
-            except discord.Forbidden:
-                log.error(f"Bot lacks permissions to create voice channels or move members in guild {guild.name}. Please check 'Manage Channels' and 'Move Members' permissions.", exc_info=True)
-                try: await member.send(f"❌ Gagal membuat channel suara pribadi: Bot tidak memiliki izin yang cukup (Manage Channels atau Move Members). Hubungi admin server.", ephemeral=True)
-                except discord.Forbidden: pass  
-                try: await member.move_to(None, reason="Bot lacks permissions.")
-                except: pass
-            except Exception as e:
-                log.error(f"Unexpected error creating or moving to new VC in guild {guild.name}: {e}", exc_info=True)
-                try: await member.send(f"❌ Terjadi kesalahan saat membuat channel suara pribadi: {e}. Hubungi admin server.", ephemeral=True)
-                except discord.Forbidden: pass
-                try: await member.move_to(None, reason="Unexpected error.")
-                except: pass
-
-    @commands.Cog.listener()
-    async def on_voice_state_update(self, member, before, after):
-        if member.bot:
-            return
-
         if before.channel and str(before.channel.id) in self.active_temp_channels:
             channel_info = self.active_temp_channels[str(before.channel.id)]
             if channel_info["owner_id"] == str(member.id) and not before.channel.members:
@@ -1267,9 +1141,9 @@ class ReswanBot(commands.Cog):
             await self.play_next(ctx)  
         else:
             log.info(f"Bot disconnected from voice channel in guild {guild_id} (manual disconnect or after play handler). Cleaning up.")
-            self.queues.pop(guild_id, None)
-            self.loop_status.pop(guild_id, None)
-            self.is_muted.pop(guild_id, None)
+            self.queues.pop(guild.id, None)
+            self.loop_status.pop(guild.id, None)
+            self.is_muted.pop(guild.id, None)
             self.old_volume.pop(guild.id, None)
             self.now_playing_info.pop(guild.id, None)
             
