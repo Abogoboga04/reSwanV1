@@ -20,6 +20,8 @@ log = logging.getLogger(__name__)
 
 # --- FILE DATA UNTUK MELACAK CHANNEL SEMENTARA (Persisten antar restart bot) ---
 TEMP_CHANNELS_FILE = 'data/temp_voice_channels.json'
+# --- FILE DATA UNTUK RIWAYAT LAGU PENGGUNA ---
+LISTENING_HISTORY_FILE = 'data/listening_history.json'
 
 def load_temp_channels():
     if not os.path.exists('data'):
@@ -55,6 +57,30 @@ def save_temp_channels(data):
     data_to_save = {str(k): v for k, v in data.items()}
     with open(TEMP_CHANNELS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data_to_save, f, indent=4)
+
+# --- FUNGSI BARU UNTUK MENGELOLA RIWAYAT LAGU ---
+def load_listening_history():
+    os.makedirs('data', exist_ok=True)
+    if not os.path.exists(LISTENING_HISTORY_FILE):
+        with open(LISTENING_HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump({}, f, indent=4)
+        return {}
+    try:
+        with open(LISTENING_HISTORY_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        log.error(f"Failed to load {LISTENING_HISTORY_FILE}: {e}. File might be corrupted. Resetting it.")
+        with open(LISTENING_HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump({}, f, indent=4)
+        return {}
+    except Exception as e:
+        log.error(f"An unexpected error occurred while loading {LISTENING_HISTORY_FILE}: {e}", exc_info=True)
+        return {}
+
+def save_listening_history(data):
+    os.makedirs('data', exist_ok=True)
+    with open(LISTENING_HISTORY_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
 
 # --- Updated YTDL Options for Opus and FFMPEG Options for Stability ---
 ytdl_opts = {
@@ -449,6 +475,8 @@ class ReswanBot(commands.Cog):
         self.now_playing_info = {}
         # Untuk trek musik yang sedang diputar (digunakan untuk penghapusan file)
         self.playing_tracks = {} # {guild_id: {'filename': 'path/to/file'}}
+        # --- MENAMBAHKAN RIWAYAT MENDENGARKAN ---
+        self.listening_history = load_listening_history()
         
         GENIUS_API_TOKEN = os.getenv("GENIUS_API")
         self.genius = None
@@ -773,6 +801,23 @@ class ReswanBot(commands.Cog):
     def get_queue(self, guild_id):
         return self.queues.setdefault(guild_id, [])
 
+    # --- FUNGSI BARU UNTUK MENAMBAHKAN LAGU KE RIWAYAT ---
+    def add_song_to_history(self, user_id, song_info):
+        user_id_str = str(user_id)
+        
+        if user_id_str not in self.listening_history:
+            self.listening_history[user_id_str] = []
+        
+        # Tambahkan lagu ke awal daftar
+        self.listening_history[user_id_str].insert(0, song_info)
+        
+        # Batasi riwayat hanya sampai 50 lagu
+        if len(self.listening_history[user_id_str]) > 50:
+            self.listening_history[user_id_str] = self.listening_history[user_id_str][:50]
+        
+        save_listening_history(self.listening_history)
+        log.info(f"Song '{song_info['title']}' added to history for user {user_id_str}.")
+
     async def get_song_info_from_url(self, url):
         try:
             info = await asyncio.to_thread(lambda: ytdl.extract_info(url, download=False, process=False))
@@ -949,6 +994,9 @@ class ReswanBot(commands.Cog):
         try:
             # Dapatkan informasi lagu untuk disimpan ke playing_tracks
             song_info_from_ytdl = await self.get_song_info_from_url(url)
+            # --- TAMBAHKAN LAGU KE RIWAYAT PENGGUNA ---
+            self.add_song_to_history(ctx.author.id, song_info_from_ytdl)
+            
             # YTDLSource.from_url akan mendownload ke 'downloads/%(title)s.%(ext)s'
             # Jadi kita perlu mendapatkan nama filenya jika diperlukan untuk dihapus
             # Jika stream=True, file tidak didownload, jadi tidak perlu dihapus.
@@ -1236,7 +1284,9 @@ class ReswanBot(commands.Cog):
                         'webpage_url': song_info_from_ytdl['webpage_url']
                     }
                     self.playing_tracks[ctx.guild.id] = {'webpage_url': song_info_from_ytdl['webpage_url']}
-
+                
+                # --- TAMBAHKAN LAGU YANG BARU DIPUTAR KE RIWAYAT PENGGUNA ---
+                self.add_song_to_history(ctx.author.id, self.now_playing_info[ctx.guild.id])
 
                 embed = discord.Embed(
                     title="🎶 Sedang Memutar",
@@ -1277,7 +1327,7 @@ class ReswanBot(commands.Cog):
                     ctx.voice_client.stop()
                 return
         else:
-            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrian: **{urls[0]}**.", ephemeral=True)
+            await ctx.send(f"Ditambahkan ke antrian: **{len(urls)} lagu**." if is_spotify_link else f"Ditambahkan ke antrean: **{urls[0]}**.", ephemeral=True)
             queue.extend(urls)
                 
             if ctx.guild.id in self.current_music_message_info:
@@ -1426,6 +1476,44 @@ class ReswanBot(commands.Cog):
                 await self._update_music_message_from_ctx(ctx)
         else:
             await ctx.send("Antrean sudah kosong.", ephemeral=True)
+
+    # --- PERINTAH BARU UNTUK FITUR RANDOM PRIBADI ---
+    @commands.command(name="resprandom")
+    async def personal_random(self, ctx):
+        user_id_str = str(ctx.author.id)
+        
+        if user_id_str not in self.listening_history or not self.listening_history[user_id_str]:
+            await ctx.send("❌ Anda belum memiliki riwayat mendengarkan. Putar beberapa lagu terlebih dahulu dengan `!resp`!", ephemeral=True)
+            return
+        
+        await ctx.defer()
+
+        try:
+            # Pilih satu lagu secara acak dari riwayat pengguna
+            random_song = random.choice(self.listening_history[user_id_str])
+            query = f"{random_song.get('artist', '')} {random_song.get('title', '')} official audio"
+            
+            # Cari lagu acak di YouTube berdasarkan riwayat
+            info = await asyncio.to_thread(lambda: ytdl.extract_info(query, download=False, process=True))
+            if 'entries' in info:
+                info = random.choice(info['entries'])
+
+            new_song_url = info.get('webpage_url')
+            
+            # Tambahkan lagu yang ditemukan ke antrean bot
+            queue = self.get_queue(ctx.guild.id)
+            queue.append(new_song_url)
+            
+            await ctx.send(f"🎧 Menambahkan lagu acak dari riwayat Anda ke antrean: **{info.get('title')}**.", ephemeral=True)
+            
+            # Jika bot tidak sedang memutar, langsung putar lagu baru
+            if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
+                await self.play_next(ctx)
+
+        except Exception as e:
+            logging.error(f"Error generating personal random song for user {ctx.author.display_name}: {e}")
+            await ctx.send("❌ Gagal membuat playlist acak. Coba lagi nanti atau pastikan riwayat Anda berisi lagu yang valid.", ephemeral=True)
+
 
     # --- TempVoice Commands ---
     @commands.command(name="setvccreator", help="[ADMIN] Set a voice channel as a temporary channel creator. Users joining it will get a new private channel.")
