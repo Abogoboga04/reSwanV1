@@ -6,7 +6,7 @@ import asyncio
 import os
 
 # =================================================================
-# Kelas Modal dan View (Tidak ada perubahan)
+# Kelas Modal dan View (Beberapa perubahan)
 # =================================================================
 
 class TextModal(discord.ui.Modal, title='Masukkan Teks'):
@@ -57,41 +57,20 @@ class ButtonsModal(discord.ui.Modal, title='Konfigurasi Tombol'):
         except json.JSONDecodeError:
             await interaction.response.send_message("Format JSON tidak valid. Periksa sintaks Anda.", ephemeral=True)
 
-class ColorModal(discord.ui.Modal, title='Pilih Warna Embed'):
-    def __init__(self, config, view):
+class ColorModal(discord.ui.Modal, title='Pilih Warna Kustom'):
+    def __init__(self, config, view, color_message):
         super().__init__()
         self.config = config
         self.view = view
-        
-        color_options = [
-            discord.SelectOption(label="Biru", value="#3498DB"),
-            discord.SelectOption(label="Merah", value="#E74C3C"),
-            discord.SelectOption(label="Hijau", value="#2ECC71"),
-            discord.SelectOption(label="Emas", value="#F1C40F"),
-            discord.SelectOption(label="Ungu", value="#9B59B6"),
-            discord.SelectOption(label="Oranye", value="#E67E22"),
-            discord.SelectOption(label="Abu-abu", value="#95A5A6")
-        ]
-        
-        self.color_select = discord.ui.Select(
-            placeholder="Pilih warna dari palet...",
-            options=color_options
-        )
-        self.color_select.callback = self.select_callback
-        self.add_item(self.color_select)
+        self.color_message = color_message
 
         self.color_input = discord.ui.TextInput(
-            label='Atau masukkan kode Hex kustom:',
+            label='Masukkan kode Hex kustom:',
             style=discord.TextStyle.short,
             placeholder='#2b2d31',
             default=config.get('color')
         )
         self.add_item(self.color_input)
-
-    async def select_callback(self, interaction: discord.Interaction):
-        selected_color = self.color_select.values[0]
-        self.config['color'] = selected_color
-        await interaction.response.edit_message(embed=self.view.build_embed(), view=self.view)
 
     async def on_submit(self, interaction: discord.Interaction):
         color_str = self.color_input.value
@@ -101,8 +80,43 @@ class ColorModal(discord.ui.Modal, title='Pilih Warna Embed'):
             int_color = int(color_str.replace('#', ''), 16)
             self.config['color'] = color_str
             await interaction.response.edit_message(embed=self.view.build_embed())
+            await self.color_message.delete()
         except ValueError:
             await interaction.response.send_message("Kode warna tidak valid. Gunakan format heksadesimal (e.g., `#2b2d31`).", ephemeral=True)
+
+class ColorView(discord.ui.View):
+    def __init__(self, config, parent_view):
+        super().__init__(timeout=60)
+        self.config = config
+        self.parent_view = parent_view
+        
+        self.add_button_color("Biru", "#3498DB")
+        self.add_button_color("Merah", "#E74C3C")
+        self.add_button_color("Hijau", "#2ECC71")
+        self.add_button_color("Emas", "#F1C40F")
+        self.add_button_color("Ungu", "#9B59B6")
+        self.add_button_color("Oranye", "#E67E22")
+        self.add_button_color("Abu-abu", "#95A5A6")
+
+    def add_button_color(self, label, hex_value):
+        button = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary)
+        button.callback = lambda i: self.select_color(i, hex_value)
+        self.add_item(button)
+
+    async def select_color(self, interaction: discord.Interaction, hex_value):
+        self.config['color'] = hex_value
+        await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
+        self.stop()
+        
+    @discord.ui.button(label="Pilih Kustom", style=discord.ButtonStyle.primary)
+    async def custom_color_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(ColorModal(self.config, self.parent_view, interaction.message))
+        self.stop()
+        
+    async def on_timeout(self):
+        # Hapus pesan jika timeout
+        if self.message:
+            await self.message.delete()
 
 class WebhookConfigView(discord.ui.View):
     def __init__(self, bot, channel: discord.TextChannel, initial_config=None):
@@ -149,7 +163,7 @@ class WebhookConfigView(discord.ui.View):
 
     @discord.ui.button(label="Warna", style=discord.ButtonStyle.blurple)
     async def color_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ColorModal(self.config, self))
+        await interaction.response.send_message("Pilih warna:", view=ColorView(self.config, self), ephemeral=True)
 
     @discord.ui.button(label="Pengirim", style=discord.ButtonStyle.blurple)
     async def author_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -209,7 +223,6 @@ class WebhookConfigView(discord.ui.View):
                 embeds=[embed] if embed else [],
                 view=view
             )
-            # Simpan konfigurasi secara otomatis setelah berhasil mengirim pesan
             self.bot.get_cog('WebhookCog').save_config_to_file(self.config)
             
             await interaction.followup.send(f"Pesan webhook berhasil dikirim ke {self.channel.mention}!", ephemeral=True)
