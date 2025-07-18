@@ -6,7 +6,7 @@ import asyncio
 import os
 
 # =================================================================
-# Kelas Modal dan View (Beberapa perubahan)
+# Kelas Modal dan View untuk UI Konfigurasi
 # =================================================================
 
 class TextModal(discord.ui.Modal, title='Masukkan Teks'):
@@ -97,6 +97,11 @@ class ColorView(discord.ui.View):
         self.add_button_color("Ungu", "#9B59B6")
         self.add_button_color("Oranye", "#E67E22")
         self.add_button_color("Abu-abu", "#95A5A6")
+        self.add_button_color("Biru Tua", "#0000FF")
+        self.add_button_color("Cyan", "#00FFFF")
+        self.add_button_color("Merah Tua", "#8B0000")
+        self.add_button_color("Hijau Tua", "#006400")
+        self.add_button_color("Coklat", "#A52A2A")
 
     def add_button_color(self, label, hex_value):
         button = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary)
@@ -114,7 +119,6 @@ class ColorView(discord.ui.View):
         self.stop()
         
     async def on_timeout(self):
-        # Hapus pesan jika timeout
         if self.message:
             await self.message.delete()
 
@@ -283,6 +287,11 @@ class WebhookCog(commands.Cog):
     @commands.has_permissions(manage_webhooks=True)
     async def send_webhook(self, ctx, channel: discord.TextChannel):
         """Memulai wizard untuk membuat pesan webhook."""
+        try:
+            await ctx.message.delete()
+        except discord.errors.NotFound:
+            pass
+
         view = WebhookConfigView(self.bot, channel)
         await ctx.send(embed=view.build_embed(), view=view)
 
