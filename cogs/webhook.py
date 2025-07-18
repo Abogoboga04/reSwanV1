@@ -1,9 +1,10 @@
 import discord
 from discord.ext import commands
 import json
+import uuid
 
 # =================================================================
-# Kelas Modal untuk Input Teks
+# Kelas Modal dan View (Sama seperti sebelumnya)
 # =================================================================
 
 class TextModal(discord.ui.Modal, title='Masukkan Teks'):
@@ -41,7 +42,7 @@ class ButtonsModal(discord.ui.Modal, title='Konfigurasi Tombol'):
         self.buttons_input = discord.ui.TextInput(
             label='Data Tombol (JSON)',
             style=discord.TextStyle.paragraph,
-            placeholder='[{"label": "Nama", "style": "green", "id": "btn_id", "action": "role", "value": "1234567890"}]',
+            placeholder='[{"label": "Ambil Role", "style": "green", "action": "role", "value": "123456789012345678"}]',
             default=json.dumps(config.get('buttons', []), indent=2)
         )
         self.add_item(self.buttons_input)
@@ -78,10 +79,6 @@ class ColorModal(discord.ui.Modal, title='Pilih Warna Embed'):
         except ValueError:
             await interaction.response.send_message("Kode warna tidak valid. Gunakan format heksadesimal (e.g., `#2b2d31`).", ephemeral=True)
 
-# =================================================================
-# Kelas View untuk Menu Utama Webhook
-# =================================================================
-
 class WebhookConfigView(discord.ui.View):
     def __init__(self, bot, channel: discord.TextChannel):
         super().__init__(timeout=300)
@@ -96,7 +93,6 @@ class WebhookConfigView(discord.ui.View):
             color=0x2b2d31
         )
         
-        # Menampilkan status konfigurasi saat ini
         embed.add_field(name="Judul", value=f"`{self.config.get('title', 'Belum diatur')}`", inline=False)
         embed.add_field(name="Deskripsi", value=f"`{self.config.get('desc', 'Belum diatur')}`", inline=False)
         embed.add_field(name="Warna", value=f"`{self.config.get('color', 'Belum diatur')}`", inline=False)
@@ -170,6 +166,16 @@ class WebhookConfigView(discord.ui.View):
         view = None
         buttons_data = self.config.get('buttons', [])
         if buttons_data:
+            # Memetakan data tombol ke custom_id unik
+            actions_map = {}
+            for btn_data in buttons_data:
+                btn_id = str(uuid.uuid4())
+                btn_data['id'] = btn_id
+                actions_map[btn_id] = {'action': btn_data.get('action'), 'value': btn_data.get('value')}
+
+            # Menyimpan mapping sementara di bot untuk listener
+            self.bot.get_cog('WebhookCog').button_actions.update(actions_map)
+            
             view = ButtonView(buttons_data)
 
         try:
@@ -193,7 +199,6 @@ class WebhookConfigView(discord.ui.View):
         
 # =================================================================
 # Kelas View untuk Tombol Interaktif di Pesan Final
-# (Sama seperti kode sebelumnya, hanya dipindahkan ke sini)
 # =================================================================
 class ButtonView(discord.ui.View):
     def __init__(self, buttons_data):
@@ -221,6 +226,8 @@ class ButtonView(discord.ui.View):
 class WebhookCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # Dictionary untuk menyimpan mapping custom_id ke aksi
+        self.button_actions = {}
 
     @commands.command(aliases=['swh'])
     @commands.has_permissions(manage_webhooks=True)
@@ -231,23 +238,38 @@ class WebhookCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
+        # Memeriksa apakah interaksi berasal dari komponen (tombol)
         if not interaction.type == discord.InteractionType.component:
             return
+            
+        custom_id = interaction.data.get('custom_id')
 
-        # Anda bisa menambahkan logika untuk tombol custom di sini
-        # Contoh: Logika untuk memberikan role
-        if interaction.data.get('custom_id') == "btn_rules":
+        # Mencari aksi berdasarkan custom_id yang unik
+        action_data = self.button_actions.get(custom_id)
+        if not action_data:
+            return
+
+        action = action_data.get('action')
+        value = action_data.get('value')
+        
+        # Logika dinamis berdasarkan data dari tombol
+        if action == 'role':
             try:
-                # Ganti dengan ID role yang benar
-                role_id = 123456789012345678
+                role_id = int(value)
                 role = interaction.guild.get_role(role_id)
                 if role:
                     await interaction.user.add_roles(role)
                     await interaction.response.send_message(f"Anda telah mendapatkan role **{role.name}**!", ephemeral=True)
                 else:
                     await interaction.response.send_message("Role tidak ditemukan. Mohon hubungi admin.", ephemeral=True)
+            except (ValueError, TypeError):
+                await interaction.response.send_message("ID role tidak valid. Mohon hubungi admin.", ephemeral=True)
             except Exception as e:
-                await interaction.response.send_message(f"Terjadi kesalahan: {e}", ephemeral=True)
+                await interaction.response.send_message(f"Terjadi kesalahan saat memberikan role: {e}", ephemeral=True)
+        
+        # Tambahkan logika untuk aksi lainnya di sini jika diperlukan
+        # elif action == 'kirim_dm':
+        #     ...
 
 async def setup(bot):
     await bot.add_cog(WebhookCog(bot))
