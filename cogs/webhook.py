@@ -2,9 +2,11 @@ import discord
 from discord.ext import commands
 import json
 import uuid
+import asyncio
+import os
 
 # =================================================================
-# Kelas Modal dan View (Sama seperti sebelumnya)
+# Kelas Modal dan View (Tidak ada perubahan)
 # =================================================================
 
 class TextModal(discord.ui.Modal, title='Masukkan Teks'):
@@ -60,13 +62,36 @@ class ColorModal(discord.ui.Modal, title='Pilih Warna Embed'):
         super().__init__()
         self.config = config
         self.view = view
+        
+        color_options = [
+            discord.SelectOption(label="Biru", value="#3498DB"),
+            discord.SelectOption(label="Merah", value="#E74C3C"),
+            discord.SelectOption(label="Hijau", value="#2ECC71"),
+            discord.SelectOption(label="Emas", value="#F1C40F"),
+            discord.SelectOption(label="Ungu", value="#9B59B6"),
+            discord.SelectOption(label="Oranye", value="#E67E22"),
+            discord.SelectOption(label="Abu-abu", value="#95A5A6")
+        ]
+        
+        self.color_select = discord.ui.Select(
+            placeholder="Pilih warna dari palet...",
+            options=color_options
+        )
+        self.color_select.callback = self.select_callback
+        self.add_item(self.color_select)
+
         self.color_input = discord.ui.TextInput(
-            label='Kode Warna (Hex, contoh: #2b2d31)',
+            label='Atau masukkan kode Hex kustom:',
             style=discord.TextStyle.short,
-            placeholder='contoh: #2b2d31',
+            placeholder='#2b2d31',
             default=config.get('color')
         )
         self.add_item(self.color_input)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        selected_color = self.color_select.values[0]
+        self.config['color'] = selected_color
+        await interaction.response.edit_message(embed=self.view.build_embed(), view=self.view)
 
     async def on_submit(self, interaction: discord.Interaction):
         color_str = self.color_input.value
@@ -80,11 +105,11 @@ class ColorModal(discord.ui.Modal, title='Pilih Warna Embed'):
             await interaction.response.send_message("Kode warna tidak valid. Gunakan format heksadesimal (e.g., `#2b2d31`).", ephemeral=True)
 
 class WebhookConfigView(discord.ui.View):
-    def __init__(self, bot, channel: discord.TextChannel):
+    def __init__(self, bot, channel: discord.TextChannel, initial_config=None):
         super().__init__(timeout=300)
         self.bot = bot
         self.channel = channel
-        self.config = {}
+        self.config = initial_config or {}
 
     def build_embed(self):
         embed = discord.Embed(
@@ -166,14 +191,12 @@ class WebhookConfigView(discord.ui.View):
         view = None
         buttons_data = self.config.get('buttons', [])
         if buttons_data:
-            # Memetakan data tombol ke custom_id unik
             actions_map = {}
             for btn_data in buttons_data:
                 btn_id = str(uuid.uuid4())
                 btn_data['id'] = btn_id
                 actions_map[btn_id] = {'action': btn_data.get('action'), 'value': btn_data.get('value')}
-
-            # Menyimpan mapping sementara di bot untuk listener
+            
             self.bot.get_cog('WebhookCog').button_actions.update(actions_map)
             
             view = ButtonView(buttons_data)
@@ -186,6 +209,9 @@ class WebhookConfigView(discord.ui.View):
                 embeds=[embed] if embed else [],
                 view=view
             )
+            # Simpan konfigurasi secara otomatis setelah berhasil mengirim pesan
+            self.bot.get_cog('WebhookCog').save_config_to_file(self.config)
+            
             await interaction.followup.send(f"Pesan webhook berhasil dikirim ke {self.channel.mention}!", ephemeral=True)
             await interaction.message.delete()
         except Exception as e:
@@ -226,8 +252,19 @@ class ButtonView(discord.ui.View):
 class WebhookCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        # Dictionary untuk menyimpan mapping custom_id ke aksi
         self.button_actions = {}
+        self.active_tickets = {}
+        self.config_file = 'data/webhook.json'
+
+    def save_config_to_file(self, config_data):
+        """Helper function untuk menyimpan konfigurasi ke file."""
+        if not os.path.exists('data'):
+            os.makedirs('data')
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=4)
+        except Exception as e:
+            print(f"ERROR: Gagal menyimpan konfigurasi ke file: {e}")
 
     @commands.command(aliases=['swh'])
     @commands.has_permissions(manage_webhooks=True)
@@ -236,40 +273,129 @@ class WebhookCog(commands.Cog):
         view = WebhookConfigView(self.bot, channel)
         await ctx.send(embed=view.build_embed(), view=view)
 
+    @commands.command(name='load_config')
+    @commands.has_permissions(manage_webhooks=True)
+    async def load_config(self, ctx, channel: discord.TextChannel):
+        """Memuat konfigurasi webhook dari file dan memulainya."""
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            
+            view = WebhookConfigView(self.bot, channel, initial_config=config_data)
+            await ctx.send(embed=view.build_embed(), view=view)
+        except FileNotFoundError:
+            await ctx.send(f"File `{self.config_file}` tidak ditemukan. Tidak ada konfigurasi yang bisa dimuat.")
+        except json.JSONDecodeError:
+            await ctx.send(f"File `{self.config_file}` berisi format JSON yang tidak valid.")
+        except Exception as e:
+            await ctx.send(f"Terjadi kesalahan saat memuat konfigurasi: {e}")
+
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
-        # Memeriksa apakah interaksi berasal dari komponen (tombol)
         if not interaction.type == discord.InteractionType.component:
             return
             
         custom_id = interaction.data.get('custom_id')
-
-        # Mencari aksi berdasarkan custom_id yang unik
         action_data = self.button_actions.get(custom_id)
+        
         if not action_data:
             return
 
         action = action_data.get('action')
         value = action_data.get('value')
         
-        # Logika dinamis berdasarkan data dari tombol
         if action == 'role':
             try:
                 role_id = int(value)
                 role = interaction.guild.get_role(role_id)
-                if role:
+                if not role:
+                    await interaction.response.send_message("Role tidak ditemukan. Mohon hubungi admin.", ephemeral=True)
+                    return
+
+                if role in interaction.user.roles:
+                    await interaction.user.remove_roles(role)
+                    await interaction.response.send_message(f"Role **{role.name}** telah dihapus.", ephemeral=True)
+                else:
                     await interaction.user.add_roles(role)
                     await interaction.response.send_message(f"Anda telah mendapatkan role **{role.name}**!", ephemeral=True)
-                else:
-                    await interaction.response.send_message("Role tidak ditemukan. Mohon hubungi admin.", ephemeral=True)
+                    
             except (ValueError, TypeError):
                 await interaction.response.send_message("ID role tidak valid. Mohon hubungi admin.", ephemeral=True)
             except Exception as e:
-                await interaction.response.send_message(f"Terjadi kesalahan saat memberikan role: {e}", ephemeral=True)
+                await interaction.response.send_message(f"Terjadi kesalahan saat memberikan/menghapus role: {e}", ephemeral=True)
         
-        # Tambahkan logika untuk aksi lainnya di sini jika diperlukan
-        # elif action == 'kirim_dm':
-        #     ...
+        elif action == 'ticket':
+            if interaction.user.id in self.active_tickets:
+                await interaction.response.send_message("Anda sudah memiliki tiket aktif.", ephemeral=True)
+                return
+
+            await interaction.response.defer(ephemeral=True)
+
+            category_id = int(value) if value else None
+            category = interaction.guild.get_channel(category_id)
+            if not isinstance(category, discord.CategoryChannel):
+                category = None
+
+            overwrites = {
+                interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            }
+            for role in interaction.guild.roles:
+                if role.permissions.manage_channels:
+                    overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+
+            channel_name = f"ticket-{interaction.user.name.lower()}"
+            ticket_channel = await interaction.guild.create_text_channel(
+                channel_name,
+                overwrites=overwrites,
+                category=category
+            )
+
+            embed = discord.Embed(
+                title=f"Tiket dari {interaction.user.name}",
+                description="Seorang admin akan segera membantu Anda. Mohon jelaskan masalah Anda.",
+                color=discord.Color.green()
+            )
+            await ticket_channel.send(f"{interaction.user.mention}", embed=embed)
+            
+            await interaction.followup.send(f"Tiket Anda telah dibuat di {ticket_channel.mention}", ephemeral=True)
+            
+            self.active_tickets[interaction.user.id] = ticket_channel.id
+            self.bot.loop.create_task(self.delete_ticket_after_delay(ticket_channel, interaction.user.id))
+
+        elif action == 'channel':
+            try:
+                channel_id = int(value)
+                target_channel = interaction.guild.get_channel(channel_id)
+                
+                if target_channel:
+                    await target_channel.set_permissions(interaction.user, view_channel=True)
+                    await interaction.response.send_message(f"Anda sekarang bisa mengakses kanal {target_channel.mention}!", ephemeral=True)
+                else:
+                    await interaction.response.send_message("Kanal tidak ditemukan. Mohon hubungi admin.", ephemeral=True)
+            except (ValueError, TypeError):
+                await interaction.response.send_message("ID kanal tidak valid. Mohon hubungi admin.", ephemeral=True)
+            except Exception as e:
+                await interaction.response.send_message(f"Terjadi kesalahan saat memberikan akses kanal: {e}", ephemeral=True)
+
+    async def delete_ticket_after_delay(self, channel, user_id):
+        await asyncio.sleep(3600)
+        
+        if user_id in self.active_tickets and self.active_tickets[user_id] == channel.id:
+            is_replied_by_admin = False
+            async for message in channel.history(limit=50):
+                if message.author.guild_permissions.manage_channels and message.author.id != self.bot.user.id:
+                    is_replied_by_admin = True
+                    break
+            
+            if not is_replied_by_admin:
+                try:
+                    await channel.delete(reason="Tiket otomatis dihapus karena tidak ada balasan admin dalam 1 jam.")
+                    del self.active_tickets[user_id]
+                except discord.errors.NotFound:
+                    pass
+            else:
+                del self.active_tickets[user_id]
 
 async def setup(bot):
     await bot.add_cog(WebhookCog(bot))
