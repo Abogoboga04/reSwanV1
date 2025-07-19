@@ -246,16 +246,20 @@ class WebhookConfigView(discord.ui.View):
         view = None
         buttons_data = self.config.get('buttons', [])
         if buttons_data:
-            actions_map = {}
-            for btn_data in buttons_data:
-                # Memastikan setiap tombol memiliki ID unik untuk identifikasi
-                btn_id = btn_data.get('id') or str(uuid.uuid4())
-                btn_data['id'] = btn_id
-                actions_map[btn_id] = {'action': btn_data.get('action'), 'value': btn_data.get('value')}
-            
-            self.bot.get_cog('WebhookCog').button_actions.update(actions_map)
-            
-            view = ButtonView(buttons_data)
+            try:
+                actions_map = {}
+                for btn_data in buttons_data:
+                    btn_id = btn_data.get('id') or str(uuid.uuid4())
+                    btn_data['id'] = btn_id
+                    actions_map[btn_id] = {'action': btn_data.get('action'), 'value': btn_data.get('value')}
+                
+                self.bot.get_cog('WebhookCog').button_actions.update(actions_map)
+                
+                view = ButtonView(buttons_data)
+            except Exception as e:
+                logging.error(f"Gagal membuat view tombol: {e}", exc_info=True)
+                await interaction.followup.send("Gagal membuat tombol. Mohon periksa format JSON Anda.", ephemeral=True)
+                return
 
         sent_message = None
         try:
@@ -269,14 +273,17 @@ class WebhookConfigView(discord.ui.View):
             )
             logging.info("Pesan webhook berhasil terkirim.")
             
+            logging.info("Webhook berhasil dikirim, memeriksa objek pesan...")
             if sent_message:
-                logging.info("Objek pesan diterima. Mencoba menyimpan konfigurasi...")
+                logging.info("Objek pesan valid, melanjutkan ke penyimpanan.")
                 config_name = str(sent_message.id)
                 self.bot.get_cog('WebhookCog').save_config_to_file(interaction.guild.id, interaction.channel.id, config_name, self.config)
                 await interaction.followup.send(f"Pesan webhook berhasil dikirim ke {self.channel.mention}! Konfigurasi tersimpan otomatis dengan nama `{config_name}`.", ephemeral=True)
                 logging.info(f"Konfigurasi berhasil disimpan dengan nama: {config_name}")
+            else:
+                logging.error("Objek pesan tidak valid, tidak dapat menyimpan konfigurasi.")
+                await interaction.followup.send("Pesan webhook berhasil dikirim, tetapi gagal mendapatkan objek pesan untuk menyimpan konfigurasi. Mohon hubungi admin.", ephemeral=True)
 
-            # Mencoba menghapus menu konfigurasi
             await interaction.message.delete()
 
         except discord.errors.NotFound:
