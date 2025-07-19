@@ -1,1 +1,118 @@
-{}
+{
+    "1039509114008649778": {
+        "1379458566452154438": {
+            "1395952029641211944": {
+                "title": "de",
+                "desc": "dttttttg",
+                "color": "#00FFFF",
+                "buttons": [
+                    {
+                        "label": "Ambil Role Roblox",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1394664997740875899",
+                        "id": "5aaa6acd-24e5-412e-b055-db8d11c0adda"
+                    },
+                    {
+                        "label": "Godly Sprinkler",
+                        "style": "green",
+                        "action": "role",
+                        "value": "1395237508710797393",
+                        "id": "6a0dd6cb-1266-45c5-8a5e-d2a940a7dac0"
+                    },
+                    {
+                        "label": "Master Sprinkler",
+                        "style": "green",
+                        "action": "role",
+                        "value": "1395237508710797393",
+                        "id": "4679af30-dabe-431c-8b80-7cecf5bbada1"
+                    },
+                    {
+                        "label": "Gear Lollipop",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237668643934268",
+                        "id": "3c07204a-033a-4acd-9de1-659f1f138ffe"
+                    },
+                    {
+                        "label": "Burning Bud",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237730362855595",
+                        "id": "69fa640a-6ea6-4e29-b54e-1fb17bf6569c"
+                    },
+                    {
+                        "label": "Giant Pinnecone",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237896549826571",
+                        "id": "a694b2d8-e5fd-4450-beb1-cac0c43bbece"
+                    },
+                    {
+                        "label": "Gear EXP Boost",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237991575846962",
+                        "id": "985d0c35-721b-4c88-b84e-d27591d97d90"
+                    }
+                ]
+            },
+            "1395952573516742807": {
+                "title": "dddf",
+                "desc": "fgfgyg",
+                "color": "#E74C3C",
+                "buttons": [
+                    {
+                        "label": "Ambil Role Roblox",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1394664997740875899",
+                        "id": "9fcff3e5-d9fd-445e-b77d-cd90263dc669"
+                    },
+                    {
+                        "label": "Godly Sprinkler",
+                        "style": "green",
+                        "action": "role",
+                        "value": "1395237508710797393",
+                        "id": "ea1b9785-dbd8-4291-8880-1fa3b92680e3"
+                    },
+                    {
+                        "label": "Master Sprinkler",
+                        "style": "green",
+                        "action": "role",
+                        "value": "1395237508710797393",
+                        "id": "890dea21-08d4-4c0d-bcac-07e2e6152a5f"
+                    },
+                    {
+                        "label": "Gear Lollipop",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237668643934268",
+                        "id": "6d3e314d-4ca2-4e64-93d0-6fab53388b85"
+                    },
+                    {
+                        "label": "Burning Bud",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237730362855595",
+                        "id": "a1426261-01e4-467d-a79e-448dc8e8cd7b"
+                    },
+                    {
+                        "label": "Giant Pinnecone",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237896549826571",
+                        "id": "deb0bd65-df5a-49d0-b96a-b6e92b1dbbfe"
+                    },
+                    {
+                        "label": "Gear EXP Boost",
+                        "style": "blurple",
+                        "action": "role",
+                        "value": "1395237991575846962",
+                        "id": "a769fb0e-6858-446a-ba01-bc93a004467c"
+                    }
+                ]
+            }
+        }
+    }
+}
