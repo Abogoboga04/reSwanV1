@@ -186,7 +186,8 @@ class WebhookConfigView(discord.ui.View):
 
     @discord.ui.button(label="Warna", style=discord.ButtonStyle.blurple)
     async def color_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Pilih warna:", view=ColorView(self.config, self), ephemeral=True)
+        # Mengubah pesan yang ada untuk menampilkan menu warna
+        await interaction.response.edit_message(view=ColorView(self.config, self))
 
     @discord.ui.button(label="Pengirim", style=discord.ButtonStyle.blurple)
     async def author_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -230,14 +231,19 @@ class WebhookConfigView(discord.ui.View):
         webhook = discord.utils.get(await self.channel.webhooks(), name="Webhook Bot")
         if not webhook:
             print(f"[{datetime.now()}] Webhook tidak ditemukan, membuat webhook baru.")
-            webhook = await self.channel.create_webhook(name="Webhook Bot")
+            try:
+                webhook = await self.channel.create_webhook(name="Webhook Bot")
+            except discord.Forbidden:
+                await interaction.followup.send("Gagal membuat webhook. Pastikan bot memiliki izin `Manage Webhooks`.", ephemeral=True)
+                return
 
         view = None
         buttons_data = self.config.get('buttons', [])
         if buttons_data:
             actions_map = {}
             for btn_data in buttons_data:
-                btn_id = str(uuid.uuid4())
+                # Memastikan setiap tombol memiliki ID unik untuk identifikasi
+                btn_id = btn_data.get('id') or str(uuid.uuid4())
                 btn_data['id'] = btn_id
                 actions_map[btn_id] = {'action': btn_data.get('action'), 'value': btn_data.get('value')}
             
@@ -246,8 +252,8 @@ class WebhookConfigView(discord.ui.View):
             view = ButtonView(buttons_data)
 
         sent_message = None
-        print(f"[{datetime.now()}] Mencoba mengirim pesan webhook...")
         try:
+            print(f"[{datetime.now()}] Mencoba mengirim pesan webhook...")
             sent_message = await webhook.send(
                 content=self.config.get('content'),
                 username=self.config.get('author') or interaction.guild.name,
@@ -256,33 +262,21 @@ class WebhookConfigView(discord.ui.View):
                 view=view
             )
             print(f"[{datetime.now()}] Pesan webhook berhasil terkirim.")
-        except Exception as e:
-            print(f"[{datetime.now()}] ERROR: Gagal mengirim pesan webhook: {e}")
-            await interaction.followup.send(f"Gagal mengirim pesan webhook: {e}", ephemeral=True)
-            return
-
-        if sent_message:
-            print(f"[{datetime.now()}] Objek pesan diterima. Mencoba menyimpan konfigurasi...")
-            try:
+            
+            if sent_message:
+                print(f"[{datetime.now()}] Objek pesan diterima. Mencoba menyimpan konfigurasi...")
                 config_name = str(sent_message.id)
                 self.bot.get_cog('WebhookCog').save_config_to_file(interaction.guild.id, interaction.channel.id, config_name, self.config)
-                print(f"[{datetime.now()}] Konfigurasi berhasil disimpan dengan nama: {config_name}")
                 await interaction.followup.send(f"Pesan webhook berhasil dikirim ke {self.channel.mention}! Konfigurasi tersimpan otomatis dengan nama `{config_name}`.", ephemeral=True)
-            except Exception as e:
-                print(f"[{datetime.now()}] [ERROR ANNOUNCE] Gagal menyimpan konfigurasi otomatis: {e}")
-                await interaction.followup.send(f"Pesan webhook berhasil dikirim, tetapi gagal menyimpan konfigurasi otomatis: {e}", ephemeral=True)
-        else:
-            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Objek pesan kosong, tidak dapat menyimpan konfigurasi.")
-            await interaction.followup.send("Pesan gagal terkirim, konfigurasi tidak disimpan.", ephemeral=True)
+                print(f"[{datetime.now()}] Konfigurasi berhasil disimpan dengan nama: {config_name}")
 
-        try:
-            print(f"[{datetime.now()}] Mencoba menghapus menu konfigurasi.")
+            # Mencoba menghapus menu konfigurasi
             await interaction.message.delete()
-            print(f"[{datetime.now()}] Menu konfigurasi berhasil dihapus.")
+
         except discord.errors.NotFound:
             print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Menu konfigurasi sudah tidak ada, tidak dapat dihapus.")
         except Exception as e:
-            print(f"[{datetime.now()}] [ERROR ANNOUNCE] Gagal menghapus menu konfigurasi: {e}")
+            print(f"[{datetime.now()}] [ERROR ANNOUNCE] Gagal mengirim atau menyimpan: {e}")
             await interaction.followup.send(f"Gagal menyelesaikan proses. Mohon hapus menu konfigurasi secara manual: {e}", ephemeral=True)
             
     @discord.ui.button(label="Batalkan", style=discord.ButtonStyle.red, row=1)
@@ -397,21 +391,11 @@ class WebhookCog(commands.Cog):
         view = WebhookConfigView(self.bot, channel)
         await ctx.send(embed=view.build_embed(), view=view)
 
-    @commands.command(name='save_config')
-    @commands.has_permissions(manage_webhooks=True)
-    async def save_config(self, ctx, config_name: str):
-        """Menyimpan konfigurasi webhook saat ini ke file."""
-        if not ctx.guild:
-            await ctx.send("Perintah ini hanya bisa digunakan di dalam server.")
-            return
-
-        view = discord.utils.get(self.bot.get_all_views(), __class__=WebhookConfigView)
-        if not view:
-            await ctx.send("Tidak ada konfigurasi aktif untuk disimpan. Mohon gunakan perintah `!swh` terlebih dahulu.", ephemeral=True)
-            return
-
-        self.save_config_to_file(ctx.guild.id, ctx.channel.id, config_name, view.config)
-        await ctx.send(f"Konfigurasi '{config_name}' berhasil disimpan untuk server ini.", ephemeral=True)
+    # Perintah !save_config tidak lagi diperlukan karena penyimpanan otomatis
+    # @commands.command(name='save_config')
+    # @commands.has_permissions(manage_webhooks=True)
+    # async def save_config(self, ctx, config_name: str):
+    #     ...
 
     @commands.command(name='load_config')
     @commands.has_permissions(manage_webhooks=True)
