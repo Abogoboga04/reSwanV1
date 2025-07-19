@@ -5,6 +5,7 @@ import uuid
 import asyncio
 import os
 from datetime import datetime
+import sys
 
 # =================================================================
 # Kelas Modal dan View untuk UI Konfigurasi
@@ -137,7 +138,7 @@ class SaveConfigModal(discord.ui.Modal, title='Simpan Konfigurasi'):
 
     async def on_submit(self, interaction: discord.Interaction):
         config_name = self.name_input.value
-        self.cog.save_config_to_file(interaction.guild.id, config_name, self.config)
+        self.cog.save_config_to_file(interaction.guild.id, interaction.channel.id, config_name, self.config)
         await interaction.response.send_message(f"Konfigurasi '{config_name}' berhasil disimpan!", ephemeral=True)
 
 class WebhookConfigView(discord.ui.View):
@@ -268,18 +269,20 @@ class WebhookConfigView(discord.ui.View):
                 print(f"[{datetime.now()}] Konfigurasi berhasil disimpan dengan nama: {config_name}")
                 await interaction.followup.send(f"Pesan webhook berhasil dikirim ke {self.channel.mention}! Konfigurasi tersimpan otomatis dengan nama `{config_name}`.", ephemeral=True)
             except Exception as e:
-                print(f"[{datetime.now()}] ERROR: Gagal menyimpan konfigurasi otomatis: {e}")
+                print(f"[{datetime.now()}] [ERROR ANNOUNCE] Gagal menyimpan konfigurasi otomatis: {e}")
                 await interaction.followup.send(f"Pesan webhook berhasil dikirim, tetapi gagal menyimpan konfigurasi otomatis: {e}", ephemeral=True)
         else:
-            print(f"[{datetime.now()}] Objek pesan kosong, tidak dapat menyimpan konfigurasi.")
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Objek pesan kosong, tidak dapat menyimpan konfigurasi.")
             await interaction.followup.send("Pesan gagal terkirim, konfigurasi tidak disimpan.", ephemeral=True)
 
         try:
             print(f"[{datetime.now()}] Mencoba menghapus menu konfigurasi.")
             await interaction.message.delete()
             print(f"[{datetime.now()}] Menu konfigurasi berhasil dihapus.")
+        except discord.errors.NotFound:
+            print(f"[{datetime.now()}] [DEBUG ANNOUNCE] Menu konfigurasi sudah tidak ada, tidak dapat dihapus.")
         except Exception as e:
-            print(f"[{datetime.now()}] ERROR: Gagal menghapus menu konfigurasi: {e}", ephemeral=True)
+            print(f"[{datetime.now()}] [ERROR ANNOUNCE] Gagal menghapus menu konfigurasi: {e}")
             await interaction.followup.send(f"Gagal menyelesaikan proses. Mohon hapus menu konfigurasi secara manual: {e}", ephemeral=True)
             
     @discord.ui.button(label="Batalkan", style=discord.ButtonStyle.red, row=1)
@@ -380,7 +383,7 @@ class WebhookCog(commands.Cog):
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(all_configs, f, indent=4)
         except Exception as e:
-            print(f"ERROR: Gagal menyimpan konfigurasi ke file: {e}")
+            print(f"ERROR: Gagal menyimpan konfigurasi ke file: {e}", file=sys.stderr)
 
     @commands.command(aliases=['swh'])
     @commands.has_permissions(manage_webhooks=True)
