@@ -269,7 +269,8 @@ class WebhookConfigView(discord.ui.View):
                 username=self.config.get('author') or interaction.guild.name,
                 avatar_url=self.config.get('avatar') or interaction.guild.icon.url,
                 embeds=[embed] if embed else [],
-                view=view
+                view=view,
+                wait=True
             )
             logging.info("Pesan webhook berhasil terkirim.")
             
