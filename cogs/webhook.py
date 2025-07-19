@@ -4,6 +4,7 @@ import json
 import uuid
 import asyncio
 import os
+from datetime import datetime
 
 # =================================================================
 # Kelas Modal dan View untuk UI Konfigurasi
@@ -208,6 +209,7 @@ class WebhookConfigView(discord.ui.View):
 
     @discord.ui.button(label="Kirim Webhook", style=discord.ButtonStyle.green, row=1)
     async def send_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"[{datetime.now()}] Menerima permintaan kirim webhook dari pengguna {interaction.user.name}")
         await interaction.response.defer(ephemeral=True)
 
         embed = None
@@ -220,11 +222,13 @@ class WebhookConfigView(discord.ui.View):
                     color=color
                 )
             except (ValueError, TypeError):
+                print(f"[{datetime.now()}] ERROR: Gagal membuat embed. Format warna tidak valid.")
                 await interaction.followup.send("Format warna tidak valid. Pesan tidak dikirim.", ephemeral=True)
                 return
 
         webhook = discord.utils.get(await self.channel.webhooks(), name="Webhook Bot")
         if not webhook:
+            print(f"[{datetime.now()}] Webhook tidak ditemukan, membuat webhook baru.")
             webhook = await self.channel.create_webhook(name="Webhook Bot")
 
         view = None
@@ -241,6 +245,7 @@ class WebhookConfigView(discord.ui.View):
             view = ButtonView(buttons_data)
 
         sent_message = None
+        print(f"[{datetime.now()}] Mencoba mengirim pesan webhook...")
         try:
             sent_message = await webhook.send(
                 content=self.config.get('content'),
@@ -249,23 +254,32 @@ class WebhookConfigView(discord.ui.View):
                 embeds=[embed] if embed else [],
                 view=view
             )
+            print(f"[{datetime.now()}] Pesan webhook berhasil terkirim.")
         except Exception as e:
+            print(f"[{datetime.now()}] ERROR: Gagal mengirim pesan webhook: {e}")
             await interaction.followup.send(f"Gagal mengirim pesan webhook: {e}", ephemeral=True)
             return
 
         if sent_message:
+            print(f"[{datetime.now()}] Objek pesan diterima. Mencoba menyimpan konfigurasi...")
             try:
-                self.bot.get_cog('WebhookCog').save_config_to_file(interaction.guild.id, interaction.channel.id, str(sent_message.id), self.config)
+                config_name = str(sent_message.id)
+                self.bot.get_cog('WebhookCog').save_config_to_file(interaction.guild.id, interaction.channel.id, config_name, self.config)
+                print(f"[{datetime.now()}] Konfigurasi berhasil disimpan dengan nama: {config_name}")
+                await interaction.followup.send(f"Pesan webhook berhasil dikirim ke {self.channel.mention}! Konfigurasi tersimpan otomatis dengan nama `{config_name}`.", ephemeral=True)
             except Exception as e:
+                print(f"[{datetime.now()}] ERROR: Gagal menyimpan konfigurasi otomatis: {e}")
                 await interaction.followup.send(f"Pesan webhook berhasil dikirim, tetapi gagal menyimpan konfigurasi otomatis: {e}", ephemeral=True)
         else:
+            print(f"[{datetime.now()}] Objek pesan kosong, tidak dapat menyimpan konfigurasi.")
             await interaction.followup.send("Pesan gagal terkirim, konfigurasi tidak disimpan.", ephemeral=True)
 
         try:
-            if sent_message:
-                await interaction.followup.send(f"Pesan webhook berhasil dikirim ke {self.channel.mention}! Konfigurasi tersimpan otomatis.", ephemeral=True)
+            print(f"[{datetime.now()}] Mencoba menghapus menu konfigurasi.")
             await interaction.message.delete()
+            print(f"[{datetime.now()}] Menu konfigurasi berhasil dihapus.")
         except Exception as e:
+            print(f"[{datetime.now()}] ERROR: Gagal menghapus menu konfigurasi: {e}")
             await interaction.followup.send(f"Gagal menyelesaikan proses. Mohon hapus menu konfigurasi secara manual: {e}", ephemeral=True)
             
     @discord.ui.button(label="Batalkan", style=discord.ButtonStyle.red, row=1)
