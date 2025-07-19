@@ -137,7 +137,7 @@ class SaveConfigModal(discord.ui.Modal, title='Simpan Konfigurasi'):
 
     async def on_submit(self, interaction: discord.Interaction):
         config_name = self.name_input.value
-        self.cog.save_config_to_file(interaction.guild.id, interaction.channel.id, config_name, self.config)
+        self.cog.save_config_to_file(interaction.guild.id, config_name, self.config)
         await interaction.response.send_message(f"Konfigurasi '{config_name}' berhasil disimpan!", ephemeral=True)
 
 class WebhookConfigView(discord.ui.View):
@@ -279,7 +279,7 @@ class WebhookConfigView(discord.ui.View):
             await interaction.message.delete()
             print(f"[{datetime.now()}] Menu konfigurasi berhasil dihapus.")
         except Exception as e:
-            print(f"[{datetime.now()}] ERROR: Gagal menghapus menu konfigurasi: {e}")
+            print(f"[{datetime.now()}] ERROR: Gagal menghapus menu konfigurasi: {e}", ephemeral=True)
             await interaction.followup.send(f"Gagal menyelesaikan proses. Mohon hapus menu konfigurasi secara manual: {e}", ephemeral=True)
             
     @discord.ui.button(label="Batalkan", style=discord.ButtonStyle.red, row=1)
@@ -321,6 +321,7 @@ class WebhookCog(commands.Cog):
         self.active_tickets = {}
         self.data_dir = 'data'
         self.config_file = os.path.join(self.data_dir, 'webhook.json')
+        self.backup_file = os.path.join(self.data_dir, 'configbackup.json')
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -433,6 +434,99 @@ class WebhookCog(commands.Cog):
         
         view = WebhookConfigView(self.bot, channel, initial_config=config_data)
         await ctx.send(embed=view.build_embed(), view=view)
+
+    @commands.command(name='backup_config')
+    @commands.has_permissions(manage_webhooks=True)
+    async def backup_config(self, ctx, message: discord.Message):
+        """Mencadangkan konfigurasi webhook ke file backup.
+
+        Penggunaan:
+        !backup_config <ID pesan>
+        """
+        if not ctx.guild:
+            await ctx.send("Perintah ini hanya bisa digunakan di dalam server.")
+            return
+
+        all_configs = {}
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                all_configs = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            await ctx.send("File konfigurasi utama tidak ditemukan atau tidak valid.", ephemeral=True)
+            return
+
+        try:
+            config_data = all_configs[str(ctx.guild.id)][str(message.channel.id)][str(message.id)]
+        except KeyError:
+            await ctx.send("Konfigurasi untuk pesan ini tidak ditemukan di file utama.", ephemeral=True)
+            return
+        
+        if not os.path.exists(self.data_dir):
+            os.makedirs(self.data_dir)
+
+        backup_configs = {}
+        if os.path.exists(self.backup_file):
+            try:
+                with open(self.backup_file, 'r', encoding='utf-8') as f:
+                    backup_configs = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                pass
+        
+        guild_id_str = str(ctx.guild.id)
+        channel_id_str = str(message.channel.id)
+        message_id_str = str(message.id)
+
+        if guild_id_str not in backup_configs:
+            backup_configs[guild_id_str] = {}
+        if channel_id_str not in backup_configs[guild_id_str]:
+            backup_configs[guild_id_str][channel_id_str] = {}
+
+        backup_configs[guild_id_str][channel_id_str][message_id_str] = config_data
+
+        try:
+            with open(self.backup_file, 'w', encoding='utf-8') as f:
+                json.dump(backup_configs, f, indent=4)
+            await ctx.send(f"Konfigurasi pesan `{message.id}` berhasil dicadangkan ke `{self.backup_file}`.", ephemeral=True)
+        except Exception as e:
+            await ctx.send(f"Gagal mencadangkan konfigurasi: {e}", ephemeral=True)
+
+
+    @commands.command(name='list_configs')
+    @commands.has_permissions(manage_webhooks=True)
+    async def list_configs(self, ctx):
+        """Menampilkan daftar konfigurasi yang tersimpan di server ini."""
+        if not ctx.guild:
+            await ctx.send("Perintah ini hanya bisa digunakan di dalam server.", ephemeral=True)
+            return
+            
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                all_configs = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            await ctx.send("Tidak ada konfigurasi yang tersimpan di server ini.", ephemeral=True)
+            return
+        
+        guild_configs = all_configs.get(str(ctx.guild.id))
+        if not guild_configs:
+            await ctx.send("Tidak ada konfigurasi yang tersimpan di server ini.", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=f"Konfigurasi Tersimpan di {ctx.guild.name}",
+            description="Daftar konfigurasi yang bisa Anda muat ulang dengan `!load_config <nama_konfigurasi> #kanal`.",
+            color=discord.Color.blue()
+        )
+
+        for channel_id, channel_configs in guild_configs.items():
+            channel = ctx.guild.get_channel(int(channel_id))
+            channel_name = channel.name if channel else f"Kanal tidak ditemukan ({channel_id})"
+            
+            config_list = "\n".join([f"`{name}`" for name in channel_configs.keys()])
+            if config_list:
+                embed.add_field(name=f"Kanal: #{channel_name}", value=config_list, inline=False)
+        
+        await ctx.send(embed=embed, ephemeral=True)
+
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
