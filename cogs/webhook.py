@@ -192,7 +192,6 @@ class WebhookConfigView(discord.ui.View):
 
     @discord.ui.button(label="Warna", style=discord.ButtonStyle.blurple)
     async def color_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Mengubah pesan yang ada untuk menampilkan menu warna
         await interaction.response.edit_message(view=ColorView(self.config, self))
 
     @discord.ui.button(label="Pengirim", style=discord.ButtonStyle.blurple)
@@ -558,25 +557,59 @@ class WebhookCog(commands.Cog):
                 await interaction.response.send_message(f"Terjadi kesalahan saat memberikan/menghapus role: {e}", ephemeral=True)
         
         elif action == 'ticket':
+            # --- Perbaikan untuk menangani format JSON baru dan lama ---
+            if isinstance(value, dict):
+                ticket_config = value
+                category_id_str = ticket_config.get('category_id')
+                allowed_roles_str = ticket_config.get('allowed_roles', [])
+                blocked_roles_str = ticket_config.get('blocked_roles', [])
+            else: # Format lama (value adalah string)
+                category_id_str = value
+                allowed_roles_str = []
+                blocked_roles_str = []
+                
+            # Mengubah ID role dari string menjadi integer untuk perbandingan
+            allowed_roles = [int(role_id) for role_id in allowed_roles_str]
+            blocked_roles = [int(role_id) for role_id in blocked_roles_str]
+
+            # Mengambil ID role pengguna
+            user_role_ids = [role.id for role in interaction.user.roles]
+            
+            # Logika Filter
+            if any(role_id in blocked_roles for role_id in user_role_ids):
+                await interaction.response.send_message("Anda tidak diizinkan untuk membuka tiket ini.", ephemeral=True)
+                return
+            
+            if allowed_roles and not any(role_id in allowed_roles for role_id in user_role_ids):
+                await interaction.response.send_message("Anda harus memiliki role tertentu untuk membuka tiket ini.", ephemeral=True)
+                return
+            # --- Akhir Logika Filter ---
+
             if interaction.user.id in self.active_tickets:
                 await interaction.response.send_message("Anda sudah memiliki tiket aktif.", ephemeral=True)
                 return
 
             await interaction.response.defer(ephemeral=True)
 
-            category_id = int(value) if value else None
-            category = interaction.guild.get_channel(category_id)
-            if not isinstance(category, discord.CategoryChannel):
-                category = None
+            try:
+                category_id = int(category_id_str)
+                category = interaction.guild.get_channel(category_id)
+                if not isinstance(category, discord.CategoryChannel):
+                    category = None
+            except (ValueError, TypeError):
+                category = None # Jika ID kategori tidak valid, set ke None
+
+            specific_mention_role_id = 1264935423184998422
+            specific_role = interaction.guild.get_role(specific_mention_role_id)
 
             overwrites = {
                 interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False),
                 interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True)
             }
-            admin_roles = [role for role in interaction.guild.roles if role.permissions.manage_channels]
-            for role in admin_roles:
-                overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
 
+            if specific_role:
+                overwrites[specific_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+                
             channel_name = f"ticket-{interaction.user.name.lower()}"
             ticket_channel = await interaction.guild.create_text_channel(
                 channel_name,
@@ -584,7 +617,9 @@ class WebhookCog(commands.Cog):
                 category=category
             )
 
-            admin_mentions = " ".join([f"{role.mention}" for role in admin_roles])
+            mention_string = ""
+            if specific_role:
+                mention_string = specific_role.mention
 
             embed = discord.Embed(
                 title=f"Tiket dari {interaction.user.name}",
@@ -599,7 +634,7 @@ class WebhookCog(commands.Cog):
             view = discord.ui.View(timeout=None)
             view.add_item(close_ticket_button)
 
-            await ticket_channel.send(f"**Tiket Baru!** {admin_mentions} {interaction.user.mention}", embed=embed, view=view)
+            await ticket_channel.send(f"**Tiket Baru!** {mention_string} {interaction.user.mention}", embed=embed, view=view)
             
             await interaction.followup.send(f"Tiket Anda telah dibuat di {ticket_channel.mention}", ephemeral=True)
             
