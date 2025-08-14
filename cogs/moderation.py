@@ -354,7 +354,6 @@ class ModeratorActionView(discord.ui.View):
         self._add_buttons()
 
     def _add_buttons(self):
-        # Tombol Remove Timeout, hanya aktif jika user sedang di-timeout
         if self.member.is_timed_out():
             self.remove_timeout_button = discord.ui.Button(
                 label="Remove Timeout",
@@ -364,7 +363,6 @@ class ModeratorActionView(discord.ui.View):
             self.remove_timeout_button.callback = self.remove_timeout_callback
             self.add_item(self.remove_timeout_button)
 
-        # Tombol Timeout, defaultnya dinonaktifkan karena sudah di-timeout
         self.timeout_button = discord.ui.Button(
             label="Timeout (1 Jam)",
             style=discord.ButtonStyle.green,
@@ -374,7 +372,6 @@ class ModeratorActionView(discord.ui.View):
         self.timeout_button.callback = self.timeout_callback
         self.add_item(self.timeout_button)
 
-        # Tombol Ban
         self.ban_button = discord.ui.Button(
             label="Ban",
             style=discord.ButtonStyle.red,
@@ -383,7 +380,6 @@ class ModeratorActionView(discord.ui.View):
         self.ban_button.callback = self.ban_callback
         self.add_item(self.ban_button)
 
-        # Tombol Kick
         self.kick_button = discord.ui.Button(
             label="Kick",
             style=discord.ButtonStyle.secondary,
@@ -403,7 +399,6 @@ class ModeratorActionView(discord.ui.View):
         try:
             await self.member.timeout(None, reason=f"Timeout removed by moderator {interaction.user.display_name} via report.")
             await interaction.followup.send(f"✅ Timeout untuk anggota {self.member.mention} berhasil dicabut.", ephemeral=True)
-            # Disable semua tombol setelah tindakan diambil
             for item in self.children:
                 item.disabled = True
             await interaction.message.edit(view=self)
@@ -422,7 +417,8 @@ class ModeratorActionView(discord.ui.View):
         try:
             await self.member.timeout(duration, reason=reason)
             await interaction.followup.send(f"✅ Anggota {self.member.mention} berhasil di-timeout lagi selama 1 jam.", ephemeral=True)
-            self.timeout_button.disabled = True
+            for item in self.children:
+                item.disabled = True
             await interaction.message.edit(view=self)
         except discord.Forbidden:
             await interaction.followup.send("❌ Bot tidak memiliki izin untuk melakukan timeout pada anggota ini.", ephemeral=True)
@@ -482,6 +478,9 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         self.color_welcome = 0x9B59B6
         self.color_announce = 0x7289DA
         self.color_booster = 0xF47FFF
+        
+        self.spam_cooldown = commands.CooldownMapping.from_cooldown(2, 10.0, commands.BucketType.user)
+        self.spam_messages = {}
 
         self.settings = load_data(self.settings_file)
         self.filters = load_data(self.filters_file)
@@ -717,8 +716,83 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
         
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if not message.guild or message.author.id == self.bot.user.id: return
+        if not message.guild or message.author.id == self.bot.user.id or message.author.bot: 
+            return
         
+        # LOGIKA DETEKSI SPAM
+        # Memperbarui rate limit untuk user ini. Jika cooldown terpicu, artinya ini adalah spam
+        bucket = self.spam_cooldown.get_bucket(message)
+        retry_after = bucket.update_rate_limit()
+        
+        if retry_after:
+            # Pengguna ini terdeteksi spam
+            
+            # Tambahkan pesan saat ini ke daftar spam
+            if message.author.id not in self.spam_messages:
+                self.spam_messages[message.author.id] = []
+            
+            # Kumpulkan semua pesan spam untuk dihapus
+            messages_to_delete = self.spam_messages.get(message.author.id, []) + [message]
+            self.spam_messages[message.author.id] = [] # Reset daftar spam untuk user ini
+
+            # Hapus semua pesan yang terdeteksi spam
+            deleted_messages_content = []
+            for spam_message in messages_to_delete:
+                try:
+                    deleted_messages_content.append(f"Channel: <#{spam_message.channel.id}> - `'{spam_message.content[:50]}...'`")
+                    await spam_message.delete()
+                except (discord.Forbidden, discord.NotFound):
+                    pass
+
+            # Berikan peringatan otomatis
+            reason = f"Spamming di 2+ channel dalam waktu kurang dari 10 detik. Pesan-pesan yang dikirim telah dihapus."
+            warning_data = {
+                "moderator_id": self.bot.user.id,
+                "timestamp": int(time.time()),
+                "reason": reason
+            }
+            guild_id_str = str(message.guild.id)
+            member_id_str = str(message.author.id)
+            self.warnings.setdefault(guild_id_str, {}).setdefault(member_id_str, []).append(warning_data)
+            self.save_warnings()
+
+            # Berikan timeout 2 menit
+            timeout_duration = timedelta(minutes=2)
+            timeout_reason = "Timeout otomatis karena terdeteksi spam."
+            try:
+                await message.author.timeout(timeout_duration, reason=timeout_reason)
+            except discord.Forbidden:
+                pass
+            
+            # Kirim pemberitahuan di channel tempat spam terdeteksi
+            spam_embed = self._create_embed(
+                title="🚨 Pelanggaran Terdeteksi: Spam",
+                description=f"Anggota {message.author.mention} terdeteksi melakukan spam. Pesan-pesan yang dikirim telah dihapus dan anggota diberi peringatan serta **timeout selama 2 menit**.",
+                color=self.color_warning
+            )
+            if deleted_messages_content:
+                spam_embed.add_field(name="Pesan yang Dihapus", value="\n".join(deleted_messages_content), inline=False)
+            
+            await message.channel.send(embed=spam_embed)
+            
+            # Log di channel log
+            await self.log_action(
+                message.guild,
+                "🚨 Spam Terdeteksi",
+                {"Pelaku": message.author.mention, "Alasan": reason, "Pesan Dihapus": "\n".join(deleted_messages_content) or "Tidak ada"},
+                self.color_warning
+            )
+            return
+
+        # Lacak pesan dari user untuk deteksi spam
+        user_id = message.author.id
+        if user_id not in self.spam_messages:
+            self.spam_messages[user_id] = []
+        self.spam_messages[user_id].append(message)
+        # Batasi jumlah pesan yang disimpan untuk menghindari penggunaan memori yang berlebihan
+        if len(self.spam_messages[user_id]) > 5:
+            self.spam_messages[user_id].pop(0)
+
         rules = self.get_channel_rules(message.guild.id, message.channel.id)
         
         if (delay := rules.get("auto_delete_seconds", 0)) > 0:
@@ -802,8 +876,8 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                         except Exception as e:
                             was_timed_out = False
 
-                        MODERATOR_ROLE_ID = 0  # GANTI DENGAN ID ROLE MODERATOR ANDA
-                        ADMIN_ROLE_ID = 1380821606267621427      # GANTI DENGAN ID ROLE ADMIN ANDA
+                        MODERATOR_ROLE_ID = 0
+                        ADMIN_ROLE_ID = 1264935423184998422
 
                         moderator_role = message.guild.get_role(MODERATOR_ROLE_ID)
                         admin_role = message.guild.get_role(ADMIN_ROLE_ID)
