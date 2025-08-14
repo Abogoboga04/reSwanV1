@@ -1164,7 +1164,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             except discord.Forbidden:
                 await ctx.send(embed=self._create_embed(description="❌ Bot does not have `Manage Channels` permission to unlock the channel.", color=self.color_error))
             except Exception as e:
-                await ctx.send(embed=self._create_embed(description=description=f"❌ An error occurred while unlocking the channel: {e}", color=self.color_error))
+                await ctx.send(embed=self._create_embed(description=f"❌ An error occurred while unlocking the channel: {e}", color=self.color_error))
         else:
             await ctx.send(embed=self._create_embed(description=f"❌ Channel {target_channel.mention} is already unlocked.", color=self.color_error))
 
