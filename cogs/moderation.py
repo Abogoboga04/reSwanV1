@@ -948,7 +948,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             pass
 
         if user_to_unban is None:
-            await ctx.send(embed=self._create_embed(description=f"❌ An error occurred while unlocking the channel: {e}", color=self.color_error))
+            await ctx.send(embed=self._create_embed(description=f"❌ User `{user_identifier}` not found in ban list or invalid ID/Name#Tag.", color=self.color_error))
             return
 
         try:
