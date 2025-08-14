@@ -354,6 +354,17 @@ class ModeratorActionView(discord.ui.View):
         self._add_buttons()
 
     def _add_buttons(self):
+        # Tombol Remove Timeout, hanya aktif jika user sedang di-timeout
+        if self.member.is_timed_out():
+            self.remove_timeout_button = discord.ui.Button(
+                label="Remove Timeout",
+                style=discord.ButtonStyle.success,
+                emoji="✅",
+            )
+            self.remove_timeout_button.callback = self.remove_timeout_callback
+            self.add_item(self.remove_timeout_button)
+
+        # Tombol Timeout, defaultnya dinonaktifkan karena sudah di-timeout
         self.timeout_button = discord.ui.Button(
             label="Timeout (1 Jam)",
             style=discord.ButtonStyle.green,
@@ -363,6 +374,7 @@ class ModeratorActionView(discord.ui.View):
         self.timeout_button.callback = self.timeout_callback
         self.add_item(self.timeout_button)
 
+        # Tombol Ban
         self.ban_button = discord.ui.Button(
             label="Ban",
             style=discord.ButtonStyle.red,
@@ -371,6 +383,7 @@ class ModeratorActionView(discord.ui.View):
         self.ban_button.callback = self.ban_callback
         self.add_item(self.ban_button)
 
+        # Tombol Kick
         self.kick_button = discord.ui.Button(
             label="Kick",
             style=discord.ButtonStyle.secondary,
@@ -381,6 +394,23 @@ class ModeratorActionView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user.guild_permissions.kick_members or interaction.user.guild_permissions.ban_members
+
+    async def remove_timeout_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        if not interaction.user.guild_permissions.moderate_members:
+            return await interaction.followup.send("❌ Anda tidak memiliki izin untuk mencabut timeout.", ephemeral=True)
+
+        try:
+            await self.member.timeout(None, reason=f"Timeout removed by moderator {interaction.user.display_name} via report.")
+            await interaction.followup.send(f"✅ Timeout untuk anggota {self.member.mention} berhasil dicabut.", ephemeral=True)
+            # Disable semua tombol setelah tindakan diambil
+            for item in self.children:
+                item.disabled = True
+            await interaction.message.edit(view=self)
+        except discord.Forbidden:
+            await interaction.followup.send("❌ Bot tidak memiliki izin untuk mencabut timeout pada anggota ini.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Terjadi kesalahan: {e}", ephemeral=True)
 
     async def timeout_callback(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -772,11 +802,23 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
                         except Exception as e:
                             was_timed_out = False
 
-                        report_message = f"{message.author.mention} melanggar aturan dengan menyebarkan link terlarang."
+                        MODERATOR_ROLE_ID = 0  # GANTI DENGAN ID ROLE MODERATOR ANDA
+                        ADMIN_ROLE_ID = 1380821606267621427      # GANTI DENGAN ID ROLE ADMIN ANDA
+
+                        moderator_role = message.guild.get_role(MODERATOR_ROLE_ID)
+                        admin_role = message.guild.get_role(ADMIN_ROLE_ID)
+                        
+                        mention_str = ""
+                        if moderator_role:
+                            mention_str += f"{moderator_role.mention} "
+                        if admin_role:
+                            mention_str += f"{admin_role.mention}"
+                        
+                        report_message = f"{mention_str.strip()} **{message.author.display_name}** telah melanggar aturan."
                         
                         report_embed = self._create_embed(
                             title="🚨 Pelanggaran Terdeteksi: Link Terlarang",
-                            description=f"Anggota {message.author.mention} (`{message.author.display_name}`) telah melanggar aturan dengan menyebarkan link terlarang.",
+                            description=f"Anggota {message.author.mention} telah melanggar aturan dengan menyebarkan link terlarang.",
                             color=self.color_error
                         )
                         report_embed.add_field(name="Isi Pesan", value=f"```\n{message.content}\n```", inline=False)
@@ -1122,7 +1164,7 @@ class ServerAdminCog(commands.Cog, name="👑 Administrasi"):
             except discord.Forbidden:
                 await ctx.send(embed=self._create_embed(description="❌ Bot does not have `Manage Channels` permission to unlock the channel.", color=self.color_error))
             except Exception as e:
-                await ctx.send(embed=self._create_embed(description=f"❌ An error occurred while unlocking the channel: {e}", color=self.color_error))
+                await ctx.send(embed=self._create_embed(description=description=f"❌ An error occurred while unlocking the channel: {e}", color=self.color_error))
         else:
             await ctx.send(embed=self._create_embed(description=f"❌ Channel {target_channel.mention} is already unlocked.", color=self.color_error))
 
