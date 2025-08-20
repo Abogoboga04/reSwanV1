@@ -30,7 +30,7 @@ class FAQView(ui.View):
     async def profil_button(self, interaction: discord.Interaction, button: ui.Button):
         embed = discord.Embed(
             title="👤 Tentang Rizwan Fadilah",
-            description="Rizwan Fadilah atau yang biasa dikenal dengan Njan, merupakan seorang Penyanyi, Host, YouTuber, dan Gamer. Njan mengawali karirnya sebagai Youtuber dengan konten bermain GTA V Roleplay dan sukses menghibur pengikutnya di Youtube dengan mendapatkan 165 ribu views. Saat ini Rizwan Fadilah tergabung dalam label RFAS Music. Pada tahun 2023 tepatnya tanggal 23 Juni, Rizwan telah merilis single pertamanya yang berjudul \"Tak Lagi Sama\". Selanjutnya Rizwan berencana untuk kembali merilis single keduanya.",
+            description="Saya Rizwan Fadilah, dikenal sebagai Njan. Saya adalah seorang gamer, streamer, dan penyanyi dengan banyak konten seru di YouTube. Bergabunglah bersama saya dan komunitas ini untuk mabar, mendengarkan lagu, dan berbagai keseruan lainnya!",
             color=discord.Color.from_rgb(0, 255, 209) # Cyan
         )
         embed.add_field(name="Link Resmi", value="""
@@ -103,8 +103,12 @@ class FAQBot(commands.Cog):
 
     @commands.command(name="faq", help="Menampilkan FAQ dengan tombol.")
     async def faq_command(self, ctx: commands.Context):
+        # Menghapus pesan perintah dari user
+        await ctx.message.delete()
+
         # Memeriksa apakah perintah digunakan di channel yang benar
         if ctx.channel.id != FAQ_CHANNEL_ID:
+            # Menggunakan delete_after untuk menghapus pesan balasan bot
             await ctx.send("Perintah ini hanya bisa digunakan di channel FAQ.", ephemeral=True, delete_after=5)
             return
 
@@ -113,7 +117,8 @@ class FAQBot(commands.Cog):
             description="Halo! Silakan pilih salah satu tombol di bawah untuk melihat informasi yang Anda butuhkan.",
             color=discord.Color.blue()
         )
-        await ctx.send(embed=embed, view=FAQView())
+        # Menggunakan delete_after untuk menghapus pesan bot setelah 5 menit (300 detik)
+        await ctx.send(embed=embed, view=FAQView(), delete_after=300)
 
 # --- Fungsi setup untuk memuat cog ---
 async def setup(bot: commands.Bot):
