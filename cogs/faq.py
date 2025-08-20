@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import ui, app_commands
 
 # Ganti dengan ID channel tempat command FAQ akan berfungsi
-FAQ_CHANNEL_ID = 123456789012345678  # Contoh ID channel
+FAQ_CHANNEL_ID = 1379458566452154438  # Contoh ID channel
 
 # --- Kelas View untuk Tombol FAQ ---
 class FAQView(ui.View):
