@@ -49,7 +49,7 @@ def buat_tulisan_tangan(teks):
     
     # Bagian penting: menyesuaikan posisi dan spasi
     start_x = 50
-    start_y = 50
+    start_y = 150
     line_spacing = 20 
 
     draw = ImageDraw.Draw(gambar_latar)
