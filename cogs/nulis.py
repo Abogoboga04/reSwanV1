@@ -9,6 +9,10 @@ import os
 FONT_URL = "https://github.com/MFarelS/RajinNulis-BOT/raw/master/font/Zahraaa.ttf"
 IMAGE_URL = "https://github.com/MFarelS/RajinNulis-BOT/raw/master/MFarelSZ/Farelll/magernulis1.jpg"
 
+# Pengaturan yang bisa diubah di dalam kode
+UKURAN_FONT_NAMA = 22 # <-- Ubah ukuran font nama di sini
+UKURAN_FONT_TEKS = 18
+
 def download_asset(url, is_font=False):
     """Mengunduh file dari URL dan mengembalikan objek file-like (bytes)."""
     try:
@@ -62,13 +66,8 @@ def buat_tulisan_tangan(teks, nama):
         with open(temp_font_path, "wb") as f:
             f.write(font_data)
 
-        # Ukuran font dan spasi yang sudah disesuaikan
-        ukuran_font = 18 
-        font_tulisan = ImageFont.truetype(temp_font_path, ukuran_font)
-        
-        # Tambahan untuk nama
-        ukuran_font_nama = 20
-        font_nama = ImageFont.truetype(temp_font_path, ukuran_font_nama)
+        font_tulisan = ImageFont.truetype(temp_font_path, UKURAN_FONT_TEKS)
+        font_nama = ImageFont.truetype(temp_font_path, UKURAN_FONT_NAMA)
     except Exception as e:
         print(f"Error dalam memuat aset: {e}")
         return None
@@ -77,11 +76,11 @@ def buat_tulisan_tangan(teks, nama):
     start_x = 345
     start_y = 135
     line_spacing = 20 
-    max_width = 900 # Lebar maksimum untuk teks
+    max_width = 700
     
     # Posisi untuk nama pengguna
     nama_x = 500 
-    nama_y = 100
+    nama_y = 87
     
     draw = ImageDraw.Draw(gambar_latar)
     
@@ -98,7 +97,7 @@ def buat_tulisan_tangan(teks, nama):
         for line in lines_to_draw:
             draw.text((x_pos, y_pos), line, font=font_tulisan, fill=(0, 0, 0))
             y_pos += line_spacing
-        y_pos += line_spacing * 0.5 # Tambahkan spasi antar paragraf
+        y_pos += line_spacing * 0.5
     
     nama_file_hasil = "tulisan_tangan_hasil.png"
     gambar_latar.save(nama_file_hasil)
