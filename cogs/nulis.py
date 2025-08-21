@@ -22,7 +22,29 @@ def download_asset(url, is_font=False):
         print(f"Error saat mengunduh aset: {e}")
         return None
 
-def buat_tulisan_tangan(teks):
+def wrap_text(draw, text, font, max_width):
+    """Memecah teks menjadi baris-baris yang sesuai dengan lebar maksimum."""
+    lines = []
+    if not text:
+        return lines
+    
+    words = text.split(' ')
+    current_line = ""
+    for word in words:
+        # Coba tambahkan kata ke baris saat ini
+        if draw.textlength(current_line + " " + word, font=font) < max_width:
+            if current_line == "":
+                current_line = word
+            else:
+                current_line += " " + word
+        else:
+            # Jika melebihi lebar, mulai baris baru
+            lines.append(current_line)
+            current_line = word
+    lines.append(current_line)
+    return lines
+
+def buat_tulisan_tangan(teks, nama):
     """
     Mengubah teks menjadi gambar tulisan tangan dengan mengunduh aset.
     """
@@ -43,6 +65,10 @@ def buat_tulisan_tangan(teks):
         # Ukuran font dan spasi yang sudah disesuaikan
         ukuran_font = 18 
         font_tulisan = ImageFont.truetype(temp_font_path, ukuran_font)
+        
+        # Tambahan untuk nama
+        ukuran_font_nama = 20
+        font_nama = ImageFont.truetype(temp_font_path, ukuran_font_nama)
     except Exception as e:
         print(f"Error dalam memuat aset: {e}")
         return None
@@ -51,14 +77,28 @@ def buat_tulisan_tangan(teks):
     start_x = 345
     start_y = 135
     line_spacing = 20 
-
-    draw = ImageDraw.Draw(gambar_latar)
-    x_pos, y_pos = start_x, start_y
-    baris_teks = teks.split('\n')
+    max_width = 1100 # Lebar maksimum untuk teks
     
-    for baris in baris_teks:
-        draw.text((x_pos, y_pos), baris, font=font_tulisan, fill=(0, 0, 0))
-        y_pos += line_spacing
+    # Posisi untuk nama pengguna
+    nama_x = 500 
+    nama_y = 135
+    
+    draw = ImageDraw.Draw(gambar_latar)
+    
+    # Tambahkan nama pengguna di bagian atas
+    draw.text((nama_x, nama_y), nama, font=font_nama, fill=(0, 0, 0))
+    
+    x_pos, y_pos = start_x, start_y
+    # Pecah teks input berdasarkan baris manual (\n)
+    paragraphs = teks.split('\n')
+    
+    for paragraph in paragraphs:
+        # Pecah setiap paragraf menjadi baris-baris otomatis
+        lines_to_draw = wrap_text(draw, paragraph, font_tulisan, max_width)
+        for line in lines_to_draw:
+            draw.text((x_pos, y_pos), line, font=font_tulisan, fill=(0, 0, 0))
+            y_pos += line_spacing
+        y_pos += line_spacing * 0.5 # Tambahkan spasi antar paragraf
     
     nama_file_hasil = "tulisan_tangan_hasil.png"
     gambar_latar.save(nama_file_hasil)
@@ -74,14 +114,14 @@ class TulisanCog(commands.Cog):
         self.bot = bot
 
     @commands.command(name='tulis', help='Mengubah teks menjadi gambar tulisan tangan.')
-    async def tulis_tangan(self, ctx, *, teks: str):
-        if not teks:
-            await ctx.send("Mohon berikan teks yang ingin Anda ubah menjadi tulisan tangan.")
+    async def tulis_tangan(self, ctx, nama: str, *, teks: str):
+        if not nama or not teks:
+            await ctx.send("Mohon berikan nama dan teks yang ingin Anda ubah menjadi tulisan tangan. Contoh: `!tulis Rhdevs Ini adalah teks`")
             return
 
         await ctx.send("Sedang menulis... Mohon tunggu sebentar.")
         
-        nama_file_hasil = buat_tulisan_tangan(teks)
+        nama_file_hasil = buat_tulisan_tangan(teks, nama)
 
         if nama_file_hasil:
             try:
