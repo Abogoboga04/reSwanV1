@@ -41,16 +41,16 @@ def buat_tulisan_tangan(teks):
             f.write(font_data)
 
         # Ukuran font dan spasi yang sudah disesuaikan
-        ukuran_font = 14 
+        ukuran_font = 16 
         font_tulisan = ImageFont.truetype(temp_font_path, ukuran_font)
     except Exception as e:
         print(f"Error dalam memuat aset: {e}")
         return None
     
     # Bagian penting: menyesuaikan posisi dan spasi
-    start_x = 105
-    start_y = 480
-    line_spacing = 40 
+    start_x = 50
+    start_y = 50
+    line_spacing = 20 
 
     draw = ImageDraw.Draw(gambar_latar)
     x_pos, y_pos = start_x, start_y
