@@ -77,11 +77,11 @@ def buat_tulisan_tangan(teks, nama):
     start_x = 345
     start_y = 135
     line_spacing = 20 
-    max_width = 1100 # Lebar maksimum untuk teks
+    max_width = 900 # Lebar maksimum untuk teks
     
     # Posisi untuk nama pengguna
     nama_x = 500 
-    nama_y = 135
+    nama_y = 100
     
     draw = ImageDraw.Draw(gambar_latar)
     
