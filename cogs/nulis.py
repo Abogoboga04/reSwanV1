@@ -76,11 +76,11 @@ def buat_tulisan_tangan(teks, nama):
     start_x = 345
     start_y = 135
     line_spacing = 20 
-    max_width = 700
+    max_width = 500
     
     # Posisi untuk nama pengguna
     nama_x = 500 
-    nama_y = 87
+    nama_y = 70
     
     draw = ImageDraw.Draw(gambar_latar)
     
