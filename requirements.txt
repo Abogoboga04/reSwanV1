@@ -12,3 +12,4 @@ spotipy
 spotify
 pytz
 deemix
+requests
