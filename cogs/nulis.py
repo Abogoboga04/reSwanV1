@@ -74,8 +74,8 @@ def buat_tulisan_tangan(teks, nama):
     
     # Bagian penting: menyesuaikan posisi dan spasi
     start_x = 345
-    start_y = 135
-    line_spacing = 20 
+    start_y = 130
+    line_spacing = 22 
     max_width = 500
     
     # Posisi untuk nama pengguna
