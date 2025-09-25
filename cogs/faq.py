@@ -7,11 +7,11 @@ import asyncio
 import urllib.parse
 import yt_dlp
 import functools
+import uuid # Untuk menghasilkan ID Jalur Unik
 
 # --- UTILITY FUNCTION: YOUTUBE METADATA EXTRACTION ---
 
 def _get_youtube_video_id(url):
-    """Mengekstrak ID video 11 karakter dari URL YouTube."""
     youtube_regex = r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
     match = re.search(youtube_regex, url)
     return match.group(1) if match else None
@@ -29,29 +29,23 @@ def _extract_youtube_info(url):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            
             title = info.get('title')
             description = info.get('description', '')
             thumbnail_url = None
             
             thumbnails = info.get('thumbnails', [])
-            
             priority_ids = ['maxres', 'standard', 'high']
             for id_ in priority_ids:
                 for t in thumbnails:
                     if t.get('id') == id_:
                         thumbnail_url = t.get('url')
                         break
-                if thumbnail_url:
-                    break
-            
-            if not thumbnail_url and thumbnails:
-                 thumbnail_url = thumbnails[-1].get('url')
+                if thumbnail_url: break
+            if not thumbnail_url and thumbnails: thumbnail_url = thumbnails[-1].get('url')
 
             return title, description, thumbnail_url
             
     except Exception:
-        # FALLBACK: Jika yt-dlp gagal, coba ambil thumbnail hardcoded dari ID video
         video_id = _get_youtube_video_id(url)
         if video_id:
             fallback_thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
@@ -59,20 +53,22 @@ def _extract_youtube_info(url):
             
         return None, None, None
 
-def get_config_path(cog, guild_id_str, source_id_str, type_key, field_key=None):
-    path = cog.config["guild_settings"][guild_id_str]["maps"][source_id_str]["custom_messages"][type_key]
+def get_path_config(cog, path_id, type_key, field_key=None):
+    path_data = cog.config["notification_paths"].get(path_id)
+    if not path_data: return None
+    
+    path = path_data["custom_messages"][type_key]
     return path.get(field_key, "") if field_key else path
 
 # --- MODALS ---
 
 class TextModal(discord.ui.Modal):
-    def __init__(self, title, label, default_value, parent_view, type_key, field_key, guild_id, source_id):
+    def __init__(self, title, label, default_value, parent_view, type_key, field_key, path_id):
         super().__init__(title=title)
         self.parent_view = parent_view
         self.type_key = type_key
         self.field_key = field_key
-        self.guild_id = guild_id
-        self.source_id = source_id
+        self.path_id = path_id
         self.text_input = discord.ui.TextInput(
             label=label,
             style=discord.TextStyle.paragraph if field_key == 'description' else discord.TextStyle.short,
@@ -83,20 +79,17 @@ class TextModal(discord.ui.Modal):
         self.add_item(self.text_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        guild_id_str = str(self.guild_id)
-        self.parent_view.cog.config["guild_settings"][guild_id_str]["maps"][str(self.source_id)]["custom_messages"][self.type_key][self.field_key] = self.text_input.value
+        self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key][self.field_key] = self.text_input.value
         self.parent_view.cog.save_config()
         await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
 
 class ButtonLabelModal(discord.ui.Modal, title="Atur Tombol Notifikasi"):
-    def __init__(self, parent_view, type_key, guild_id, source_id):
+    def __init__(self, parent_view, type_key, path_id):
         super().__init__()
         self.parent_view = parent_view
         self.type_key = type_key
-        self.guild_id = guild_id
-        self.source_id = source_id
-        guild_id_str = str(self.guild_id)
-        current_label = get_config_path(parent_view.cog, guild_id_str, str(source_id), type_key, "button_label")
+        self.path_id = path_id
+        current_label = get_path_config(parent_view.cog, path_id, type_key, "button_label")
         self.label_input = discord.ui.TextInput(
             label="Label Tombol (Max 80 karater)",
             default=current_label,
@@ -106,20 +99,17 @@ class ButtonLabelModal(discord.ui.Modal, title="Atur Tombol Notifikasi"):
         self.add_item(self.label_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        guild_id_str = str(self.guild_id)
-        self.parent_view.cog.config["guild_settings"][guild_id_str]["maps"][str(self.source_id)]["custom_messages"][self.type_key]["button_label"] = self.label_input.value
+        self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]["button_label"] = self.label_input.value
         self.parent_view.cog.save_config()
         await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view.build_color_view())
 
 class EmbedConfigModal(discord.ui.Modal, title="Pengaturan Embed & Thumbnail"):
-    def __init__(self, parent_view, type_key, guild_id, source_id):
+    def __init__(self, parent_view, type_key, path_id):
         super().__init__()
         self.parent_view = parent_view
         self.type_key = type_key
-        self.guild_id = guild_id
-        self.source_id = source_id
-        guild_id_str = str(self.guild_id)
-        config_msg = get_config_path(parent_view.cog, guild_id_str, str(source_id), type_key)
+        self.path_id = path_id
+        config_msg = get_path_config(parent_view.cog, path_id, type_key)
 
         self.input_embed = discord.ui.TextInput(
             label=f"Gunakan Embed? (True/False)",
@@ -142,8 +132,7 @@ class EmbedConfigModal(discord.ui.Modal, title="Pengaturan Embed & Thumbnail"):
         self.add_item(self.input_thumbnail)
 
     async def on_submit(self, interaction: discord.Interaction):
-        guild_id_str = str(self.guild_id)
-        config_msg = self.parent_view.cog.config["guild_settings"][guild_id_str]["maps"][str(self.source_id)]["custom_messages"][self.type_key]
+        config_msg = self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]
         
         new_use_embed = self.input_embed.value.lower() == 'true'
         new_use_thumb = self.input_thumbnail.value.lower() == 'true'
@@ -157,28 +146,27 @@ class EmbedConfigModal(discord.ui.Modal, title="Pengaturan Embed & Thumbnail"):
 # --- VIEWS UTAMA ---
 
 class ButtonColorView(discord.ui.View):
-    def __init__(self, parent_view, type_key, guild_id, source_id):
+    def __init__(self, parent_view, type_key, path_id):
         super().__init__(timeout=180)
         self.parent_view = parent_view
         self.type_key = type_key
-        self.guild_id = guild_id
-        self.source_id = source_id
+        self.path_id = path_id
         self._create_buttons()
 
     def _create_buttons(self):
         buttons_data = [
-            ("Biru (Primary)", discord.ButtonStyle.blue, "#3498db"),
-            ("Abu-abu (Secondary)", discord.ButtonStyle.secondary, "#95a5a6"),
-            ("Hijau (Success)", discord.ButtonStyle.green, "#2ecc71"),
-            ("Merah (Danger)", discord.ButtonStyle.red, "#e74c3c")
+            ("Biru (Primary/Blurple)", discord.ButtonStyle.primary, "#5865f2"),
+            ("Abu-abu (Secondary/Grey)", discord.ButtonStyle.secondary, "#95a5a6"),
+            ("Hijau (Success/Green)", discord.ButtonStyle.success, "#57f287"),
+            ("Merah (Danger/Red)", discord.ButtonStyle.danger, "#ed4245")
         ]
         
         for label, style, hex_color in buttons_data:
             button = discord.ui.Button(label=label, style=style)
             
             async def callback(interaction: discord.Interaction, btn_style_value=style.value, embed_hex=hex_color):
-                guild_id_str = str(self.guild_id)
-                config_msg = self.parent_view.cog.config["guild_settings"][guild_id_str]["maps"][str(self.source_id)]["custom_messages"][self.type_key]
+                config_msg = self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]
+                
                 config_msg["button_style"] = btn_style_value
                 config_msg["embed_color"] = hex_color
                 self.parent_view.cog.save_config()
@@ -195,17 +183,15 @@ class ButtonColorView(discord.ui.View):
         self.stop()
 
 class MessageConfigView(discord.ui.View):
-    def __init__(self, cog, type_key, guild_id, source_id):
+    def __init__(self, cog, type_key, path_id):
         super().__init__(timeout=180)
         self.cog = cog
         self.type_key = type_key
-        self.guild_id = guild_id
-        self.source_id = source_id
+        self.path_id = path_id
 
     def build_embed(self):
-        guild_id_str = str(self.guild_id)
-        config_map = self.cog.config["guild_settings"][guild_id_str]["maps"][str(self.source_id)]
-        config_msg = config_map["custom_messages"][self.type_key]
+        path_data = self.cog.config["notification_paths"][self.path_id]
+        config_msg = path_data["custom_messages"][self.type_key]
         
         embed_color_hex = config_msg.get('embed_color', '#3498db') 
         try:
@@ -215,12 +201,19 @@ class MessageConfigView(discord.ui.View):
             embed_color = discord.Color.blue()
             embed_color_hex = "#3498db"
 
-        target_channel_ids = config_map.get("target_channel_ids", [])
-        target_display = ", ".join([f"<#{id_}>" for id_ in target_channel_ids]) if target_channel_ids else "Belum diatur"
+        source_id = path_data["source_id"]
+        target_id = path_data["target_id"]
+        
+        # Ambil info channel untuk display yang jelas
+        source_channel = self.cog.bot.get_channel(source_id)
+        target_channel = self.cog.bot.get_channel(target_id)
+        
+        source_info = f"#{source_channel.name} ({source_channel.guild.name})" if source_channel and source_channel.guild else f"ID: {source_id}"
+        target_info = f"#{target_channel.name} ({target_channel.guild.name})" if target_channel and target_channel.guild else f"ID: {target_id}"
 
         embed = discord.Embed(
             title=f"Pengaturan Pesan: {self.type_key.upper()}",
-            description=f"Jalur Notifikasi: `<#{self.source_id}>` $\rightarrow$ {target_display}",
+            description=f"**Jalur:** {source_info} $\rightarrow$ {target_info}\n**ID Jalur:** `{self.path_id}`",
             color=embed_color
         )
         
@@ -246,30 +239,30 @@ class MessageConfigView(discord.ui.View):
         return embed
 
     def build_color_view(self):
-        return ButtonColorView(self, self.type_key, self.guild_id, self.source_id)
+        return ButtonColorView(self, self.type_key, self.path_id)
 
     @discord.ui.button(label="Atur Pesan Biasa", style=discord.ButtonStyle.secondary)
     async def set_content_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        current_value = get_config_path(self.cog, str(self.guild_id), str(self.source_id), self.type_key, "content")
-        await interaction.response.send_modal(TextModal("Atur Pesan Teks Biasa", "Isi Pesan", current_value, self, self.type_key, "content", self.guild_id, self.source_id))
+        current_value = get_path_config(self.cog, self.path_id, self.type_key, "content")
+        await interaction.response.send_modal(TextModal("Atur Pesan Teks Biasa", "Isi Pesan", current_value, self, self.type_key, "content", self.path_id))
 
     @discord.ui.button(label="Atur Judul Embed", style=discord.ButtonStyle.secondary)
     async def set_title_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        current_value = get_config_path(self.cog, str(self.guild_id), str(self.source_id), self.type_key, "title")
-        await interaction.response.send_modal(TextModal("Atur Judul Embed", "Judul Embed", current_value, self, self.type_key, "title", self.guild_id, self.source_id))
+        current_value = get_path_config(self.cog, self.path_id, self.type_key, "title")
+        await interaction.response.send_modal(TextModal("Atur Judul Embed", "Judul Embed", current_value, self, self.type_key, "title", self.path_id))
 
     @discord.ui.button(label="Atur Deskripsi Embed", style=discord.ButtonStyle.secondary)
     async def set_desc_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        current_value = get_config_path(self.cog, str(self.guild_id), str(self.source_id), self.type_key, "description")
-        await interaction.response.send_modal(TextModal("Atur Deskripsi Embed", "Deskripsi Embed", current_value, self, self.type_key, "description", self.guild_id, self.source_id))
+        current_value = get_path_config(self.cog, self.path_id, self.type_key, "description")
+        await interaction.response.send_modal(TextModal("Atur Deskripsi Embed", "Deskripsi Embed", current_value, self, self.type_key, "description", self.path_id))
         
     @discord.ui.button(label="Atur Tombol & Warna", style=discord.ButtonStyle.secondary, row=1)
     async def set_button_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ButtonLabelModal(self, self.type_key, self.guild_id, self.source_id))
+        await interaction.response.send_modal(ButtonLabelModal(self, self.type_key, self.path_id))
         
     @discord.ui.button(label="Atur Embed/Thumbnail", style=discord.ButtonStyle.secondary, row=1)
     async def set_embed_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(EmbedConfigModal(self, self.type_key, self.guild_id, self.source_id))
+        await interaction.response.send_modal(EmbedConfigModal(self, self.type_key, self.path_id))
         
     @discord.ui.button(label="Selesai", style=discord.ButtonStyle.green, row=2)
     async def finish_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -278,56 +271,60 @@ class MessageConfigView(discord.ui.View):
 
 # --- VIEWS INTERAKTIF BARU ---
 
-class SourceSelectView(discord.ui.View):
+class PathSelectView(discord.ui.View):
     def __init__(self, cog, guild_id):
         super().__init__(timeout=180)
         self.cog = cog
         self.guild_id = guild_id
-        self._add_source_select()
+        self._add_path_select()
 
-    def _get_source_channels(self):
-        guild_id_str = str(self.guild_id)
-        if guild_id_str not in self.cog.config.get("guild_settings", {}) or "maps" not in self.cog.config["guild_settings"][guild_id_str]:
-            return []
-        
-        return list(self.cog.config["guild_settings"][guild_id_str]["maps"].keys())
-
-    def _add_source_select(self):
-        source_ids = self._get_source_channels()
+    def _get_path_options(self):
         options = []
+        for path_id, data in self.cog.config["notification_paths"].items():
+            source_id = data['source_id']
+            target_id = data['target_id']
+
+            source_channel = self.cog.bot.get_channel(source_id)
+            target_channel = self.cog.bot.get_channel(target_id)
+
+            source_name = f"#{source_channel.name}" if source_channel else f"ID {source_id}"
+            target_name = f"#{target_channel.name}" if target_channel else f"ID {target_id}"
+
+            label = f"{source_name} → {target_name}"
+            options.append(discord.SelectOption(label=label[:100], value=path_id))
+
+        return options
+
+    def _add_path_select(self):
+        options = self._get_path_options()
         
-        if not source_ids:
-            self.add_item(discord.ui.Button(label="❌ Tidak ada Channel Sumber terdaftar di server ini", style=discord.ButtonStyle.red, disabled=True))
+        if not options:
+            self.add_item(discord.ui.Button(label="❌ Tidak ada Jalur Notifikasi terdaftar", style=discord.ButtonStyle.red, disabled=True))
             return
 
-        for source_id_str in source_ids:
-            channel = self.cog.bot.get_channel(int(source_id_str))
-            label = f"#{channel.name}" if channel else f"ID: {source_id_str}"
-            options.append(discord.SelectOption(label=label, value=source_id_str))
-
-        source_select = discord.ui.Select(
-            placeholder="Pilih Channel Sumber yang akan dikonfigurasi...",
+        path_select = discord.ui.Select(
+            placeholder="Pilih Jalur Notifikasi yang akan dikonfigurasi...",
             options=options,
-            custom_id="source_select_menu"
+            custom_id="path_select_menu"
         )
 
         async def callback(interaction: discord.Interaction):
-            selected_source_id = int(source_select.values[0])
+            selected_path_id = path_select.values[0]
             
-            type_select_view = TypeSelectView(self.cog, self.guild_id, selected_source_id)
+            type_select_view = TypeSelectView(self.cog, self.guild_id, selected_path_id)
             
-            await interaction.response.edit_message(content=f"🛠️ Channel Sumber dipilih: <#{selected_source_id}>. Pilih Tipe Pesan:", view=type_select_view)
+            await interaction.response.edit_message(content=f"🛠️ Jalur dipilih: `{selected_path_id}`. Pilih Tipe Pesan:", view=type_select_view)
             self.stop()
             
-        source_select.callback = callback
-        self.add_item(source_select)
+        path_select.callback = callback
+        self.add_item(path_select)
 
 class TypeSelectView(discord.ui.View):
-    def __init__(self, cog, guild_id, source_id):
+    def __init__(self, cog, guild_id, path_id):
         super().__init__(timeout=180)
         self.cog = cog
         self.guild_id = guild_id
-        self.source_id = source_id
+        self.path_id = path_id
         
         options = []
         for key in self.cog.default_messages.keys():
@@ -342,16 +339,16 @@ class TypeSelectView(discord.ui.View):
         async def callback(interaction: discord.Interaction):
             selected_type_key = type_select.values[0]
             
-            message_config_view = MessageConfigView(self.cog, selected_type_key, self.guild_id, self.source_id)
+            message_config_view = MessageConfigView(self.cog, selected_type_key, self.path_id)
             await interaction.response.edit_message(embed=message_config_view.build_embed(), view=message_config_view)
             self.stop()
         
         type_select.callback = callback
         self.add_item(type_select)
         
-        @discord.ui.button(label="← Ganti Sumber", style=discord.ButtonStyle.secondary, row=1)
+        @discord.ui.button(label="← Ganti Jalur", style=discord.ButtonStyle.secondary, row=1)
         async def back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-             await interaction.response.edit_message(content="Pilih Channel Sumber yang akan dikonfigurasi:", view=SourceSelectView(self.cog, self.guild_id))
+             await interaction.response.edit_message(content="Pilih Jalur Notifikasi yang akan dikonfigurasi:", view=PathSelectView(self.cog, self.guild_id))
              self.stop()
 
 # --- COG UTAMA ---
@@ -361,6 +358,8 @@ class Notif(commands.Cog):
         self.bot = bot
         self.config_file = "data/notif.json"
         self.default_messages = self._get_default_messages() 
+        
+        # Perubahan Struktur Konfigurasi: Hanya satu notification_paths global
         self.config = self._load_config()
 
     def _get_link_from_url(self, message):
@@ -453,7 +452,7 @@ class Notif(commands.Cog):
     def _load_config(self):
         default_config = {
             "mirrored_users": [],
-            "guild_settings": {},
+            "notification_paths": {}, # Struktur Global Baru
             "recent_links": []
         }
         
@@ -466,8 +465,8 @@ class Notif(commands.Cog):
         
         final_config = {**default_config, **config}
         
-        if "guild_settings" not in final_config:
-            final_config["guild_settings"] = {}
+        if "notification_paths" not in final_config:
+            final_config["notification_paths"] = {}
 
         os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
         with open(self.config_file, "w") as f:
@@ -510,100 +509,86 @@ class Notif(commands.Cog):
         self.save_config()
         await ctx.send("✅ Riwayat link yang baru saja diposting berhasil **dibersihkan**.")
 
-    @commands.command(name="addtarget")
+    @commands.command(name="addpath")
     @commands.has_permissions(administrator=True)
-    async def add_notification_target(self, ctx, source_channel_id: int, target_channel_id: int):
+    async def add_notification_path(self, ctx, source_channel_id: int, target_channel_id: int):
         if not ctx.guild:
             await ctx.send("Perintah ini hanya dapat digunakan di dalam server.")
             return
         
-        guild_id_str = str(ctx.guild.id)
-        source_id_str = str(source_channel_id)
+        source_id = source_channel_id
+        target_id = target_channel_id
 
-        if guild_id_str not in self.config["guild_settings"]:
-            self.config["guild_settings"][guild_id_str] = {"maps": {}}
-        if "maps" not in self.config["guild_settings"][guild_id_str]:
-            self.config["guild_settings"][guild_id_str]["maps"] = {}
+        # Cek apakah jalur sudah ada
+        for path_id, data in self.config["notification_paths"].items():
+            if data["source_id"] == source_id and data["target_id"] == target_id:
+                source_channel = self.bot.get_channel(source_id)
+                target_channel = self.bot.get_channel(target_id)
+                source_info = f"#{source_channel.name}" if source_channel else f"ID: {source_id}"
+                target_info = f"#{target_channel.name}" if target_channel else f"ID: {target_id}"
+                return await ctx.send(f"ℹ️ Jalur notifikasi dari {source_info} $\rightarrow$ {target_info} sudah ada dengan ID Jalur `{path_id}`.")
         
-        if source_id_str not in self.config["guild_settings"][guild_id_str]["maps"]:
-            self.config["guild_settings"][guild_id_str]["maps"][source_id_str] = {
-                "target_channel_ids": [],
-                "custom_messages": self._get_default_messages()
-            }
+        # Buat Jalur Baru
+        new_path_id = str(uuid.uuid4())
         
-        target_channel = self.bot.get_channel(target_channel_id)
-        source_channel = self.bot.get_channel(source_channel_id)
+        self.config["notification_paths"][new_path_id] = {
+            "source_id": source_id,
+            "target_id": target_id,
+            "custom_messages": self._get_default_messages()
+        }
         
-        source_info = f"#{source_channel.name} ({source_channel.guild.name})" if source_channel and source_channel.guild else f"ID: {source_channel_id} (Tidak ditemukan)"
-        target_info = f"#{target_channel.name} ({target_channel.guild.name})" if target_channel and target_channel.guild else f"ID: {target_channel_id} (Tidak ditemukan)"
-
-
-        target_list = self.config["guild_settings"][guild_id_str]["maps"][source_id_str]["target_channel_ids"]
-
-        if target_channel_id not in target_list:
-            target_list.append(target_channel_id)
-            msg = f"✅ Channel Tujuan berhasil **ditambahkan**!\n"
-            msg += f"**Jalur Dibuat:**\n"
-            msg += f"Sumber: **{source_info}**\n"
-            msg += f"Tujuan: **{target_info}**\n"
-        else:
-            msg = f"ℹ️ Jalur sudah ada. Notifikasi dari **{source_info}** sudah dikirim ke **{target_info}**."
-            
+        # Ambil info channel untuk display yang jelas
+        source_channel = self.bot.get_channel(source_id)
+        target_channel = self.bot.get_channel(target_id)
+        
+        source_info = f"#{source_channel.name} ({source_channel.guild.name})" if source_channel and source_channel.guild else f"ID: {source_id}"
+        target_info = f"#{target_channel.name} ({target_channel.guild.name})" if target_channel and target_channel.guild else f"ID: {target_id}"
+        
         self.save_config()
+        
+        msg = f"✅ Jalur notifikasi baru berhasil dibuat!\n"
+        msg += f"Sumber: **{source_info}**\n"
+        msg += f"Tujuan: **{target_info}**\n"
+        msg += f"ID Jalur (Wajib untuk setmessage): **`{new_path_id}`**"
+        
         await ctx.send(msg)
 
-    @commands.command(name="removetarget")
+    @commands.command(name="removepath")
     @commands.has_permissions(administrator=True)
-    async def remove_notification_target(self, ctx, source_channel_id: int, target_channel_id: int):
-        guild_id_str = str(ctx.guild.id)
-        source_id_str = str(source_channel_id)
-        
-        try:
-            target_list = self.config["guild_settings"][guild_id_str]["maps"][source_id_str]["target_channel_ids"]
-            if target_channel_id in target_list:
-                target_list.remove(target_channel_id)
-                self.save_config()
-                await ctx.send(f"✅ Channel Tujuan `{target_channel_id}` berhasil **dihapus** dari sumber `{source_channel_id}`.")
-            else:
-                await ctx.send(f"❌ Channel Tujuan `{target_channel_id}` tidak terdaftar sebagai target untuk sumber `{source_channel_id}`.")
-        except KeyError:
-            await ctx.send(f"❌ Channel Sumber dengan ID `{source_channel_id}` tidak ditemukan di server ini.")
+    async def remove_notification_path(self, ctx, path_id: str):
+        if path_id in self.config["notification_paths"]:
+            del self.config["notification_paths"][path_id]
+            self.save_config()
+            await ctx.send(f"✅ Jalur notifikasi dengan ID Jalur `{path_id}` berhasil dihapus.")
+        else:
+            await ctx.send(f"❌ Jalur notifikasi dengan ID Jalur `{path_id}` tidak ditemukan.")
+
 
     @commands.command(name="setmessage")
     @commands.has_permissions(administrator=True)
-    async def set_message(self, ctx, source_channel_id: int, type_key: str = None):
+    async def set_message(self, ctx, path_id: str, type_key: str = None):
         if not ctx.guild:
-            await ctx.send("Perintah ini hanya dapat digunakan di dalam server.")
-            return
+            return await ctx.send("Perintah ini hanya dapat digunakan di dalam server.")
         
-        guild_id_str = str(ctx.guild.id)
-        source_id_str = str(source_channel_id)
-        
-        if guild_id_str not in self.config["guild_settings"] or source_id_str not in self.config["guild_settings"][guild_id_str]["maps"]:
-            source_channel = self.bot.get_channel(source_channel_id)
-            source_name = f"#{source_channel.name}" if source_channel else f"ID {source_channel_id}"
-            await ctx.send(f"❌ **ERROR:** Channel Sumber `{source_name}` belum didaftarkan sebagai sumber di server ini. \n"
-                           f"Harap gunakan `!addtarget <source_id> <target_id>` untuk membuat jalur terlebih dahulu. \n\n"
-                           f"Atau coba gunakan command interaktif: `!config`")
-            return
+        if path_id not in self.config["notification_paths"]:
+            return await ctx.send(f"❌ ID Jalur `{path_id}` tidak ditemukan. Gunakan `!addpath` untuk membuat jalur.")
             
         if type_key is None or type_key not in self.default_messages:
             types = "|".join(self.default_messages.keys())
-            await ctx.send(f"Gunakan: `!setmessage <source_channel_id> <{types}>`")
-            return
+            return await ctx.send(f"Gunakan: `!setmessage <path_id> <{types}>`")
             
-        view = MessageConfigView(self, type_key, ctx.guild.id, source_channel_id)
+        # Kirim path_id ke View
+        view = MessageConfigView(self, type_key, path_id)
         await ctx.send(embed=view.build_embed(), view=view)
         
     @commands.command(name="config")
     @commands.has_permissions(administrator=True)
     async def start_config(self, ctx):
         if not ctx.guild:
-            await ctx.send("Perintah ini hanya dapat digunakan di dalam server.")
-            return
+            return await ctx.send("Perintah ini hanya dapat digunakan di dalam server.")
         
-        view = SourceSelectView(self, ctx.guild.id)
-        await ctx.send("Pilih Channel Sumber yang akan dikonfigurasi:", view=view)
+        view = PathSelectView(self, ctx.guild.id)
+        await ctx.send("Pilih Jalur Notifikasi yang akan dikonfigurasi:", view=view)
 
 
     # --- COG LISTENER ---
@@ -612,12 +597,9 @@ class Notif(commands.Cog):
         if message.author.id == self.bot.user.id or not message.guild:
             return
             
-        guild_id_str = str(message.guild.id)
-        source_channel_id_str = str(message.channel.id)
-
-        if guild_id_str not in self.config["guild_settings"] or source_channel_id_str not in self.config["guild_settings"][guild_id_str]["maps"]:
-            return
-
+        source_channel_id = message.channel.id
+        
+        # 1. Cek apakah pengguna terdaftar
         if str(message.author.id) not in self.config["mirrored_users"]:
             return
 
@@ -626,6 +608,16 @@ class Notif(commands.Cog):
         if not link_type or message.content in self.config["recent_links"]:
             return
             
+        # 2. Ambil semua Jalur yang memiliki Source Channel ID ini
+        paths_to_send = [
+            data for data in self.config["notification_paths"].values() 
+            if data["source_id"] == source_channel_id
+        ]
+        
+        if not paths_to_send:
+            return
+            
+        # 3. Pre-processing & Cleanup
         self.config["recent_links"].append(message.content)
         if len(self.config["recent_links"]) > 50:
             self.config["recent_links"].pop(0)
@@ -635,13 +627,8 @@ class Notif(commands.Cog):
             await message.delete()
         except Exception:
             pass
-        
-        path_config = self.config["guild_settings"][guild_id_str]["maps"][source_channel_id_str]
-        target_channel_ids = path_config.get("target_channel_ids", [])
-        
-        if not target_channel_ids:
-            return
 
+        # 4. Ambil Metadata YT sekali saja (di luar loop path)
         youtube_title, youtube_description, youtube_thumbnail = None, None, None
         if link_type in ["live", "upload", "premier"]: 
             loop = self.bot.loop
@@ -649,63 +636,59 @@ class Notif(commands.Cog):
                 None, functools.partial(_extract_youtube_info, link_for_send)
             )
 
-        custom_messages = path_config.get("custom_messages", self.default_messages)
-        config_msg = custom_messages.get(link_type, self.default_messages.get(link_type, self.default_messages["default"]))
-        
-        content = config_msg.get('content')
-        custom_title = config_msg.get('title')
-        custom_description = config_msg.get('description')
-        
-        # Pemrosesan Judul
-        final_title = custom_title
-        if final_title and youtube_title:
-            final_title = final_title.replace("{judul}", youtube_title)
-        elif not final_title and youtube_title:
-            final_title = youtube_title
-        elif final_title and final_title.find("{judul}") != -1:
-            final_title = final_title.replace("{judul}", "")
-        elif not final_title:
-            final_title = None
+        # 5. Loop melalui setiap Jalur (Setiap Target)
+        for path_data in paths_to_send:
+            target_channel_id = path_data["target_id"]
+            config_msg = path_data["custom_messages"].get(link_type, self.default_messages.get(link_type))
+            if not config_msg: continue
 
-        # Pemrosesan Deskripsi (Perbaikan DITERAPKAN DI SINI)
-        final_description = custom_description
-        if final_description and youtube_description:
-            desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
-            final_description = final_description.replace("{deskripsi}", desc_sub)
-        elif final_description and final_description.find("{deskripsi}") != -1:
-            # Hapus placeholder jika yt-dlp gagal mengambil data
-            final_description = final_description.replace("{deskripsi}", "")
-        elif not final_description:
-            final_description = ""
-        
-        use_embed = config_msg.get('use_embed', self.default_messages[link_type]['use_embed'])
-        embed_thumbnail_enabled = config_msg.get('embed_thumbnail', self.default_messages[link_type]['embed_thumbnail'])
-        
-        if not final_title and use_embed:
-            final_title = "Konten Baru!" 
-        
-        final_content = f"{content} {link_for_send}" if content else link_for_send
-
-        button_label = config_msg.get('button_label', 'Tonton Konten')
-        button_style_value = config_msg.get('button_style', self.default_messages[link_type]['button_style'])
-        try:
-            button_style = discord.ButtonStyle(button_style_value)
-        except ValueError:
-            button_style = discord.ButtonStyle.primary
-
-        embed_color_hex = config_msg.get('embed_color', self.default_messages[link_type]['embed_color'])
-        try:
-            embed_color = discord.Color(int(embed_color_hex.strip("#"), 16))
-        except:
-            embed_color = discord.Color.blue()
-
-        for target_channel_id in target_channel_ids:
             try:
                 target_channel = self.bot.get_channel(target_channel_id)
-                
-                if not target_channel:
-                    continue 
+                if not target_channel: continue 
 
+                content = config_msg.get('content')
+                custom_title = config_msg.get('title')
+                custom_description = config_msg.get('description')
+                
+                # Pemrosesan Judul
+                final_title = custom_title
+                if final_title and youtube_title:
+                    final_title = final_title.replace("{judul}", youtube_title)
+                elif not final_title and youtube_title:
+                    final_title = youtube_title
+                elif final_title and final_title.find("{judul}") != -1:
+                    final_title = final_title.replace("{judul}", "")
+                elif not final_title:
+                    final_title = None
+
+                # Pemrosesan Deskripsi
+                final_description = custom_description
+                if final_description and youtube_description:
+                    desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
+                    final_description = final_description.replace("{deskripsi}", desc_sub)
+                elif final_description and final_description.find("{deskripsi}") != -1:
+                    final_description = final_description.replace("{deskripsi}", "")
+                elif not final_description:
+                    final_description = ""
+                
+                use_embed = config_msg.get('use_embed', self.default_messages[link_type]['use_embed'])
+                embed_thumbnail_enabled = config_msg.get('embed_thumbnail', self.default_messages[link_type]['embed_thumbnail'])
+                
+                if not final_title and use_embed: final_title = "Konten Baru!" 
+                
+                final_content = f"{content} {link_for_send}" if content else link_for_send
+
+                # Pengambilan Button Style
+                button_label = config_msg.get('button_label', 'Tonton Konten')
+                button_style_value = config_msg.get('button_style', self.default_messages[link_type]['button_style'])
+                try: button_style = discord.ButtonStyle(button_style_value)
+                except ValueError: button_style = discord.ButtonStyle.primary
+
+                embed_color_hex = config_msg.get('embed_color', self.default_messages[link_type]['embed_color'])
+                try: embed_color = discord.Color(int(embed_color_hex.strip("#"), 16))
+                except: embed_color = discord.Color.blue()
+
+                # Pembuatan Embed dan Pengiriman
                 embed = None
                 if use_embed and (final_title or final_description):
                     embed = discord.Embed(
@@ -723,7 +706,7 @@ class Notif(commands.Cog):
                 await target_channel.send(content=final_content, embed=embed, view=view)
                 
             except Exception as e:
-                print(f"Gagal mengirim pesan ke Channel ID {target_channel_id}: {e}")
+                print(f"Gagal mengirim pesan di jalur {path_data}: {e}")
 
 async def setup(bot):
     os.makedirs('data', exist_ok=True)
