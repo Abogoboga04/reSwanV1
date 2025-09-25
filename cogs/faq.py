@@ -601,10 +601,11 @@ class Notif(commands.Cog):
             self.config["recent_links"].pop(0)
         self.save_config()
         
-        try:
-            await message.delete()
-        except Exception:
-            pass
+        # Pesan asli tidak lagi dihapus (sesuai permintaan)
+        # try:
+        #     await message.delete()
+        # except Exception:
+        #     pass
 
         youtube_title, youtube_description, youtube_thumbnail = None, None, None
         if link_type in ["live", "upload", "premier"]: 
@@ -626,32 +627,44 @@ class Notif(commands.Cog):
                 custom_title = config_msg.get('title')
                 custom_description = config_msg.get('description')
                 
-                final_title = None 
-                hyperlink_for_desc = None
+                # Pemrosesan Judul (Untuk Hyperlink)
+                # Gunakan custom_title sebagai template, tetapi fallback ke youtube_title jika custom_title kosong
+                title_for_hyperlink = custom_title if custom_title and "{judul}" in custom_title else "{judul}"
                 
                 if youtube_title:
-                    hyperlink_for_desc = f"# [**{youtube_title}**]({link_for_send})" 
+                    title_for_hyperlink = title_for_hyperlink.replace("{judul}", youtube_title)
+                    # Format Hyperlink: Markdown besar/tebal (# dan **)
+                    hyperlink_title = f"[# **{title_for_hyperlink}**]({link_for_send})"
+                else:
+                    hyperlink_title = None
 
+                # Pemrosesan Deskripsi
                 final_description = custom_description
-                if final_description and youtube_description:
-                    desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
+                if final_description:
+                    desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '') if youtube_description else ''
                     final_description = final_description.replace("{deskripsi}", desc_sub)
-                elif final_description and final_description.find("{deskripsi}") != -1:
-                    final_description = final_description.replace("{deskripsi}", "")
-                elif not final_description:
-                    final_description = ""
                 
-                if hyperlink_for_desc:
-                    if final_description.strip():
-                        final_description = f"{hyperlink_for_desc}\n\n" + final_description
-                    else:
-                        final_description = hyperlink_for_desc
+                # Ganti {judul} di Deskripsi dengan Hyperlink besar dan tebal
+                if hyperlink_title and final_description:
+                    final_description = final_description.replace("{judul}", hyperlink_title)
                 
+                # Jika deskripsi config kosong, tetapi ada hyperlink judul, gunakan hyperlink sebagai deskripsi
+                if not final_description and hyperlink_title:
+                     final_description = hyperlink_title
+
+                # Pemrosesan Konten Pesan Biasa
+                final_content = content
+                if final_content:
+                    # Ganti placeholder {judul} di content (jika ada)
+                    final_content = final_content.replace("{judul}", youtube_title) if youtube_title else final_content
+                    final_content += f"\n{link_for_send}" 
+                elif not final_content:
+                    final_content = link_for_send
+
+
                 use_embed = config_msg.get('use_embed', self.default_messages[link_type]['use_embed'])
                 embed_thumbnail_enabled = config_msg.get('embed_thumbnail', self.default_messages[link_type]['embed_thumbnail'])
                 
-                final_content = f"{content} {link_for_send}" if content else link_for_send
-
                 button_label = config_msg.get('button_label', 'Tonton Konten')
                 button_style_value = config_msg.get('button_style', self.default_messages[link_type]['button_style'])
                 try: button_style = discord.ButtonStyle(button_style_value)
@@ -662,12 +675,14 @@ class Notif(commands.Cog):
                 except: embed_color = discord.Color.blue()
 
                 embed = None
+                # Embed tampil jika diaktifkan DAN deskripsi tidak kosong
                 if use_embed and final_description:
                     embed = discord.Embed(
                         description=final_description,
                         color=embed_color
                     )
                     
+                    # Tambahkan thumbnail
                     if embed_thumbnail_enabled and youtube_thumbnail:
                         embed.set_image(url=youtube_thumbnail)
 
