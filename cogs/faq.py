@@ -8,6 +8,8 @@ import urllib.parse
 import yt_dlp
 import functools
 
+# --- UTILITY FUNCTION: YOUTUBE METADATA EXTRACTION ---
+
 def _extract_youtube_info(url):
     ydl_opts = {
         'quiet': True,
@@ -27,6 +29,7 @@ def _extract_youtube_info(url):
             
             thumbnails = info.get('thumbnails', [])
             
+            # Prioritas resolusi tinggi
             priority_ids = ['maxres', 'standard', 'high']
             for id_ in priority_ids:
                 for t in thumbnails:
@@ -46,6 +49,8 @@ def _extract_youtube_info(url):
 def get_config_path(cog, guild_id_str, source_id_str, type_key, field_key=None):
     path = cog.config["guild_settings"][guild_id_str]["maps"][source_id_str]["custom_messages"][type_key]
     return path.get(field_key, "") if field_key else path
+
+# --- MODALS ---
 
 class TextModal(discord.ui.Modal):
     def __init__(self, title, label, default_value, parent_view, type_key, field_key, guild_id, source_id):
@@ -135,6 +140,8 @@ class EmbedConfigModal(discord.ui.Modal, title="Pengaturan Embed & Thumbnail"):
         self.parent_view.cog.save_config()
         
         await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
+
+# --- VIEWS UTAMA ---
 
 class ButtonColorView(discord.ui.View):
     def __init__(self, parent_view, type_key, guild_id, source_id):
@@ -256,6 +263,86 @@ class MessageConfigView(discord.ui.View):
         await interaction.response.send_message("✅ Pengaturan pesan berhasil disimpan!", ephemeral=True)
         self.stop()
 
+# --- VIEWS INTERAKTIF BARU ---
+
+class SourceSelectView(discord.ui.View):
+    def __init__(self, cog, guild_id):
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.guild_id = guild_id
+        self._add_source_select()
+
+    def _get_source_channels(self):
+        guild_id_str = str(self.guild_id)
+        if guild_id_str not in self.cog.config.get("guild_settings", {}) or "maps" not in self.cog.config["guild_settings"][guild_id_str]:
+            return []
+        
+        return list(self.cog.config["guild_settings"][guild_id_str]["maps"].keys())
+
+    def _add_source_select(self):
+        source_ids = self._get_source_channels()
+        options = []
+        
+        if not source_ids:
+            self.add_item(discord.ui.Button(label="❌ Tidak ada Channel Sumber terdaftar di server ini", style=discord.ButtonStyle.red, disabled=True))
+            return
+
+        for source_id_str in source_ids:
+            channel = self.cog.bot.get_channel(int(source_id_str))
+            label = f"#{channel.name}" if channel else f"ID: {source_id_str}"
+            options.append(discord.SelectOption(label=label, value=source_id_str))
+
+        source_select = discord.ui.Select(
+            placeholder="Pilih Channel Sumber yang akan dikonfigurasi...",
+            options=options,
+            custom_id="source_select_menu"
+        )
+
+        async def callback(interaction: discord.Interaction):
+            selected_source_id = int(source_select.values[0])
+            
+            type_select_view = TypeSelectView(self.cog, self.guild_id, selected_source_id)
+            
+            await interaction.response.edit_message(content=f"🛠️ Channel Sumber dipilih: <#{selected_source_id}>. Pilih Tipe Pesan:", view=type_select_view)
+            self.stop()
+            
+        source_select.callback = callback
+        self.add_item(source_select)
+
+class TypeSelectView(discord.ui.View):
+    def __init__(self, cog, guild_id, source_id):
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.guild_id = guild_id
+        self.source_id = source_id
+        
+        options = []
+        for key in self.cog.default_messages.keys():
+            options.append(discord.SelectOption(label=key.capitalize(), value=key))
+            
+        type_select = discord.ui.Select(
+            placeholder="Pilih Tipe Pesan...",
+            options=options,
+            custom_id="type_select_menu"
+        )
+        
+        async def callback(interaction: discord.Interaction):
+            selected_type_key = type_select.values[0]
+            
+            message_config_view = MessageConfigView(self.cog, selected_type_key, self.guild_id, self.source_id)
+            await interaction.response.edit_message(embed=message_config_view.build_embed(), view=message_config_view)
+            self.stop()
+        
+        type_select.callback = callback
+        self.add_item(type_select)
+        
+        @discord.ui.button(label="← Ganti Sumber", style=discord.ButtonStyle.secondary, row=1)
+        async def back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+             await interaction.response.edit_message(content="Pilih Channel Sumber yang akan dikonfigurasi:", view=SourceSelectView(self.cog, self.guild_id))
+             self.stop()
+
+# --- COG UTAMA ---
+
 class Notif(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -264,35 +351,47 @@ class Notif(commands.Cog):
         self.config = self._load_config()
 
     def _get_link_from_url(self, message):
-        url_pattern = re.compile(r'\[.*?\]\((https?://[^\s)]+)\)')
-        urls_from_markdown = url_pattern.findall(message.content)
-        link_for_send = urls_from_markdown[0] if urls_from_markdown else None
-
         youtube_regex = r'(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
         tiktok_regex = r'(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com\/.*\/video\/(\d+))'
 
-        link_to_check = link_for_send or message.content
+        message_content = message.content
         
-        match_youtube = re.search(youtube_regex, link_to_check)
-        if match_youtube:
-            link = match_youtube.group(0)
-            if "premier" in message.content.lower():
-                return "premier", link
-            elif "live" in message.content.lower():
-                return "live", link
+        url_pattern = re.compile(r'\[.*?\]\((https?://[^\s)]+)\)')
+        urls_from_markdown = url_pattern.findall(message_content)
+        link_for_send = urls_from_markdown[0] if urls_from_markdown else None
+
+        if not link_for_send:
+            match_youtube = re.search(youtube_regex, message_content)
+            match_tiktok = re.search(tiktok_regex, message_content)
+            
+            if match_youtube:
+                link_for_send = match_youtube.group(0)
+            elif match_tiktok:
+                link_for_send = match_tiktok.group(0)
+
+        if not link_for_send:
+            return None, None
+            
+        if re.search(youtube_regex, link_for_send):
+            if "premier" in message_content.lower():
+                link_type = "premier"
+            elif "live" in message_content.lower():
+                link_type = "live"
             else:
-                return "upload", link
-            
-        match_tiktok = re.search(tiktok_regex, link_to_check)
-        if match_tiktok:
-            link = match_tiktok.group(0)
-            parsed_url = urllib.parse.urlparse(link)
-            if not parsed_url.scheme:
-                link = f"https://{link}"
-            
-            return "default", link
+                link_type = "upload"
         
-        return None, None
+        elif re.search(tiktok_regex, link_for_send):
+            link_type = "default"
+        
+        else:
+            return None, None
+
+        if link_type == "default":
+            parsed_url = urllib.parse.urlparse(link_for_send)
+            if not parsed_url.scheme:
+                link_for_send = f"https://{link_for_send}"
+
+        return link_type, link_for_send
     
     def _get_default_messages(self):
         return {
@@ -367,6 +466,8 @@ class Notif(commands.Cog):
         with open(self.config_file, "w") as f:
             json.dump(self.config, f, indent=4)
             
+    # --- COMMANDS UTAMA ---
+
     @commands.command(name="adduser")
     @commands.has_permissions(administrator=True)
     async def add_user(self, ctx, user_id: str):
@@ -376,18 +477,18 @@ class Notif(commands.Cog):
         
         self.config["mirrored_users"].append(user_id)
         self.save_config()
-        await ctx.send(f"User dengan ID `{user_id}` berhasil ditambahkan.")
+        await ctx.send(f"✅ User dengan ID `{user_id}` berhasil ditambahkan.")
 
     @commands.command(name="removeuser")
     @commands.has_permissions(administrator=True)
     async def remove_user(self, ctx, user_id: str):
         if user_id not in self.config["mirrored_users"]:
-            await ctx.send(f"User dengan ID `{user_id}` tidak ditemukan.")
+            await ctx.send(f"❌ User dengan ID `{user_id}` tidak ditemukan.")
             return
         
         self.config["mirrored_users"].remove(user_id)
         self.save_config()
-        await ctx.send(f"User dengan ID `{user_id}` berhasil dihapus.")
+        await ctx.send(f"✅ User dengan ID `{user_id}` berhasil dihapus.")
             
     @commands.command(name="resetlinks")
     @commands.has_permissions(administrator=True)
@@ -417,13 +518,23 @@ class Notif(commands.Cog):
                 "custom_messages": self._get_default_messages()
             }
         
+        target_channel = self.bot.get_channel(target_channel_id)
+        source_channel = self.bot.get_channel(source_channel_id)
+        
+        source_info = f"#{source_channel.name} ({source_channel.guild.name})" if source_channel else f"ID: {source_channel_id} (Tidak ditemukan)"
+        target_info = f"#{target_channel.name} ({target_channel.guild.name})" if target_channel else f"ID: {target_channel_id} (Tidak ditemukan)"
+
+
         target_list = self.config["guild_settings"][guild_id_str]["maps"][source_id_str]["target_channel_ids"]
 
         if target_channel_id not in target_list:
             target_list.append(target_channel_id)
-            msg = f"✅ Channel Tujuan `<#{target_channel_id}>` berhasil **ditambahkan** ke sumber `<#{source_channel_id}>`. (Channel Tujuan dapat lintas-server)"
+            msg = f"✅ Channel Tujuan berhasil **ditambahkan**!\n"
+            msg += f"**Jalur Dibuat:**\n"
+            msg += f"Sumber: **{source_info}**\n"
+            msg += f"Tujuan: **{target_info}**\n"
         else:
-            msg = f"ℹ️ Channel Tujuan `<#{target_channel_id}>` sudah terdaftar untuk sumber `<#{source_channel_id}>`."
+            msg = f"ℹ️ Jalur sudah ada. Notifikasi dari **{source_info}** sudah dikirim ke **{target_info}**."
             
         self.save_config()
         await ctx.send(msg)
@@ -439,12 +550,11 @@ class Notif(commands.Cog):
             if target_channel_id in target_list:
                 target_list.remove(target_channel_id)
                 self.save_config()
-                await ctx.send(f"✅ Channel Tujuan `<#{target_channel_id}>` berhasil **dihapus** dari sumber `<#{source_channel_id}>`.")
+                await ctx.send(f"✅ Channel Tujuan `{target_channel_id}` berhasil **dihapus** dari sumber `{source_channel_id}`.")
             else:
-                await ctx.send(f"❌ Channel Tujuan `<#{target_channel_id}>` tidak terdaftar sebagai target untuk sumber `<#{source_channel_id}>`.")
+                await ctx.send(f"❌ Channel Tujuan `{target_channel_id}` tidak terdaftar sebagai target untuk sumber `{source_channel_id}`.")
         except KeyError:
             await ctx.send(f"❌ Channel Sumber dengan ID `{source_channel_id}` tidak ditemukan di server ini.")
-
 
     @commands.command(name="setmessage")
     @commands.has_permissions(administrator=True)
@@ -457,7 +567,11 @@ class Notif(commands.Cog):
         source_id_str = str(source_channel_id)
         
         if guild_id_str not in self.config["guild_settings"] or source_id_str not in self.config["guild_settings"][guild_id_str]["maps"]:
-            await ctx.send(f"❌ Channel Sumber dengan ID `{source_channel_id}` belum diatur. Gunakan `!addtarget <source_id> <target_id>` terlebih dahulu.")
+            source_channel = self.bot.get_channel(source_channel_id)
+            source_name = f"#{source_channel.name}" if source_channel else f"ID {source_channel_id}"
+            await ctx.send(f"❌ **ERROR:** Channel Sumber `{source_name}` belum didaftarkan sebagai sumber di server ini. \n"
+                           f"Harap gunakan `!addtarget <source_id> <target_id>` untuk membuat jalur terlebih dahulu. \n\n"
+                           f"Atau coba gunakan command interaktif: `!config`")
             return
             
         if type_key is None or type_key not in self.default_messages:
@@ -467,7 +581,19 @@ class Notif(commands.Cog):
             
         view = MessageConfigView(self, type_key, ctx.guild.id, source_channel_id)
         await ctx.send(embed=view.build_embed(), view=view)
+        
+    @commands.command(name="config")
+    @commands.has_permissions(administrator=True)
+    async def start_config(self, ctx):
+        if not ctx.guild:
+            await ctx.send("Perintah ini hanya dapat digunakan di dalam server.")
+            return
+        
+        view = SourceSelectView(self, ctx.guild.id)
+        await ctx.send("Pilih Channel Sumber yang akan dikonfigurasi:", view=view)
 
+
+    # --- COG LISTENER ---
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.id == self.bot.user.id or not message.guild:
@@ -517,12 +643,16 @@ class Notif(commands.Cog):
         custom_title = config_msg.get('title')
         custom_description = config_msg.get('description')
         
+        # Pemrosesan Judul
         final_title = custom_title
         if final_title and youtube_title:
             final_title = final_title.replace("{judul}", youtube_title)
         elif not final_title and youtube_title:
             final_title = youtube_title
-        
+        elif not final_title:
+            final_title = None
+
+        # Pemrosesan Deskripsi
         final_description = custom_description
         if final_description and youtube_description:
             desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
@@ -559,14 +689,14 @@ class Notif(commands.Cog):
                     continue 
 
                 embed = None
-                if use_embed:
+                if use_embed and (final_title or final_description):
                     embed = discord.Embed(
-                        title=final_title,
+                        title=final_title if final_title else "Konten Baru!",
                         description=final_description,
                         color=embed_color
                     )
                     
-                    if embed_thumbnail_enabled and link_type in ["live", "upload", "premier"] and youtube_thumbnail:
+                    if embed_thumbnail_enabled and youtube_thumbnail:
                         embed.set_image(url=youtube_thumbnail)
 
                 view = discord.ui.View()
