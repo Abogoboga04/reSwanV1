@@ -7,11 +7,12 @@ import asyncio
 import urllib.parse
 import yt_dlp
 import functools
-import uuid # Untuk menghasilkan ID Jalur Unik
+import uuid
 
 # --- UTILITY FUNCTION: YOUTUBE METADATA EXTRACTION ---
 
 def _get_youtube_video_id(url):
+    """Mengekstrak ID video 11 karakter dari URL YouTube."""
     youtube_regex = r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
     match = re.search(youtube_regex, url)
     return match.group(1) if match else None
@@ -204,7 +205,6 @@ class MessageConfigView(discord.ui.View):
         source_id = path_data["source_id"]
         target_id = path_data["target_id"]
         
-        # Ambil info channel untuk display yang jelas
         source_channel = self.cog.bot.get_channel(source_id)
         target_channel = self.cog.bot.get_channel(target_id)
         
@@ -359,7 +359,6 @@ class Notif(commands.Cog):
         self.config_file = "data/notif.json"
         self.default_messages = self._get_default_messages() 
         
-        # Perubahan Struktur Konfigurasi: Hanya satu notification_paths global
         self.config = self._load_config()
 
     def _get_link_from_url(self, message):
@@ -452,7 +451,7 @@ class Notif(commands.Cog):
     def _load_config(self):
         default_config = {
             "mirrored_users": [],
-            "notification_paths": {}, # Struktur Global Baru
+            "notification_paths": {},
             "recent_links": []
         }
         
@@ -519,7 +518,6 @@ class Notif(commands.Cog):
         source_id = source_channel_id
         target_id = target_channel_id
 
-        # Cek apakah jalur sudah ada
         for path_id, data in self.config["notification_paths"].items():
             if data["source_id"] == source_id and data["target_id"] == target_id:
                 source_channel = self.bot.get_channel(source_id)
@@ -528,7 +526,6 @@ class Notif(commands.Cog):
                 target_info = f"#{target_channel.name}" if target_channel else f"ID: {target_id}"
                 return await ctx.send(f"ℹ️ Jalur notifikasi dari {source_info} $\rightarrow$ {target_info} sudah ada dengan ID Jalur `{path_id}`.")
         
-        # Buat Jalur Baru
         new_path_id = str(uuid.uuid4())
         
         self.config["notification_paths"][new_path_id] = {
@@ -537,7 +534,6 @@ class Notif(commands.Cog):
             "custom_messages": self._get_default_messages()
         }
         
-        # Ambil info channel untuk display yang jelas
         source_channel = self.bot.get_channel(source_id)
         target_channel = self.bot.get_channel(target_id)
         
@@ -577,7 +573,6 @@ class Notif(commands.Cog):
             types = "|".join(self.default_messages.keys())
             return await ctx.send(f"Gunakan: `!setmessage <path_id> <{types}>`")
             
-        # Kirim path_id ke View
         view = MessageConfigView(self, type_key, path_id)
         await ctx.send(embed=view.build_embed(), view=view)
         
@@ -599,7 +594,6 @@ class Notif(commands.Cog):
             
         source_channel_id = message.channel.id
         
-        # 1. Cek apakah pengguna terdaftar
         if str(message.author.id) not in self.config["mirrored_users"]:
             return
 
@@ -608,7 +602,6 @@ class Notif(commands.Cog):
         if not link_type or message.content in self.config["recent_links"]:
             return
             
-        # 2. Ambil semua Jalur yang memiliki Source Channel ID ini
         paths_to_send = [
             data for data in self.config["notification_paths"].values() 
             if data["source_id"] == source_channel_id
@@ -617,7 +610,6 @@ class Notif(commands.Cog):
         if not paths_to_send:
             return
             
-        # 3. Pre-processing & Cleanup
         self.config["recent_links"].append(message.content)
         if len(self.config["recent_links"]) > 50:
             self.config["recent_links"].pop(0)
@@ -628,7 +620,6 @@ class Notif(commands.Cog):
         except Exception:
             pass
 
-        # 4. Ambil Metadata YT sekali saja (di luar loop path)
         youtube_title, youtube_description, youtube_thumbnail = None, None, None
         if link_type in ["live", "upload", "premier"]: 
             loop = self.bot.loop
@@ -636,7 +627,6 @@ class Notif(commands.Cog):
                 None, functools.partial(_extract_youtube_info, link_for_send)
             )
 
-        # 5. Loop melalui setiap Jalur (Setiap Target)
         for path_data in paths_to_send:
             target_channel_id = path_data["target_id"]
             config_msg = path_data["custom_messages"].get(link_type, self.default_messages.get(link_type))
@@ -650,12 +640,13 @@ class Notif(commands.Cog):
                 custom_title = config_msg.get('title')
                 custom_description = config_msg.get('description')
                 
-                # Pemrosesan Judul
+                # Pemrosesan Judul (Hyperlink)
                 final_title = custom_title
                 if final_title and youtube_title:
-                    final_title = final_title.replace("{judul}", youtube_title)
+                    hyperlink_title = f"[{youtube_title}]({link_for_send})" 
+                    final_title = final_title.replace("{judul}", hyperlink_title)
                 elif not final_title and youtube_title:
-                    final_title = youtube_title
+                    final_title = f"[{youtube_title}]({link_for_send})"
                 elif final_title and final_title.find("{judul}") != -1:
                     final_title = final_title.replace("{judul}", "")
                 elif not final_title:
