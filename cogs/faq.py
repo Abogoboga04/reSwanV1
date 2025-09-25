@@ -9,10 +9,7 @@ import yt_dlp
 import functools
 import uuid
 
-# --- UTILITY FUNCTION: YOUTUBE METADATA EXTRACTION ---
-
 def _get_youtube_video_id(url):
-    """Mengekstrak ID video 11 karakter dari URL YouTube."""
     youtube_regex = r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
     match = re.search(youtube_regex, url)
     return match.group(1) if match else None
@@ -61,8 +58,6 @@ def get_config_path(cog, path_id, type_key, field_key=None):
     path = path_data["custom_messages"][type_key]
     return path.get(field_key, "") if field_key else path
 
-# --- MODALS ---
-
 class TextModal(discord.ui.Modal):
     def __init__(self, title, label, default_value, parent_view, type_key, field_key, path_id):
         super().__init__(title=title)
@@ -90,7 +85,7 @@ class ButtonLabelModal(discord.ui.Modal, title="Atur Tombol Notifikasi"):
         self.parent_view = parent_view
         self.type_key = type_key
         self.path_id = path_id
-        current_label = get_path_config(parent_view.cog, path_id, type_key, "button_label")
+        current_label = get_config_path(parent_view.cog, path_id, type_key, "button_label")
         self.label_input = discord.ui.TextInput(
             label="Label Tombol (Max 80 karater)",
             default=current_label,
@@ -110,7 +105,7 @@ class EmbedConfigModal(discord.ui.Modal, title="Pengaturan Embed & Thumbnail"):
         self.parent_view = parent_view
         self.type_key = type_key
         self.path_id = path_id
-        config_msg = get_path_config(parent_view.cog, path_id, type_key)
+        config_msg = get_config_path(parent_view.cog, path_id, type_key)
 
         self.input_embed = discord.ui.TextInput(
             label=f"Gunakan Embed? (True/False)",
@@ -143,8 +138,6 @@ class EmbedConfigModal(discord.ui.Modal, title="Pengaturan Embed & Thumbnail"):
         self.parent_view.cog.save_config()
         
         await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
-
-# --- VIEWS UTAMA ---
 
 class ButtonColorView(discord.ui.View):
     def __init__(self, parent_view, type_key, path_id):
@@ -243,17 +236,17 @@ class MessageConfigView(discord.ui.View):
 
     @discord.ui.button(label="Atur Pesan Biasa", style=discord.ButtonStyle.secondary)
     async def set_content_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        current_value = get_path_config(self.cog, self.path_id, self.type_key, "content")
+        current_value = get_config_path(self.cog, self.path_id, self.type_key, "content")
         await interaction.response.send_modal(TextModal("Atur Pesan Teks Biasa", "Isi Pesan", current_value, self, self.type_key, "content", self.path_id))
 
     @discord.ui.button(label="Atur Judul Embed", style=discord.ButtonStyle.secondary)
     async def set_title_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        current_value = get_path_config(self.cog, self.path_id, self.type_key, "title")
+        current_value = get_config_path(self.cog, self.path_id, self.type_key, "title")
         await interaction.response.send_modal(TextModal("Atur Judul Embed", "Judul Embed", current_value, self, self.type_key, "title", self.path_id))
 
     @discord.ui.button(label="Atur Deskripsi Embed", style=discord.ButtonStyle.secondary)
     async def set_desc_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        current_value = get_path_config(self.cog, self.path_id, self.type_key, "description")
+        current_value = get_config_path(self.cog, self.path_id, self.type_key, "description")
         await interaction.response.send_modal(TextModal("Atur Deskripsi Embed", "Deskripsi Embed", current_value, self, self.type_key, "description", self.path_id))
         
     @discord.ui.button(label="Atur Tombol & Warna", style=discord.ButtonStyle.secondary, row=1)
@@ -268,8 +261,6 @@ class MessageConfigView(discord.ui.View):
     async def finish_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message("✅ Pengaturan pesan berhasil disimpan!", ephemeral=True)
         self.stop()
-
-# --- VIEWS INTERAKTIF BARU ---
 
 class PathSelectView(discord.ui.View):
     def __init__(self, cog, guild_id):
@@ -350,8 +341,6 @@ class TypeSelectView(discord.ui.View):
         async def back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
              await interaction.response.edit_message(content="Pilih Jalur Notifikasi yang akan dikonfigurasi:", view=PathSelectView(self.cog, self.guild_id))
              self.stop()
-
-# --- COG UTAMA ---
 
 class Notif(commands.Cog):
     def __init__(self, bot):
@@ -477,8 +466,6 @@ class Notif(commands.Cog):
         with open(self.config_file, "w") as f:
             json.dump(self.config, f, indent=4)
             
-    # --- COMMANDS UTAMA ---
-
     @commands.command(name="adduser")
     @commands.has_permissions(administrator=True)
     async def add_user(self, ctx, user_id: str):
@@ -586,7 +573,6 @@ class Notif(commands.Cog):
         await ctx.send("Pilih Jalur Notifikasi yang akan dikonfigurasi:", view=view)
 
 
-    # --- COG LISTENER ---
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.id == self.bot.user.id or not message.guild:
@@ -640,15 +626,12 @@ class Notif(commands.Cog):
                 custom_title = config_msg.get('title')
                 custom_description = config_msg.get('description')
                 
-                # Pemrosesan Judul (DIHILANGKAN, HANYA DIPAKAI UNTUK DESKRIPSI)
                 final_title = None 
                 hyperlink_for_desc = None
                 
                 if youtube_title:
-                    # Selalu buat hyperlink besar untuk ditempel di deskripsi
                     hyperlink_for_desc = f"# [**{youtube_title}**]({link_for_send})" 
 
-                # Pemrosesan Deskripsi
                 final_description = custom_description
                 if final_description and youtube_description:
                     desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
@@ -658,10 +641,7 @@ class Notif(commands.Cog):
                 elif not final_description:
                     final_description = ""
                 
-                # GABUNGKAN HYPERLINK BESAR KE DESKRIPSI (DIPERBAIKI)
                 if hyperlink_for_desc:
-                    # Jika custom_description tidak memiliki teks (hanya placeholder yang hilang), 
-                    # kita hanya menampilkan hyperlink.
                     if final_description.strip():
                         final_description = f"{hyperlink_for_desc}\n\n" + final_description
                     else:
@@ -670,12 +650,8 @@ class Notif(commands.Cog):
                 use_embed = config_msg.get('use_embed', self.default_messages[link_type]['use_embed'])
                 embed_thumbnail_enabled = config_msg.get('embed_thumbnail', self.default_messages[link_type]['embed_thumbnail'])
                 
-                # final_title SELALU NONE, jadi kita tidak perlu cek di sini
-                # Judul embed dihilangkan sepenuhnya
-
                 final_content = f"{content} {link_for_send}" if content else link_for_send
 
-                # Pengambilan Button Style
                 button_label = config_msg.get('button_label', 'Tonton Konten')
                 button_style_value = config_msg.get('button_style', self.default_messages[link_type]['button_style'])
                 try: button_style = discord.ButtonStyle(button_style_value)
@@ -685,9 +661,8 @@ class Notif(commands.Cog):
                 try: embed_color = discord.Color(int(embed_color_hex.strip("#"), 16))
                 except: embed_color = discord.Color.blue()
 
-                # Pembuatan Embed dan Pengiriman
                 embed = None
-                if use_embed and final_description: # Hanya perlu cek final_description karena title=None
+                if use_embed and final_description:
                     embed = discord.Embed(
                         description=final_description,
                         color=embed_color
