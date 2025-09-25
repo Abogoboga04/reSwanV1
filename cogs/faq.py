@@ -10,13 +10,20 @@ import functools
 
 # --- UTILITY FUNCTION: YOUTUBE METADATA EXTRACTION ---
 
+def _get_youtube_video_id(url):
+    """Mengekstrak ID video 11 karakter dari URL YouTube."""
+    youtube_regex = r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
+    match = re.search(youtube_regex, url)
+    return match.group(1) if match else None
+
 def _extract_youtube_info(url):
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'force_generic_extractor': True,
         'no_warnings': True,
-        'extractor_args': {'youtube': {'skip': ['dash']}}
+        'extractor_args': {'youtube': {'skip': ['dash']}},
+        'format': 'best'
     }
     
     try:
@@ -29,7 +36,6 @@ def _extract_youtube_info(url):
             
             thumbnails = info.get('thumbnails', [])
             
-            # Prioritas resolusi tinggi
             priority_ids = ['maxres', 'standard', 'high']
             for id_ in priority_ids:
                 for t in thumbnails:
@@ -43,7 +49,14 @@ def _extract_youtube_info(url):
                  thumbnail_url = thumbnails[-1].get('url')
 
             return title, description, thumbnail_url
+            
     except Exception:
+        # FALLBACK: Jika yt-dlp gagal, coba ambil thumbnail hardcoded dari ID video
+        video_id = _get_youtube_video_id(url)
+        if video_id:
+            fallback_thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+            return None, None, fallback_thumbnail
+            
         return None, None, None
 
 def get_config_path(cog, guild_id_str, source_id_str, type_key, field_key=None):
@@ -167,7 +180,7 @@ class ButtonColorView(discord.ui.View):
                 guild_id_str = str(self.guild_id)
                 config_msg = self.parent_view.cog.config["guild_settings"][guild_id_str]["maps"][str(self.source_id)]["custom_messages"][self.type_key]
                 config_msg["button_style"] = btn_style_value
-                config_msg["embed_color"] = embed_hex
+                config_msg["embed_color"] = hex_color
                 self.parent_view.cog.save_config()
                 
                 await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
@@ -521,8 +534,8 @@ class Notif(commands.Cog):
         target_channel = self.bot.get_channel(target_channel_id)
         source_channel = self.bot.get_channel(source_channel_id)
         
-        source_info = f"#{source_channel.name} ({source_channel.guild.name})" if source_channel else f"ID: {source_channel_id} (Tidak ditemukan)"
-        target_info = f"#{target_channel.name} ({target_channel.guild.name})" if target_channel else f"ID: {target_channel_id} (Tidak ditemukan)"
+        source_info = f"#{source_channel.name} ({source_channel.guild.name})" if source_channel and source_channel.guild else f"ID: {source_channel_id} (Tidak ditemukan)"
+        target_info = f"#{target_channel.name} ({target_channel.guild.name})" if target_channel and target_channel.guild else f"ID: {target_channel_id} (Tidak ditemukan)"
 
 
         target_list = self.config["guild_settings"][guild_id_str]["maps"][source_id_str]["target_channel_ids"]
@@ -649,14 +662,19 @@ class Notif(commands.Cog):
             final_title = final_title.replace("{judul}", youtube_title)
         elif not final_title and youtube_title:
             final_title = youtube_title
+        elif final_title and final_title.find("{judul}") != -1:
+            final_title = final_title.replace("{judul}", "")
         elif not final_title:
             final_title = None
 
-        # Pemrosesan Deskripsi
+        # Pemrosesan Deskripsi (Perbaikan DITERAPKAN DI SINI)
         final_description = custom_description
         if final_description and youtube_description:
             desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
             final_description = final_description.replace("{deskripsi}", desc_sub)
+        elif final_description and final_description.find("{deskripsi}") != -1:
+            # Hapus placeholder jika yt-dlp gagal mengambil data
+            final_description = final_description.replace("{deskripsi}", "")
         elif not final_description:
             final_description = ""
         
