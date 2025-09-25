@@ -54,7 +54,7 @@ def _extract_youtube_info(url):
             
         return None, None, None
 
-def get_path_config(cog, path_id, type_key, field_key=None):
+def get_config_path(cog, path_id, type_key, field_key=None):
     path_data = cog.config["notification_paths"].get(path_id)
     if not path_data: return None
     
@@ -640,19 +640,22 @@ class Notif(commands.Cog):
                 custom_title = config_msg.get('title')
                 custom_description = config_msg.get('description')
                 
-                # Pemrosesan Judul (Hyperlink)
+                # Pemrosesan Judul (DIKEMBALIKAN KE TEKS BIASA)
                 final_title = custom_title
+                hyperlink_for_desc = None
+                
                 if final_title and youtube_title:
-                    hyperlink_title = f"[{youtube_title}]({link_for_send})" 
-                    final_title = final_title.replace("{judul}", hyperlink_title)
+                    hyperlink_for_desc = f"[{youtube_title}]({link_for_send})" 
+                    final_title = final_title.replace("{judul}", youtube_title) # Teks biasa di Judul Embed
                 elif not final_title and youtube_title:
-                    final_title = f"[{youtube_title}]({link_for_send})"
+                    final_title = youtube_title
+                    hyperlink_for_desc = f"[{youtube_title}]({link_for_send})" 
                 elif final_title and final_title.find("{judul}") != -1:
                     final_title = final_title.replace("{judul}", "")
                 elif not final_title:
                     final_title = None
 
-                # Pemrosesan Deskripsi
+                # Pemrosesan Deskripsi (Menambahkan Hyperlink di baris pertama)
                 final_description = custom_description
                 if final_description and youtube_description:
                     desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
@@ -661,6 +664,11 @@ class Notif(commands.Cog):
                     final_description = final_description.replace("{deskripsi}", "")
                 elif not final_description:
                     final_description = ""
+                
+                # GABUNGKAN HYPERLINK KE DESKRIPSI (JIKA ADA)
+                if hyperlink_for_desc:
+                    final_description = f"{hyperlink_for_desc}\n\n" + final_description
+
                 
                 use_embed = config_msg.get('use_embed', self.default_messages[link_type]['use_embed'])
                 embed_thumbnail_enabled = config_msg.get('embed_thumbnail', self.default_messages[link_type]['embed_thumbnail'])
