@@ -167,10 +167,10 @@ class ButtonColorView(discord.ui.View):
 
     def _create_buttons(self):
         buttons_data = [
-            ("Biru (Primary)", discord.ButtonStyle.primary, "#3498db"),
+            ("Biru (Primary)", discord.ButtonStyle.blue, "#3498db"),
             ("Abu-abu (Secondary)", discord.ButtonStyle.secondary, "#95a5a6"),
-            ("Hijau (Success)", discord.ButtonStyle.success, "#2ecc71"),
-            ("Merah (Danger)", discord.ButtonStyle.danger, "#e74c3c")
+            ("Hijau (Success)", discord.ButtonStyle.green, "#2ecc71"),
+            ("Merah (Danger)", discord.ButtonStyle.red, "#e74c3c")
         ]
         
         for label, style, hex_color in buttons_data:
