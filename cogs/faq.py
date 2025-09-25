@@ -640,22 +640,15 @@ class Notif(commands.Cog):
                 custom_title = config_msg.get('title')
                 custom_description = config_msg.get('description')
                 
-                # Pemrosesan Judul (DIKEMBALIKAN KE TEKS BIASA)
-                final_title = custom_title
+                # Pemrosesan Judul (DIHILANGKAN, HANYA DIPAKAI UNTUK DESKRIPSI)
+                final_title = None 
                 hyperlink_for_desc = None
                 
-                if final_title and youtube_title:
-                    hyperlink_for_desc = f"[{youtube_title}]({link_for_send})" 
-                    final_title = final_title.replace("{judul}", youtube_title) # Teks biasa di Judul Embed
-                elif not final_title and youtube_title:
-                    final_title = youtube_title
-                    hyperlink_for_desc = f"[{youtube_title}]({link_for_send})" 
-                elif final_title and final_title.find("{judul}") != -1:
-                    final_title = final_title.replace("{judul}", "")
-                elif not final_title:
-                    final_title = None
+                if youtube_title:
+                    # Selalu buat hyperlink besar untuk ditempel di deskripsi
+                    hyperlink_for_desc = f"# [**{youtube_title}**]({link_for_send})" 
 
-                # Pemrosesan Deskripsi (Menambahkan Hyperlink di baris pertama)
+                # Pemrosesan Deskripsi
                 final_description = custom_description
                 if final_description and youtube_description:
                     desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
@@ -665,16 +658,21 @@ class Notif(commands.Cog):
                 elif not final_description:
                     final_description = ""
                 
-                # GABUNGKAN HYPERLINK KE DESKRIPSI (JIKA ADA)
+                # GABUNGKAN HYPERLINK BESAR KE DESKRIPSI (DIPERBAIKI)
                 if hyperlink_for_desc:
-                    final_description = f"{hyperlink_for_desc}\n\n" + final_description
-
+                    # Jika custom_description tidak memiliki teks (hanya placeholder yang hilang), 
+                    # kita hanya menampilkan hyperlink.
+                    if final_description.strip():
+                        final_description = f"{hyperlink_for_desc}\n\n" + final_description
+                    else:
+                        final_description = hyperlink_for_desc
                 
                 use_embed = config_msg.get('use_embed', self.default_messages[link_type]['use_embed'])
                 embed_thumbnail_enabled = config_msg.get('embed_thumbnail', self.default_messages[link_type]['embed_thumbnail'])
                 
-                if not final_title and use_embed: final_title = "Konten Baru!" 
-                
+                # final_title SELALU NONE, jadi kita tidak perlu cek di sini
+                # Judul embed dihilangkan sepenuhnya
+
                 final_content = f"{content} {link_for_send}" if content else link_for_send
 
                 # Pengambilan Button Style
@@ -689,9 +687,8 @@ class Notif(commands.Cog):
 
                 # Pembuatan Embed dan Pengiriman
                 embed = None
-                if use_embed and (final_title or final_description):
+                if use_embed and final_description: # Hanya perlu cek final_description karena title=None
                     embed = discord.Embed(
-                        title=final_title if final_title else "Konten Baru!",
                         description=final_description,
                         color=embed_color
                     )
