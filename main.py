@@ -504,7 +504,7 @@ async def backupnow(ctx):
         await ctx.send("🤷 Tidak ada file .json yang ditemukan untuk di-backup.")
         log.warning("Tidak ada file .json ditemukan untuk di-backup.")
 
-@bot.commandsname="sync", description="Sinkronisasi slash command ke Discord")
+@bot.command(name="sync", description="Sinkronisasi slash command ke Discord")
 @commands.is_owner()
 async def sync_tree(self, ctx):
     await ctx.send("Mencoba sinkronisasi command ke Discord...")
