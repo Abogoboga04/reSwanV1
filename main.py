@@ -352,7 +352,7 @@ async def on_guild_remove(guild):
             log.error(f"Terjadi error saat mengirim notifikasi keluar server: {e}")
 
 
-@commands.hybrid_command(name="help", aliases=["h"])
+@commands.command(name="help", aliases=["h"])
 async def custom_help(ctx, *, command_name: str = None):
     prefix = ctx.prefix
 
