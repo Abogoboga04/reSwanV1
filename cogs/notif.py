@@ -519,7 +519,7 @@ class Notif(commands.Cog, name="🔔 Notification"):
             
         print("Loop reset harian siap untuk dimulai.")
 
-    @commands.command(name="adduser")
+    @commands.hybrid_command(name="adduser")
     @commands.has_permissions(administrator=True)
     async def add_user(self, ctx, user_id: str):
         if user_id in self.config["mirrored_users"]:
@@ -529,7 +529,7 @@ class Notif(commands.Cog, name="🔔 Notification"):
         self.save_config()
         await ctx.send(f"✅ User dengan ID `{user_id}` berhasil ditambahkan.")
 
-    @commands.command(name="removeuser")
+    @commands.hybrid_command(name="removeuser")
     @commands.has_permissions(administrator=True)
     async def remove_user(self, ctx, user_id: str):
         if user_id not in self.config["mirrored_users"]:
@@ -539,14 +539,14 @@ class Notif(commands.Cog, name="🔔 Notification"):
         self.save_config()
         await ctx.send(f"✅ User dengan ID `{user_id}` berhasil dihapus.")
         
-    @commands.command(name="resetcache")
+    @commands.hybrid_command(name="resetcache")
     @commands.has_permissions(administrator=True)
     async def reset_cache(self, ctx):
         self.config["recent_video_ids"] = []
         self.save_config()
         await ctx.send("✅ Cache ID video yang baru saja dikirim berhasil **dibersihkan**.")
 
-    @commands.command(name="addpath")
+    @commands.hybrid_command(name="addpath")
     @commands.has_permissions(administrator=True)
     async def add_notification_path(self, ctx, source_channel_id: int, target_channel_id: int):
         if not ctx.guild:
@@ -576,7 +576,7 @@ class Notif(commands.Cog, name="🔔 Notification"):
         msg += f"ID Jalur: `{new_path_id}`"
         await ctx.send(msg)
 
-    @commands.command(name="removepath")
+    @commands.hybrid_command(name="removepath")
     @commands.has_permissions(administrator=True)
     async def remove_notification_path(self, ctx, path_id: str):
         if path_id in self.config["notification_paths"]:
@@ -586,7 +586,7 @@ class Notif(commands.Cog, name="🔔 Notification"):
         else:
             await ctx.send(f"❌ Jalur notifikasi dengan ID `{path_id}` tidak ditemukan.")
 
-    @commands.command(name="config")
+    @commands.hybrid_command(name="config")
     @commands.has_permissions(administrator=True)
     async def start_config(self, ctx):
         if not ctx.guild:
