@@ -504,6 +504,17 @@ async def backupnow(ctx):
         await ctx.send("🤷 Tidak ada file .json yang ditemukan untuk di-backup.")
         log.warning("Tidak ada file .json ditemukan untuk di-backup.")
 
+@commands.command(name="sync", description="Sinkronisasi slash command ke Discord")
+@commands.is_owner()
+async def sync_tree(self, ctx):
+    await ctx.send("Mencoba sinkronisasi command ke Discord...")
+    try:
+        synced = await self.bot.tree.sync()
+        await ctx.send(f"Mantap! Berhasil sinkronisasi {len(synced)} slash command secara global.")
+    except Exception as e:
+        await ctx.send(f"Terjadi error saat sinkronisasi: {e}")
+
+
 @bot.command()
 @commands.is_owner()
 async def sendbackup(ctx):
