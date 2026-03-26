@@ -10,19 +10,51 @@ import functools
 import uuid
 import aiohttp
 import datetime
+from functools import partial
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 
-# --- BARU: Pustaka untuk menangani .env, Base64, dan file sementara ---
 from dotenv import load_dotenv 
 import base64
 import tempfile
-# ---------------------------------------------------------------------
+
+load_dotenv()
+
+API_KEYS = []
+if os.getenv("GOOGLE_API_KEY"):
+    API_KEYS.append(os.getenv("GOOGLE_API_KEY"))
+
+key_index = 2
+while True:
+    extra_key = os.getenv(f"GOOGLE_API_KEY_{key_index}")
+    if extra_key:
+        API_KEYS.append(extra_key)
+        key_index += 1
+    else:
+        break
+
+current_key_idx = 0
+
+def configure_genai():
+    global current_key_idx
+    if API_KEYS:
+        genai.configure(api_key=API_KEYS[current_key_idx])
+
+def rotate_api_key():
+    global current_key_idx
+    if len(API_KEYS) > 1:
+        current_key_idx = (current_key_idx + 1) % len(API_KEYS)
+        configure_genai()
+        return True
+    return False
+
+configure_genai()
 
 def _get_youtube_video_id(url):
-    youtube_regex = r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
+    youtube_regex = r'(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)?(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|watch\?.*&v=|live\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
     match = re.search(youtube_regex, url)
     return match.group(1) if match else None
 
-# --- MODIFIKASI: Menerima cookiefile_path opsional ---
 def _extract_youtube_info(url, cookiefile_path=None):
     ydl_opts = {
         'quiet': True,
@@ -33,7 +65,6 @@ def _extract_youtube_info(url, cookiefile_path=None):
         'format': 'best'
     }
     
-    # Tambahkan opsi cookiefile jika jalur disediakan
     if cookiefile_path:
         ydl_opts['cookiefile'] = cookiefile_path
     
@@ -42,6 +73,7 @@ def _extract_youtube_info(url, cookiefile_path=None):
             info = ydl.extract_info(url, download=False)
             title = info.get('title')
             description = info.get('description', '')
+            video_url = info.get('webpage_url', url)
             thumbnail_url = None
             
             thumbnails = info.get('thumbnails', [])
@@ -52,18 +84,19 @@ def _extract_youtube_info(url, cookiefile_path=None):
                         thumbnail_url = t.get('url')
                         break
                 if thumbnail_url: break
-            if not thumbnail_url and thumbnails: thumbnail_url = thumbnails[-1].get('url')
+            if not thumbnail_url and thumbnails: 
+                thumbnail_url = thumbnails[-1].get('url')
 
-            return title, description, thumbnail_url
+            return title, description, thumbnail_url, video_url
             
     except Exception:
         video_id = _get_youtube_video_id(url)
         if video_id:
-            fallback_thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
-            return None, None, fallback_thumbnail
+            fallback_thumbnail = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+            return None, None, fallback_thumbnail, url
             
-        return None, None, None
-# ------------------------------------------------------
+        return None, None, None, url
+
 
 def get_config_path(cog, path_id, type_key, field_key=None):
     path_data = cog.config["notification_paths"].get(path_id)
@@ -101,7 +134,7 @@ class ButtonLabelModal(discord.ui.Modal, title="Atur Tombol Notifikasi"):
         self.path_id = path_id
         current_label = get_config_path(parent_view.cog, path_id, type_key, "button_label")
         self.label_input = discord.ui.TextInput(
-            label="Label Tombol (Max 80 karater)",
+            label="Label Tombol",
             default=current_label,
             style=discord.TextStyle.short,
             max_length=80
@@ -110,6 +143,41 @@ class ButtonLabelModal(discord.ui.Modal, title="Atur Tombol Notifikasi"):
 
     async def on_submit(self, interaction: discord.Interaction):
         self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]["button_label"] = self.label_input.value
+        self.parent_view.cog.save_config()
+        await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view.build_color_view())
+
+class ColorInputModal(discord.ui.Modal, title="Atur Warna Custom"):
+    def __init__(self, parent_view, type_key, path_id, color_type):
+        super().__init__()
+        self.parent_view = parent_view
+        self.type_key = type_key
+        self.path_id = path_id
+        self.color_type = color_type
+        
+        current_color = get_config_path(parent_view.cog, path_id, type_key, 
+                                       "embed_color" if color_type == 'embed' else "button_color")
+        
+        self.color_input = discord.ui.TextInput(
+            label=f"Warna HEX {color_type.capitalize()}",
+            default=current_color or "#3498db",
+            style=discord.TextStyle.short,
+            max_length=7,
+            placeholder="#FFFFFF"
+        )
+        self.add_item(self.color_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        color_value = self.color_input.value.strip()
+        
+        if not re.match(r'^#[0-9A-Fa-f]{6}$', color_value):
+            await interaction.response.send_message("Format warna HEX tidak valid! Gunakan format: #RRGGBB", ephemeral=True)
+            return
+        
+        if self.color_type == 'embed':
+            self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]["embed_color"] = color_value
+        else:
+            self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]["button_color"] = color_value
+            
         self.parent_view.cog.save_config()
         await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view.build_color_view())
 
@@ -122,31 +190,80 @@ class ButtonColorView(discord.ui.View):
         self._create_buttons()
 
     def _create_buttons(self):
-        buttons_data = [
-            ("Biru (Primary/Blurple)", discord.ButtonStyle.primary, "#5865f2"),
-            ("Abu-abu (Secondary/Grey)", discord.ButtonStyle.secondary, "#95a5a6"),
-            ("Hijau (Success/Green)", discord.ButtonStyle.success, "#57f287"),
-            ("Merah (Danger/Red)", discord.ButtonStyle.danger, "#ed4245")
+        preset_colors = [
+            ("Biru Primary", discord.ButtonStyle.primary, "#5865f2"),
+            ("Abu Secondary", discord.ButtonStyle.secondary, "#95a5a6"),
+            ("Hijau Success", discord.ButtonStyle.success, "#57f287"),
+            ("Merah Danger", discord.ButtonStyle.danger, "#ed4245")
         ]
         
-        for label, style, hex_color in buttons_data:
-            button = discord.ui.Button(label=label, style=style)
+        embed_colors = [
+            ("Merah Live", "#e74c3c"),
+            ("Hijau Upload", "#2ecc71"),
+            ("Biru Default", "#3498db"),
+            ("Ungu Premium", "#9b59b6"),
+            ("Emas", "#f1c40f"),
+            ("Oranye", "#e67e22"),
+            ("Teal", "#1abc9c"),
+            ("Navy", "#34495e")
+        ]
+        
+        self.add_item(discord.ui.Button(label="WARNA TOMBOL", style=discord.ButtonStyle.grey, disabled=True, row=0))
+        
+        for label, style, hex_color in preset_colors:
+            button = discord.ui.Button(label=label, style=style, row=1)
             
-            async def callback(interaction: discord.Interaction, btn_style_value=style.value, embed_hex=hex_color):
+            async def callback(interaction: discord.Interaction, btn_style_value, btn_hex):
                 config_msg = self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]
                 config_msg["button_style"] = btn_style_value
-                config_msg["embed_color"] = hex_color
+                config_msg["button_color"] = btn_hex
                 self.parent_view.cog.save_config()
                 await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
                 self.stop()
             
-            button.callback = lambda i, s=style, h=hex_color: callback(i, s.value, h)
+            button.callback = partial(callback, btn_style_value=style.value, btn_hex=hex_color)
             self.add_item(button)
+        
+        self.add_item(discord.ui.Button(label="WARNA EMBED", style=discord.ButtonStyle.grey, disabled=True, row=2))
+        
+        for label, hex_color in embed_colors[:4]:
+            button = discord.ui.Button(label=label, style=discord.ButtonStyle.primary, row=3)
             
-    @discord.ui.button(label="Batalkan", style=discord.ButtonStyle.red, row=1)
-    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
-        self.stop()
+            async def callback(interaction: discord.Interaction, embed_hex):
+                config_msg = self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]
+                config_msg["embed_color"] = embed_hex
+                self.parent_view.cog.save_config()
+                await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
+                self.stop()
+            
+            button.callback = partial(callback, embed_hex=hex_color)
+            self.add_item(button)
+        
+        for label, hex_color in embed_colors[4:]:
+            button = discord.ui.Button(label=label, style=discord.ButtonStyle.primary, row=4)
+            
+            async def callback(interaction: discord.Interaction, embed_hex=hex_color):
+                config_msg = self.parent_view.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]
+                config_msg["embed_color"] = embed_hex
+                self.parent_view.cog.save_config()
+                await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
+                self.stop()
+            
+            button.callback = partial(callback, embed_hex=hex_color)
+            self.add_item(button)
+        
+        custom_embed_btn = discord.ui.Button(label="Custom Warna Embed", style=discord.ButtonStyle.secondary, row=0)
+        async def custom_embed_callback(interaction: discord.Interaction):
+            await interaction.response.send_modal(ColorInputModal(self.parent_view, self.type_key, self.path_id, 'embed'))
+        custom_embed_btn.callback = custom_embed_callback
+        self.add_item(custom_embed_btn)
+            
+        cancel_button = discord.ui.Button(label="Batalkan", style=discord.ButtonStyle.red, row=4)
+        async def cancel_callback(interaction: discord.Interaction):
+            await interaction.response.edit_message(embed=self.parent_view.build_embed(), view=self.parent_view)
+            self.stop()
+        cancel_button.callback = cancel_callback
+        self.add_item(cancel_button)
 
 class MessageConfigView(discord.ui.View):
     def __init__(self, cog, type_key, path_id):
@@ -160,6 +277,8 @@ class MessageConfigView(discord.ui.View):
         config_msg = path_data["custom_messages"][self.type_key]
         
         embed_color_hex = config_msg.get('embed_color', '#3498db') 
+        button_color_hex = config_msg.get('button_color', '#5865f2')
+        
         try:
             color_int = int(embed_color_hex.strip("#"), 16)
             embed_color = discord.Color(color_int)
@@ -178,28 +297,34 @@ class MessageConfigView(discord.ui.View):
 
         embed = discord.Embed(
             title=f"Pengaturan Pesan: {self.type_key.upper()}",
-            description=f"**Jalur:** {source_info} $\rightarrow$ {target_info}\n**ID Jalur:** `{self.path_id}`",
+            description=f"**Jalur:** {source_info} $\\rightarrow$ {target_info}\n**ID Jalur:** `{self.path_id}`",
             color=embed_color
         )
         
-        embed.add_field(name="Isi Pesan Biasa", value=f"`{config_msg.get('content') or 'Belum diatur'}`", inline=False)
+        embed.add_field(name="Isi Pesan Biasa", value=f"`{config_msg.get('content') or 'Belum diatur'}`\n*(Gunakan: {{ai_hype}} buat teks Jarkasih kalcer)*", inline=False)
         embed.add_field(name="Judul Embed", value=f"`{config_msg.get('title') or 'Belum diatur'}` (Gunakan: {{judul}})", inline=False)
-        embed.add_field(name="Deskripsi Embed", value=f"`{config_msg.get('description') or 'Belum diatur'}` (Gunakan: {{deskripsi}})", inline=False)
+        embed.add_field(name="Deskripsi Embed", value=f"`{config_msg.get('description') or 'Belum diatur'}` (Gunakan: {{deskripsi}}, {{url}})", inline=False)
         embed.add_field(name="Label Tombol", value=f"`{config_msg.get('button_label') or 'Belum diatur'}`", inline=False)
         
         button_style_value = config_msg.get('button_style', discord.ButtonStyle.primary.value)
         try:
             button_style_name = discord.ButtonStyle(button_style_value).name.capitalize().replace('_', ' ')
         except ValueError:
-            button_style_name = "Tidak Diketahui (Default: Primary)"
+            button_style_name = "Primary"
         
         use_embed = config_msg.get('use_embed', True)
         embed_thumb = config_msg.get('embed_thumbnail', True)
 
-        embed.add_field(name="Warna Tombol", value=f"`{button_style_name}`", inline=True)
+        embed.add_field(name="Style Tombol", value=f"`{button_style_name}`", inline=True)
+        embed.add_field(name="Warna Tombol", value=f"`{button_color_hex}`", inline=True)
         embed.add_field(name="Warna Samping Embed", value=f"`{embed_color_hex}`", inline=True)
         embed.add_field(name="Status Embed", value=f"**`{'Aktif' if use_embed else 'Mati'}`**", inline=True)
         embed.add_field(name="Status Thumbnail", value=f"**`{'Aktif' if embed_thumb else 'Mati'}`**", inline=True)
+        
+        color_preview = f"**Preview Warna:**\n"
+        color_preview += f"Embed: ████ `{embed_color_hex}`\n"
+        color_preview += f"Tombol: ████ `{button_color_hex}`"
+        embed.add_field(name="\u200b", value=color_preview, inline=False)
         
         return embed
 
@@ -225,6 +350,10 @@ class MessageConfigView(discord.ui.View):
     async def set_button_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(ButtonLabelModal(self, self.type_key, self.path_id))
         
+    @discord.ui.button(label="Atur Warna Custom", style=discord.ButtonStyle.primary, row=1)
+    async def set_custom_color_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(view=self.build_color_view())
+        
     @discord.ui.button(label="Toggle Status Embed", style=discord.ButtonStyle.secondary, row=2)
     async def toggle_embed_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         config_msg = self.cog.config["notification_paths"][self.path_id]["custom_messages"][self.type_key]
@@ -244,7 +373,7 @@ class MessageConfigView(discord.ui.View):
     @discord.ui.button(label="Selesai", style=discord.ButtonStyle.green, row=3)
     async def finish_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
-        await interaction.response.send_message("✅ Pengaturan pesan berhasil disimpan!", ephemeral=True, delete_after=5)
+        await interaction.response.send_message("Pengaturan pesan berhasil disimpan!", ephemeral=True, delete_after=5)
         self.stop()
 
 class PathSelectView(discord.ui.View):
@@ -258,9 +387,11 @@ class PathSelectView(discord.ui.View):
         options = []
         for path_id, data in self.cog.config["notification_paths"].items():
             source_id = data['source_id']
-            target_id = data['target_id']
-
             source_channel = self.cog.bot.get_channel(source_id)
+            if source_channel and source_channel.guild.id != self.guild_id:
+                continue
+                
+            target_id = data['target_id']
             target_channel = self.cog.bot.get_channel(target_id)
 
             source_name = f"#{source_channel.name}" if source_channel else f"ID {source_id}"
@@ -275,7 +406,7 @@ class PathSelectView(discord.ui.View):
         options = self._get_path_options()
         
         if not options:
-            self.add_item(discord.ui.Button(label="❌ Tidak ada Jalur Notifikasi terdaftar", style=discord.ButtonStyle.red, disabled=True))
+            self.add_item(discord.ui.Button(label="Tidak ada Jalur Notifikasi terdaftar di Server ini", style=discord.ButtonStyle.red, disabled=True))
             return
 
         path_select = discord.ui.Select(
@@ -287,7 +418,7 @@ class PathSelectView(discord.ui.View):
         async def callback(interaction: discord.Interaction):
             selected_path_id = path_select.values[0]
             type_select_view = TypeSelectView(self.cog, self.guild_id, selected_path_id)
-            await interaction.response.edit_message(content=f"🛠️ Jalur dipilih: `{selected_path_id}`. Pilih Tipe Pesan:", view=type_select_view)
+            await interaction.response.edit_message(content=f"Jalur dipilih: `{selected_path_id}`. Pilih Tipe Pesan:", view=type_select_view)
             self.stop()
             
         path_select.callback = callback
@@ -331,10 +462,6 @@ class Notif(commands.Cog, name="🔔 Notification"):
         self.bot = bot
         self.config_file = "data/notif.json"
         
-        # --- BARU: Muat file .env saat bot dimulai ---
-        load_dotenv()
-        # ---------------------------------------------
-        
         self.default_messages = self._get_default_messages() 
         self.config = self._load_config()
         self.daily_reset_task.start()
@@ -342,109 +469,150 @@ class Notif(commands.Cog, name="🔔 Notification"):
     def cog_unload(self):
         self.daily_reset_task.cancel()
 
+    async def _extract_url_from_message(self, message):
+        markdown_url_pattern = r'\[.*?\]\((https?://[^\)]+)\)'
+        markdown_match = re.search(markdown_url_pattern, message.content)
+        
+        if markdown_match:
+            return markdown_match.group(1)
+        
+        general_url_pattern = re.compile(r'https?://[^\s<>"]+|www\.[^\s<>"]+')
+        match = general_url_pattern.search(message.content)
+        
+        if match:
+            return match.group(0).rstrip(').,!')
+        
+        return None
+
+    async def _detect_youtube_link(self, url, message_content):
+        youtube_regex = r'(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)?(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|watch\?.*&v=|live\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
+        
+        if re.search(youtube_regex, url):
+            if "live" in message_content.lower() or "/live/" in url or "youtube.com/live/" in url:
+                return "live", url
+            elif "premier" in message_content.lower() or "premiere" in message_content.lower():
+                return "premier", url
+            else:
+                return "upload", url
+        
+        return None, url
+
+    async def _detect_tiktok_link(self, url):
+        tiktok_patterns = [
+            r'(?:https?:\/\/)?(?:[\w-]+\.)?tiktok\.com/(?:@[\w.-]+\/)?video/(\d+)',
+            r'(?:https?:\/\/)?(?:[\w-]+\.)?tiktok\.com/(?:@[\w.-]+\/)?t/(\w+)',
+            r'(?:https?:\/\/)?(?:[\w-]+\.)?tiktok\.com/t/(\w+)',
+            r'(?:https?:\/\/)?(?:vm|vt|m)\.tiktok\.com/(\w+)'
+        ]
+
+        original_url = url
+        
+        for pattern in tiktok_patterns:
+            if re.search(pattern, url, re.IGNORECASE):
+                if "vm.tiktok.com" in url or "vt.tiktok.com" in url:
+                    try:
+                        timeout = aiohttp.ClientTimeout(total=10)
+                        async with aiohttp.ClientSession(timeout=timeout) as session:
+                            async with session.get(url, allow_redirects=True) as response:
+                                final_url = str(response.url)
+                                if "tiktok.com" in final_url:
+                                    url = final_url
+                    except Exception as e:
+                        print(f"Error resolving TikTok URL: {e}")
+                
+                if "www.tiktok.com" not in url and "tiktok.com" in url:
+                    url = url.replace("tiktok.com", "www.tiktok.com")
+                
+                return "tiktok", url
+        
+        return None, original_url
+
     async def _get_link_from_url(self, message):
-        youtube_regex = r'(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
-        tiktok_video_regex = r'tiktok\.com\/.*\/video\/(\d+)'
-
-        general_url_pattern = re.compile(r'https?:\/\/[^\s]+')
-        
-        message_content = message.content
-        match = general_url_pattern.search(message_content)
-
-        if not match:
+        url = await self._extract_url_from_message(message)
+        if not url:
             return None, None
-            
-        link_for_send = match.group(0).rstrip(').,!')
-
-        if "tiktok.com" in link_for_send:
-            if not re.search(tiktok_video_regex, link_for_send):
-                try:
-                    timeout = aiohttp.ClientTimeout(total=10)
-                    async with aiohttp.ClientSession(timeout=timeout) as session:
-                        async with session.get(link_for_send, allow_redirects=True) as response:
-                            link_for_send = str(response.url)
-                except Exception as e:
-                    return None, None
-
-        link_type = None
-        if re.search(youtube_regex, link_for_send):
-            link_type = "upload"
-            if "premier" in message_content.lower():
-                link_type = "premier"
-            elif "live" in message_content.lower():
-                link_type = "live"
         
-        elif re.search(tiktok_video_regex, link_for_send):
-            link_type = "default"
-            if "www." not in link_for_send:
-                link_for_send = link_for_send.replace("tiktok.com/", "www.tiktok.com/")
+        link_type, final_url = await self._detect_youtube_link(url, message.content)
+        if link_type:
+            return link_type, final_url
         
-        else:
-            return None, None
-
-        return link_type, link_for_send
+        link_type, final_url = await self._detect_tiktok_link(url)
+        if link_type:
+            return link_type, final_url
+        
+        return None, None
     
     def _get_unique_video_id(self, url):
-        youtube_regex = r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.*&v=))([a-zA-Z0-9_-]{11})'
-        tiktok_regex = r'(?:tiktok\.com\/.*\/video\/(\d+))'
-
+        youtube_regex = r'(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)?(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|watch\?.*&v=|live\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
         match = re.search(youtube_regex, url)
         if match:
             return f"yt_{match.group(1)}"
 
-        match = re.search(tiktok_regex, url)
-        if match:
-            return f"tk_{match.group(1)}"
+        tiktok_patterns = [
+            r'(?:https?:\/\/)?(?:[\w-]+\.)?tiktok\.com/(?:@[\w.-]+\/)?video/(\d+)',
+            r'(?:https?:\/\/)?(?:[\w-]+\.)?tiktok\.com/(?:@[\w.-]+\/)?t/(\w+)',
+            r'(?:https?:\/\/)?(?:[\w-]+\.)?tiktok\.com/t/(\w+)',
+            r'(?:https?:\/\/)?(?:vm|vt|m)\.tiktok\.com/(\w+)'
+        ]
+        
+        for pattern in tiktok_patterns:
+            match = re.search(pattern, url, re.IGNORECASE)
+            if match:
+                video_id = match.group(1)
+                return f"tk_{video_id}"
 
         return None
 
     def _get_default_messages(self):
         return {
             "live": {
-                "title": "🔴 **{judul}**",
-                "description": "Yuk gabung di live stream ini!",
-                "content": "@everyone Live stream dimulai!",
+                "title": "[🔴 {judul}]({url})",
+                "description": "Yuk gabung di live stream ini!\n\n{url}",
+                "content": "@everyone {ai_hype}",
                 "button_label": "Tonton Live",
                 "button_style": discord.ButtonStyle.danger.value,
+                "button_color": "#ed4245",
                 "embed_color": "#e74c3c",
-                "use_embed": True,
+                "use_embed": False,
                 "embed_thumbnail": True
             },
             "upload": {
-                "title": "✨ **{judul}**",
-                "description": "Video baru diupload, jangan sampai ketinggalan!",
-                "content": "Ada video baru nih, cekidot!",
+                "title": "[✨ {judul}]({url})",
+                "description": "Video baru diupload, jangan sampai ketinggalan!\n\n{url}",
+                "content": "@everyone {ai_hype}",
                 "button_label": "Tonton Video",
-                "button_style": discord.ButtonStyle.secondary.value,
-                "embed_color": "#95a5a6",
-                "use_embed": True,
+                "button_style": discord.ButtonStyle.primary.value,
+                "button_color": "#5865f2",
+                "embed_color": "#2ecc71",
+                "use_embed": False,
                 "embed_thumbnail": True
             },
             "premier": {
-                "title": "🎬 **Premiere Segera: {judul}**",
-                "description": "Video premiere akan segera tayang!",
-                "content": "Ada video premiere!",
+                "title": "[🎬 Premiere Segera: {judul}]({url})",
+                "description": "Video premiere akan segera tayang!\n\n{url}",
+                "content": "@everyone {ai_hype}",
                 "button_label": "Tonton Premiere",
                 "button_style": discord.ButtonStyle.success.value,
-                "embed_color": "#2ecc71",
-                "use_embed": True,
+                "button_color": "#57f287",
+                "embed_color": "#9b59b6",
+                "use_embed": False,
                 "embed_thumbnail": True
             },
-            "default": {
-                "title": None,
-                "description": None,
-                "content": None,
-                "button_label": "Tonton Konten",
+            "tiktok": {
+                "title": "[📱 {judul}]({url})",
+                "description": "Cek video TikTok terbaru!\n\n{url}",
+                "content": "@everyone {ai_hype}",
+                "button_label": "Tonton di TikTok",
                 "button_style": discord.ButtonStyle.primary.value,
-                "embed_color": "#3498db",
-                "use_embed": True,
+                "button_color": "#000000",
+                "embed_color": "#000000",
+                "use_embed": False,
                 "embed_thumbnail": True
             }
         }
 
     def _load_config(self):
         default_config = {
-            "mirrored_users": [], 
             "notification_paths": {}, 
             "recent_video_ids": [],
             "last_daily_reset_timestamp": None,
@@ -459,6 +627,15 @@ class Notif(commands.Cog, name="🔔 Notification"):
             print("File konfigurasi 'notif.json' tidak ditemukan atau rusak, membuat file baru.")
         
         final_config = {**default_config, **config}
+        
+        if "mirrored_users" in final_config:
+            del final_config["mirrored_users"]
+        
+        for path_id, path_data in final_config["notification_paths"].items():
+            if "custom_messages" in path_data:
+                for message_type in self.default_messages.keys():
+                    if message_type not in path_data["custom_messages"]:
+                        path_data["custom_messages"][message_type] = self.default_messages[message_type].copy()
         
         os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
         with open(self.config_file, "w") as f:
@@ -484,7 +661,7 @@ class Notif(commands.Cog, name="🔔 Notification"):
         self.config["next_daily_reset_timestamp"] = next_reset_time.isoformat()
         
         self.save_config()
-        print(f"✅ Reset cache harian otomatis selesai. Waktu reset berikutnya: {next_reset_time.isoformat()}")
+        print(f"Reset cache harian otomatis selesai. Waktu reset berikutnya: {next_reset_time.isoformat()}")
 
     @tasks.loop(hours=1)
     async def daily_reset_task(self):
@@ -504,49 +681,29 @@ class Notif(commands.Cog, name="🔔 Notification"):
                 delay = (next_reset_time - now).total_seconds()
                 
                 if delay > 0:
-                    print(f"⏳ Menunggu {delay:.0f} detik hingga reset harian berikutnya sesuai jadwal.")
+                    print(f"Menunggu {delay:.0f} detik hingga reset harian berikutnya sesuai jadwal.")
                     await asyncio.sleep(delay)
                 else:
-                    print("⚠️ Waktu reset harian sudah lewat. Melakukan reset segera.")
+                    print("Waktu reset harian sudah lewat. Melakukan reset segera.")
                     await self._perform_daily_reset()
 
             except Exception as e:
                 print(f"Error memuat jadwal reset harian: {e}. Mengatur jadwal awal sekarang.")
                 await self._perform_daily_reset()
         else:
-            print("⏳ Tidak ada jadwal reset harian. Mengatur jadwal awal sekarang.")
+            print("Tidak ada jadwal reset harian. Mengatur jadwal awal sekarang.")
             await self._perform_daily_reset()
             
         print("Loop reset harian siap untuk dimulai.")
 
-    @commands.hybrid_command(name="adduser")
-    @commands.has_permissions(administrator=True)
-    async def add_user(self, ctx, user_id: str):
-        if user_id in self.config["mirrored_users"]:
-            await ctx.send(f"User dengan ID `{user_id}` sudah ada di daftar.")
-            return
-        self.config["mirrored_users"].append(user_id)
-        self.save_config()
-        await ctx.send(f"✅ User dengan ID `{user_id}` berhasil ditambahkan.")
-
-    @commands.hybrid_command(name="removeuser")
-    @commands.has_permissions(administrator=True)
-    async def remove_user(self, ctx, user_id: str):
-        if user_id not in self.config["mirrored_users"]:
-            await ctx.send(f"❌ User dengan ID `{user_id}` tidak ditemukan.")
-            return
-        self.config["mirrored_users"].remove(user_id)
-        self.save_config()
-        await ctx.send(f"✅ User dengan ID `{user_id}` berhasil dihapus.")
-        
-    @commands.hybrid_command(name="resetcache")
+    @commands.command(name="resetcache")
     @commands.has_permissions(administrator=True)
     async def reset_cache(self, ctx):
         self.config["recent_video_ids"] = []
         self.save_config()
-        await ctx.send("✅ Cache ID video yang baru saja dikirim berhasil **dibersihkan**.")
+        await ctx.send("Cache ID video yang baru saja dikirim berhasil dibersihkan.")
 
-    @commands.hybrid_command(name="addpath")
+    @commands.command(name="addpath")
     @commands.has_permissions(administrator=True)
     async def add_notification_path(self, ctx, source_channel_id: int, target_channel_id: int):
         if not ctx.guild:
@@ -555,7 +712,7 @@ class Notif(commands.Cog, name="🔔 Notification"):
         
         for path_id, data in self.config["notification_paths"].items():
             if data["source_id"] == source_channel_id and data["target_id"] == target_channel_id:
-                return await ctx.send(f"ℹ️ Jalur notifikasi tersebut sudah ada dengan ID Jalur `{path_id}`.")
+                return await ctx.send(f"Jalur notifikasi tersebut sudah ada dengan ID Jalur `{path_id}`.")
         
         new_path_id = str(uuid.uuid4())
         self.config["notification_paths"][new_path_id] = {
@@ -570,23 +727,23 @@ class Notif(commands.Cog, name="🔔 Notification"):
         source_info = f"#{source_channel.name}" if source_channel else f"ID: {source_channel_id}"
         target_info = f"#{target_channel.name}" if target_channel else f"ID: {target_channel_id}"
         
-        msg = f"✅ Jalur notifikasi baru berhasil dibuat!\n"
+        msg = f"Jalur notifikasi baru berhasil dibuat!\n"
         msg += f"Sumber: **{source_info}**\n"
         msg += f"Tujuan: **{target_info}**\n"
         msg += f"ID Jalur: `{new_path_id}`"
         await ctx.send(msg)
 
-    @commands.hybrid_command(name="removepath")
+    @commands.command(name="removepath")
     @commands.has_permissions(administrator=True)
     async def remove_notification_path(self, ctx, path_id: str):
         if path_id in self.config["notification_paths"]:
             del self.config["notification_paths"][path_id]
             self.save_config()
-            await ctx.send(f"✅ Jalur notifikasi dengan ID `{path_id}` berhasil dihapus.")
+            await ctx.send(f"Jalur notifikasi dengan ID `{path_id}` berhasil dihapus.")
         else:
-            await ctx.send(f"❌ Jalur notifikasi dengan ID `{path_id}` tidak ditemukan.")
+            await ctx.send(f"Jalur notifikasi dengan ID `{path_id}` tidak ditemukan.")
 
-    @commands.hybrid_command(name="config")
+    @commands.command(name="config")
     @commands.has_permissions(administrator=True)
     async def start_config(self, ctx):
         if not ctx.guild:
@@ -595,33 +752,99 @@ class Notif(commands.Cog, name="🔔 Notification"):
         view = PathSelectView(self, ctx.guild.id)
         await ctx.send("Pilih Jalur Notifikasi yang akan dikonfigurasi:", view=view)
 
+    @commands.command(name="checkcache")
+    @commands.has_permissions(administrator=True)
+    async def check_cache(self, ctx):
+        recent_ids = self.config.get("recent_video_ids", [])
+        
+        if not recent_ids:
+            await ctx.send("Cache saat ini kosong.")
+            return
+        
+        embed = discord.Embed(
+            title="📦 Isi Cache Video",
+            description=f"Total {len(recent_ids)} video dalam cache:",
+            color=0x00ff00
+        )
+        
+        cache_list = []
+        for i, video_id in enumerate(recent_ids[-20:], 1):
+            cache_list.append(f"{i}. `{video_id}`")
+        
+        embed.add_field(
+            name="Video Terbaru (max 20)",
+            value="\n".join(cache_list) if cache_list else "Tidak ada video",
+            inline=False
+        )
+        
+        embed.set_footer(text=f"Total video dalam cache: {len(recent_ids)}")
+        
+        await ctx.send(embed=embed)
+
+    async def _generate_jarkasih_hype(self, link_type):
+        tipe_konten = "Live Stream" if link_type == "live" else "Video YouTube" if link_type in ["upload", "premier"] else "Video TikTok"
+        prompt = f"""
+        Lu adalah Jarkasih, bot skena/kalcer ala anak Jaksel yang asik, edgy, dan ceplas-ceplos.
+        Tugas lu: Kasih tau warga server kalau ada {tipe_konten} baru yang masuk.
+
+        ATURAN GAYA BAHASA MUTLAK:
+        1. WAJIB pakai gaya bahasa 'Kalcer' yang natural nyampur sama slang Western/Inggris (contoh: literally, honestly, damn, sick, hype, drop, chill, make sense, bro, dsb).
+        2. SANGAT PENTING: Jangan melulu pakai kata "FOMO", "vibes", atau "legit"! Lu boleh pakai sesekali, tapi rotasi dengan kosakata western lain biar nggak basi, cringe, dan kelihatan natural.
+        3. Campur dengan bahasa tongkrongan (lo-gue, anjir, woy, cuy, buset).
+        4. Ganti-ganti *mood* lu: kadang ngegas ("Damn bro, lu harus nonton ini!"), kadang santai ("Honestly ini sick banget sih, chill aja sambil nonton"), kadang ngeledek.
+        5. Cukup 1-2 kalimat pendek. JANGAN pakai hashtag (#) dan JANGAN ngetik URL-nya.
+
+        Berikan 1 respon acak lu sekarang:
+        """
+        
+        fallback_text = f"Yo bro, {tipe_konten} terbaru just dropped! Honestly lu mending chill dan sikat tontonannya sekarang!"
+        
+        models_to_try = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite']
+        
+        for model_name in models_to_try:
+            attempts = max(1, len(API_KEYS))
+            for _ in range(attempts):
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    response = await model.generate_content_async(prompt)
+                    if response.text:
+                        return response.text.strip().replace('"', '')
+                except google_exceptions.ResourceExhausted:
+                    if rotate_api_key():
+                        await asyncio.sleep(1)
+                        continue
+                    else:
+                        break 
+                except Exception as e:
+                    print(f"Error AI Notif ({model_name}): {e}")
+                    break 
+                    
+        return fallback_text
+
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.id == self.bot.user.id or not message.guild:
             return
-        if str(message.author.id) not in self.config["mirrored_users"]:
+        
+        paths_to_send = [data for data in self.config["notification_paths"].values() if data["source_id"] == message.channel.id]
+        if not paths_to_send:
             return
 
         link_type, link_for_send = await self._get_link_from_url(message)
         if not link_type:
             return
 
-# KODE BARU (Perbaikan 1)
         unique_id = self._get_unique_video_id(link_for_send)
+        
         if unique_id:
-            # Periksa apakah ID sudah ada di cache
             if unique_id in self.config.get("recent_video_ids", []):
-                
-                # Abaikan jika ini adalah ID yang diizinkan setelah reset manual
                 if unique_id == self.config.get("last_link_after_reset"): 
                     pass
-                    
                 else:
+                    await message.reply("⚠️ Tautan ini sudah pernah dikirim sebelumnya dan ada dalam cache. Tidak akan dikirim ulang untuk menghindari duplikasi.")
                     return
-        paths_to_send = [data for data in self.config["notification_paths"].values() if data["source_id"] == message.channel.id]
-        if not paths_to_send:
-            return
-            
+        
         if unique_id:
             if "recent_video_ids" not in self.config:
                 self.config["recent_video_ids"] = []
@@ -634,48 +857,47 @@ class Notif(commands.Cog, name="🔔 Notification"):
                 self.config["recent_video_ids"].pop(0)
             self.save_config()
 
-        youtube_title, youtube_description, youtube_thumbnail = None, None, None
+        ai_hype_text = await self._generate_jarkasih_hype(link_type)
+
+        needs_yt_dlp = False
+        for path_data in paths_to_send:
+            config_msg = path_data["custom_messages"].get(link_type, self.default_messages.get(link_type))
+            if config_msg and config_msg.get('use_embed', False):
+                needs_yt_dlp = True
+                break
+
+        youtube_title, youtube_description, youtube_thumbnail, video_url = None, None, None, link_for_send
         
-        if link_type in ["live", "upload", "premier", "default"]: 
+        if needs_yt_dlp and link_type in ["live", "upload", "premier"]: 
             loop = self.bot.loop
-            
-            # --- BARU: LOGIKA PENANGANAN COOKIES BASE64 DARI .ENV ---
             cookie_path = None
             temp_file_name = None 
-            
             cookies_base64 = os.getenv("COOKIES_BASE64")
             
             if cookies_base64:
                 try:
                     cookies_content = base64.b64decode(cookies_base64).decode('utf-8')
-                    
-                    # Tulis ke file sementara
                     with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as tf:
                         tf.write(cookies_content)
                         temp_file_name = tf.name
-                    
                     cookie_path = temp_file_name
-                    
                 except Exception as e:
-                    print(f"⚠️ Error memproses Base64 cookies: {e}")
+                    print(f"Error memproses Base64 cookies: {e}")
             
-            # Panggil _extract_youtube_info di dalam try...finally block untuk cleanup
             try:
-                youtube_title, youtube_description, youtube_thumbnail = await loop.run_in_executor(
+                youtube_title, youtube_description, youtube_thumbnail, extracted_url = await loop.run_in_executor(
                     None, 
                     functools.partial(
                         _extract_youtube_info, 
                         link_for_send, 
-                        cookiefile_path=cookie_path # Gunakan jalur file sementara
+                        cookiefile_path=cookie_path
                     )
                 )
+                if extracted_url and extracted_url != link_for_send:
+                    video_url = extracted_url
             finally:
-                # Hapus file sementara setelah selesai
                 if temp_file_name and os.path.exists(temp_file_name):
                     os.unlink(temp_file_name)
-            
-            # --- END LOGIKA PENANGANAN COOKIES BASE64 ---
-
 
         for path_data in paths_to_send:
             target_channel_id = path_data["target_id"]
@@ -689,42 +911,102 @@ class Notif(commands.Cog, name="🔔 Notification"):
                 final_content = config_msg.get('content')
                 final_embed_title = config_msg.get('title')
                 final_embed_description = config_msg.get('description')
-                use_embed = config_msg.get('use_embed', True)
+                use_embed = config_msg.get('use_embed', False)
 
-                if final_content and youtube_title:
-                    final_content = final_content.replace("{judul}", youtube_title)
+                if final_content and "{ai_hype}" in final_content:
+                    final_content = final_content.replace("{ai_hype}", ai_hype_text)
+
+                if link_type in ["live", "upload", "premier"]:
+                    clean_title = youtube_title if youtube_title else "Video YouTube"
+                    if youtube_title:
+                        date_patterns = [
+                            r'\d{4}-\d{2}-\d{2}',
+                            r'\d{2}:\d{2}',
+                            r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}'
+                        ]
+                        for pattern in date_patterns:
+                            clean_title = re.sub(pattern, '', clean_title).strip()
+                    
+                    if final_content:
+                        final_content = final_content.replace("{judul}", clean_title)
+                        if video_url and self._is_valid_url(video_url):
+                            final_content = final_content.replace("{url}", video_url)
+                    
+                    if final_embed_title:
+                        final_embed_title = final_embed_title.replace("{judul}", clean_title)
+                        if video_url and self._is_valid_url(video_url):
+                            final_embed_title = final_embed_title.replace("{url}", video_url)
+                    elif not final_embed_title and use_embed:
+                        if video_url and self._is_valid_url(video_url):
+                            final_embed_title = f"[{clean_title}]({video_url})"
+                        else:
+                            final_embed_title = clean_title
+
+                    if final_embed_description:
+                        if youtube_description:
+                            desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
+                            final_embed_description = final_embed_description.replace("{deskripsi}", desc_sub)
+                        else:
+                            final_embed_description = final_embed_description.replace("{deskripsi}", "")
+                            
+                        if video_url and self._is_valid_url(video_url):
+                            final_embed_description = final_embed_description.replace("{url}", video_url)
+                    elif not final_embed_description and use_embed:
+                        if youtube_description:
+                            final_embed_description = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
+                        else:
+                            final_embed_description = ""
+                        
+                        if video_url and self._is_valid_url(video_url):
+                            final_embed_description = final_embed_description.replace("{url}", video_url)
+
                 
-                if final_embed_title and youtube_title:
-                    final_embed_title = final_embed_title.replace("{judul}", youtube_title)
-                elif not final_embed_title and youtube_title and use_embed:
-                    final_embed_title = youtube_title
+                elif link_type == "tiktok":
+                    if final_content:
+                        final_content = final_content.replace("{judul}", "Video TikTok")
+                        if self._is_valid_url(link_for_send):
+                            final_content = final_content.replace("{url}", link_for_send)
+                    
+                    if final_embed_title:
+                        final_embed_title = final_embed_title.replace("{judul}", "Video TikTok")
+                        if self._is_valid_url(link_for_send):
+                            final_embed_title = final_embed_title.replace("{url}", link_for_send)
+                    elif not final_embed_title and use_embed:
+                        if self._is_valid_url(link_for_send):
+                            final_embed_title = f"[📱 Video TikTok]({link_for_send})"
+                        else:
+                            final_embed_title = "📱 Video TikTok"
 
-                if final_embed_description and youtube_description:
-                    desc_sub = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
-                    final_embed_description = final_embed_description.replace("{deskripsi}", desc_sub)
-                elif not final_embed_description and youtube_description and use_embed:
-                    final_embed_description = youtube_description[:1900] + ('...' if len(youtube_description) > 1900 else '')
+                    if final_embed_description:
+                        final_embed_description = final_embed_description.replace("{deskripsi}", "")
+                        if self._is_valid_url(link_for_send):
+                            final_embed_description = final_embed_description.replace("{url}", link_for_send)
+                    elif not final_embed_description and use_embed:
+                        final_embed_description = link_for_send
 
                 message_content = final_content
                 if not use_embed:
                     if final_content:
                         message_content = f"{final_content}\n{link_for_send}"
                     else:
-                        message_content = link_for_send
+                        message_content = f"{ai_hype_text}\n{link_for_send}"
 
                 embed = None
                 if use_embed:
                     embed_color_hex = config_msg.get('embed_color', '#3498db')
-                    try: embed_color = discord.Color(int(embed_color_hex.strip("#"), 16))
-                    except: embed_color = discord.Color.blue()
+                    try: 
+                        embed_color = discord.Color(int(embed_color_hex.strip("#"), 16))
+                    except: 
+                        embed_color = discord.Color.blue()
                     
                     if final_embed_title or final_embed_description:
                          embed = discord.Embed(title=final_embed_title, description=final_embed_description, color=embed_color)
                          
-                         if config_msg.get('embed_thumbnail', True) and youtube_thumbnail:
+                         if link_type in ["live", "upload", "premier"] and config_msg.get('embed_thumbnail', True) and youtube_thumbnail:
                               embed.set_image(url=youtube_thumbnail)
                          
-                         if message_content is None: message_content = " " 
+                         if message_content is None: 
+                             message_content = " "
                     else:
                          message_content = final_content if final_content else link_for_send
                          if not final_content:
@@ -733,15 +1015,26 @@ class Notif(commands.Cog, name="🔔 Notification"):
                 
                 button_label = config_msg.get('button_label', 'Tonton Konten')
                 button_style_value = config_msg.get('button_style', discord.ButtonStyle.primary.value)
-                try: button_style = discord.ButtonStyle(button_style_value)
-                except ValueError: button_style = discord.ButtonStyle.primary
+                try: 
+                    button_style = discord.ButtonStyle(button_style_value)
+                except ValueError: 
+                    button_style = discord.ButtonStyle.primary
+                
                 view = discord.ui.View()
-                view.add_item(discord.ui.Button(label=button_label, style=button_style, url=link_for_send))
+                button = discord.ui.Button(label=button_label, style=button_style, url=link_for_send)
+                view.add_item(button)
 
                 await target_channel.send(content=message_content, embed=embed, view=view)
                 
             except Exception as e:
                 print(f"Error sending notification for path {path_data}: {e}")
+
+    def _is_valid_url(self, url):
+        try:
+            result = urllib.parse.urlparse(url)
+            return all([result.scheme in ['http', 'https'], result.netloc])
+        except Exception:
+            return False
 
 async def setup(bot):
     os.makedirs('data', exist_ok=True)
