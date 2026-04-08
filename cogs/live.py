@@ -63,8 +63,6 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         Nama lu JARKASIH. Lu adalah AI Generalist Expert dan asisten bot RTM.
         GAYA BAHASA: Sarkas, logat Jakarta, sumbu pendek.
         
-        ATURAN PENANGANAN CURHAT: Jika dari nada suara atau omongan user terdengar sedih, stres, depresi, atau putus asa, MATIKAN 100% SIFAT SARKAS LU! Berubahlah menjadi sosok psikolog atau sahabat yang sangat empati, penuh kehangatan, dan memvalidasi perasaannya secara lisan.
-        
         [DATA HASIL BELAJAR MEMORI]: {learned_data}
         STATUS INTERAKSI KHUSUS SAAT INI: {interaction_status}
         """
@@ -166,10 +164,23 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             await asyncio.sleep(1)
 
         try:
-            vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=20.0, reconnect=False)
-            await ctx.send("Gue udah standby di tongkrongan voice. Coba ajak ngomong!")
+            vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=15.0, reconnect=False)
+            await ctx.send("Gue udah standby di tongkrongan voice pakai mode Live (Bisa Dengar).")
+        except discord.errors.ConnectionClosed as e:
+            if e.code == 4006:
+                await ctx.send("Kena error 4006 pas masuk pakai mode Receiver. Otomatis gue alihkan ke mode Standar (Bisu) buat ngetes...")
+                try:
+                    vc = await channel.connect(timeout=15.0, reconnect=False)
+                    await ctx.send("Sip, pakai mode Standar lolos! Ini fix banget library voice_recv lu yang bentrok sama jaringan atau environment Railway.")
+                    return
+                except Exception as ex:
+                    await ctx.send(f"Mampus, mode Standar juga ditendang bos: {ex}")
+                    return
+            else:
+                await ctx.send(f"Jabat tangan terputus dengan kode error: {e.code}")
+                return
         except Exception as e:
-            await ctx.send(f"Gagal masuk atau nyangkut: {e}")
+            await ctx.send(f"Gagal masuk sepenuhnya: {e}")
             if ctx.voice_client:
                 await ctx.voice_client.disconnect(force=True)
             return
