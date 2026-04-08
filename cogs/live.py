@@ -15,9 +15,9 @@ from google.genai import types
 
 original_opus_decode = discord.opus.Decoder.decode
 
-def patched_opus_decode(self, data, fec=False):
+def patched_opus_decode(self, data, *args, **kwargs):
     try:
-        return original_opus_decode(self, data, fec)
+        return original_opus_decode(self, data, *args, **kwargs)
     except discord.opus.OpusError as e:
         print(f"LOG: Paket diabaikan ({e})", flush=True)
         return b'\x00' * 3840
