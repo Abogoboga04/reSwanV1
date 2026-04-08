@@ -55,18 +55,22 @@ USER_PREFERENCES_FILE = 'data/user_preferences.json'
 WEEKLY_STATS_FILE = 'data/weekly_stats.json'
 
 ytdl_opts = {
-    'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best',
+    'format': 'bestaudio/best',
     'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
+    'extractor_args': {
+        'youtube': ['client=android']
+    },
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
         'preferredcodec': 'opus',
         'preferredquality': '128',
     }],
 }
+
 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -516,7 +520,7 @@ class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
             except Exception:
                 pass
 
-    async def _send_audio_task(self, session, input_queue):
+        async def _send_audio_task(self, session, input_queue):
         buffer = bytearray()
         while True:
             try:
@@ -532,12 +536,7 @@ class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
                     buffer.extend(extra_data)
                 
                 if len(buffer) > 0:
-                    await session.send_realtime_input(
-                        audio=types.Blob(
-                            data=bytes(buffer),
-                            mime_type="audio/pcm;rate=16000"
-                        )
-                    )
+                    await session.send(input={"mime_type": "audio/pcm;rate=16000", "data": bytes(buffer)})
                     buffer.clear()
             except Exception:
                 pass
@@ -553,8 +552,12 @@ class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
 
         try:
             async for response in session.receive():
-                if response.server_content:
-                    if response.server_content.interrupted:
+                if getattr(response, "data", None) is not None:
+                    temp_audio_buffer.extend(response.data)
+
+                server_content = getattr(response, "server_content", None)
+                if server_content is not None:
+                    if getattr(server_content, "interrupted", False):
                         if vc.is_playing():
                             vc.stop()
                         while not playback_queue.empty():
@@ -566,12 +569,7 @@ class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
                                 pass
                         temp_audio_buffer.clear()
 
-                    if response.server_content.model_turn:
-                        for part in response.server_content.model_turn.parts:
-                            if part.inline_data:
-                                temp_audio_buffer.extend(part.inline_data.data)
-
-                    if response.server_content.turn_complete:
+                    if getattr(server_content, "turn_complete", False):
                         if len(temp_audio_buffer) > 0:
                             unique_id = uuid.uuid4().hex
                             file_path = f"temp_gemini_{ctx.guild.id}_{unique_id}.pcm"
@@ -584,6 +582,7 @@ class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
             await playback_queue.put(None)
             send_task.cancel()
             playback_task.cancel()
+
 
     async def live_session_manager(self, ctx, vc, persona_text):
         config = types.LiveConnectConfig(
