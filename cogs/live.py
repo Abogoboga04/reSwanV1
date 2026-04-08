@@ -1,4 +1,5 @@
 import discord
+import discord.opus
 from discord.ext import commands, voice_recv
 import asyncio
 import os
@@ -11,6 +12,17 @@ import sys
 import traceback
 from google import genai
 from google.genai import types
+
+original_opus_decode = discord.opus.Decoder.decode
+
+def patched_opus_decode(self, data, fec=False):
+    try:
+        return original_opus_decode(self, data, fec)
+    except discord.opus.OpusError as e:
+        print(f"LOG: Paket diabaikan ({e})", flush=True)
+        return b'\x00' * 3840
+
+discord.opus.Decoder.decode = patched_opus_decode
 
 def load_json_file_live(file_path, default_data=None):
     if default_data is None:
