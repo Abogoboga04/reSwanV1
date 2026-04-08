@@ -1,46 +1,48 @@
 import discord
-from discord.ext import commands, tasks
+import discord.opus
+from discord.ext import commands, tasks, voice_recv
 import yt_dlp
 import asyncio
 import os
-import functools
-from discord import FFmpegPCMAudio
-from discord.utils import get
-from lyricsgenius import Genius
+import json
+import uuid
+import traceback
+import random
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-import logging
-import json
-import random
+from lyricsgenius import Genius
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from google import genai
+from google.genai import types
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-log = logging.getLogger(__name__)
+original_opus_decode = discord.opus.Decoder.decode
 
-LISTENING_HISTORY_FILE = 'data/listening_history.json'
-USER_PREFERENCES_FILE = 'data/user_preferences.json'
-WEEKLY_STATS_FILE = 'data/weekly_stats.json'
-
-def load_json_file(file_path, default_data={}):
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    if not os.path.exists(file_path) or os.stat(file_path).st_size == 0:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(default_data, f, indent=4)
-        return default_data
+def patched_opus_decode(self, data, *args, **kwargs):
     try:
+        return original_opus_decode(self, data, *args, **kwargs)
+    except discord.opus.OpusError:
+        return b'\x00' * 3840
+
+discord.opus.Decoder.decode = patched_opus_decode
+
+def load_json_file(file_path, default_data=None):
+    if default_data is None:
+        default_data = {}
+    try:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        if not os.path.exists(file_path) or os.stat(file_path).st_size == 0:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(default_data, f, indent=4)
+            return default_data
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            if not isinstance(data, (dict, list)):
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(default_data, f, indent=4)
-                return data
+            if isinstance(default_data, dict):
+                for k, v in default_data.items():
+                    if k not in data:
+                        data[k] = v
             return data
-    except json.JSONDecodeError as e:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(default_data, f, indent=4)
-        return data
-    except Exception as e:
+    except Exception:
         return default_data
 
 def save_json_file(file_path, data):
@@ -48,23 +50,9 @@ def save_json_file(file_path, data):
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
-def load_listening_history():
-    return load_json_file(LISTENING_HISTORY_FILE)
-
-def save_listening_history(data):
-    save_json_file(LISTENING_HISTORY_FILE, data)
-
-def load_user_preferences():
-    return load_json_file(USER_PREFERENCES_FILE)
-
-def save_user_preferences(data):
-    save_json_file(USER_PREFERENCES_FILE, data)
-    
-def load_weekly_stats():
-    return load_json_file(WEEKLY_STATS_FILE, {})
-
-def save_weekly_stats(data):
-    save_json_file(WEEKLY_STATS_FILE, data)
+LISTENING_HISTORY_FILE = 'data/listening_history.json'
+USER_PREFERENCES_FILE = 'data/user_preferences.json'
+WEEKLY_STATS_FILE = 'data/weekly_stats.json'
 
 ytdl_opts = {
     'format': 'bestaudio[ext=opus]/bestaudio[ext=m4a]/bestaudio/best',
@@ -86,6 +74,29 @@ FFMPEG_OPTIONS = {
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_opts)
+
+class GeminiReceiverSink(voice_recv.AudioSink):
+    def __init__(self, input_queue, bot_instance):
+        super().__init__()
+        self.input_queue = input_queue
+        self.bot = bot_instance
+
+    def wants_opus(self):
+        return False
+
+    def write(self, user, data):
+        if user is None or user == self.bot.user:
+            return
+            
+        if hasattr(data, 'pcm') and data.pcm:
+            try:
+                mono_16k_pcm = memoryview(data.pcm).cast('h')[0::6].tobytes()
+                self.input_queue.put_nowait(mono_16k_pcm)
+            except Exception:
+                pass
+
+    def cleanup(self):
+        pass
 
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.8):
@@ -162,7 +173,7 @@ class MusicControlView(discord.ui.View):
         else:
             new_embed = discord.Embed(
                 title="Musik Bot",
-                description="Antrean kosong. Bot akan keluar dari voice channel jika tidak ada pengguna lain.",
+                description="Antrean kosong.",
                 color=discord.Color.red()
             )
         updated_view = MusicControlView(self.cog)
@@ -256,6 +267,9 @@ class MusicControlView(discord.ui.View):
             self.cog.is_muted[interaction.guild.id] = False
             self.cog.old_volume.pop(interaction.guild.id, None)
             self.cog.now_playing_info.pop(interaction.guild.id, None)
+            if interaction.guild.id in self.cog.active_tasks:
+                self.cog.active_tasks[interaction.guild.id].cancel()
+                del self.cog.active_tasks[interaction.guild.id]
             if interaction.guild.id in self.cog.current_music_message_info:
                 old_message_info = self.cog.current_music_message_info[interaction.guild.id]
                 try:
@@ -309,7 +323,6 @@ class MusicControlView(discord.ui.View):
         if not self.cog.genius:
             await interaction.response.send_message("Fitur lirik masih beta dan akan segera dirilis nantinya.", ephemeral=True)
             return
-        song_name = None
         if not interaction.guild.id in self.cog.now_playing_info:
             await interaction.response.send_message("Tidak ada lagu yang sedang diputar. Harap gunakan `!rtmlyrics <nama lagu>` untuk mencari lirik.", ephemeral=True)
             return
@@ -425,25 +438,26 @@ class MusicControlView(discord.ui.View):
         else:
             await interaction.response.send_message("Tidak ada lagu yang sedang diputar.", ephemeral=True)
 
-class Music(commands.Cog):
+class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
     def __init__(self, bot):
         self.bot = bot
+        
         self.queues = {}
         self.loop_status = {}
         self.current_music_message_info = {}
         self.is_muted = {}
         self.old_volume = {}
         self.now_playing_info = {}
-        self.listening_history = load_listening_history()
-        self.user_preferences = load_user_preferences()
-        self.weekly_stats = load_weekly_stats()
+        self.listening_history = load_json_file(LISTENING_HISTORY_FILE)
+        self.user_preferences = load_json_file(USER_PREFERENCES_FILE)
+        self.weekly_stats = load_json_file(WEEKLY_STATS_FILE)
 
         GENIUS_API_TOKEN = os.getenv("GENIUS_API")
         self.genius = None
         if GENIUS_API_TOKEN:
             try:
                 self.genius = Genius(GENIUS_API_TOKEN)
-            except Exception as e:
+            except Exception:
                 pass
 
         SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
@@ -455,7 +469,7 @@ class Music(commands.Cog):
                     client_id=SPOTIFY_CLIENT_ID,
                     client_secret=SPOTIFY_CLIENT_SECRET
                 ))
-            except Exception as e:
+            except Exception:
                 pass
 
         self.bot.add_view(MusicControlView(self))
@@ -464,11 +478,136 @@ class Music(commands.Cog):
         self.scheduler.add_job(self.send_weekly_summary, 'cron', day_of_week='mon', hour=9)
         self.scheduler.start()
         
-        self.idle_check_task.start()
+        self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.active_tasks = {}
+        self.default_persona = """
+        Nama lu JARKASIH. Lu adalah AI Generalist Expert dan asisten bot RTM.
+        GAYA BAHASA: Sarkas, logat Jakarta, sumbu pendek.
         
+        ATURAN PENANGANAN CURHAT: Jika dari nada suara atau omongan user terdengar sedih, stres, depresi, atau putus asa, MATIKAN 100% SIFAT SARKAS LU! Berubahlah menjadi sosok psikolog atau sahabat yang sangat empati, penuh kehangatan, dan memvalidasi perasaannya secara lisan.
+        
+        [DATA HASIL BELAJAR MEMORI]: {learned_data}
+        STATUS INTERAKSI KHUSUS SAAT INI: {interaction_status}
+        """
+
+        self.idle_check_task.start()
+
+    def build_live_persona(self, user_id):
+        learned = load_json_file('data/jarkasih_learned.json', {"summary": ""})
+        auto_config = load_json_file('data/jarkasih_auto.json', {"obedient_users": {}, "sulking_users": {}})
+        uid_str = str(user_id)
+        interaction_status = "Kondisi Normal"
+        if uid_str in auto_config.get("sulking_users", {}):
+            interaction_status = "LU SEDANG NGAMBEK"
+        elif uid_str in auto_config.get("obedient_users", {}):
+            interaction_status = "USER INI MASTER LU"
+        return self.default_persona.format(learned_data=learned.get("summary", ""), interaction_status=interaction_status)
+
+    async def _playback_task(self, vc, queue):
+        while True:
+            file_path = await queue.get()
+            if file_path is None:
+                break
+            try:
+                source = discord.FFmpegPCMAudio(file_path, options="-f s16le -ar 24000 -ac 1")
+                vc.play(source, after=lambda e, f=file_path: os.remove(f) if os.path.exists(f) else None)
+                while vc.is_playing():
+                    await asyncio.sleep(0.1)
+            except Exception:
+                pass
+
+    async def _send_audio_task(self, session, input_queue):
+        buffer = bytearray()
+        while True:
+            try:
+                pcm_data = await input_queue.get()
+                if pcm_data is None:
+                    break
+                buffer.extend(pcm_data)
+                
+                while not input_queue.empty():
+                    extra_data = input_queue.get_nowait()
+                    if extra_data is None:
+                        return
+                    buffer.extend(extra_data)
+                
+                if len(buffer) > 0:
+                    await session.send_realtime_input(
+                        audio=types.Blob(
+                            data=bytes(buffer),
+                            mime_type="audio/pcm;rate=16000"
+                        )
+                    )
+                    buffer.clear()
+            except Exception:
+                pass
+
+    async def _run_session(self, ctx, vc, session):
+        input_queue = asyncio.Queue()
+        vc.listen(GeminiReceiverSink(input_queue, self.bot))
+        
+        send_task = asyncio.create_task(self._send_audio_task(session, input_queue))
+        playback_queue = asyncio.Queue()
+        playback_task = asyncio.create_task(self._playback_task(vc, playback_queue))
+        temp_audio_buffer = bytearray()
+
+        try:
+            async for response in session.receive():
+                if response.server_content:
+                    if response.server_content.interrupted:
+                        if vc.is_playing():
+                            vc.stop()
+                        while not playback_queue.empty():
+                            try:
+                                old_file = playback_queue.get_nowait()
+                                if old_file and os.path.exists(old_file):
+                                    os.remove(old_file)
+                            except Exception:
+                                pass
+                        temp_audio_buffer.clear()
+
+                    if response.server_content.model_turn:
+                        for part in response.server_content.model_turn.parts:
+                            if part.inline_data:
+                                temp_audio_buffer.extend(part.inline_data.data)
+
+                    if response.server_content.turn_complete:
+                        if len(temp_audio_buffer) > 0:
+                            unique_id = uuid.uuid4().hex
+                            file_path = f"temp_gemini_{ctx.guild.id}_{unique_id}.pcm"
+                            with open(file_path, "wb") as f:
+                                f.write(temp_audio_buffer)
+                            temp_audio_buffer.clear()
+                            await playback_queue.put(file_path)
+        finally:
+            input_queue.put_nowait(None)
+            await playback_queue.put(None)
+            send_task.cancel()
+            playback_task.cancel()
+
+    async def live_session_manager(self, ctx, vc, persona_text):
+        config = types.LiveConnectConfig(
+            response_modalities=["AUDIO"],
+            system_instruction=types.Content(parts=[types.Part.from_text(text=persona_text)])
+        )
+        try:
+            async with self.client.aio.live.connect(model="gemini-3.1-flash-live-preview", config=config) as session:
+                await self._run_session(ctx, vc, session)
+        except Exception:
+            try:
+                async with self.client.aio.live.connect(model="gemini-2.5-flash-native-audio-preview-12-2025", config=config) as session:
+                    await self._run_session(ctx, vc, session)
+            except Exception:
+                pass
+        finally:
+            if vc and vc.is_listening():
+                vc.stop_listening()
+
     def cog_unload(self):
         self.idle_check_task.cancel()
         self.scheduler.shutdown()
+        for task in self.active_tasks.values():
+            task.cancel()
 
     @tasks.loop(seconds=5)
     async def idle_check_task(self):
@@ -479,10 +618,12 @@ class Music(commands.Cog):
                     member for member in vc.channel.members
                     if not member.bot
                 ]
-                num_human_members = len(human_members)
-                if num_human_members == 0:
+                if len(human_members) == 0:
                     if vc.is_playing() or vc.is_paused():
                         vc.stop()
+                    if guild.id in self.active_tasks:
+                        self.active_tasks[guild.id].cancel()
+                        del self.active_tasks[guild.id]
                     await vc.disconnect()
                     self.queues.pop(guild.id, None)
                     self.loop_status.pop(guild.id, None)
@@ -514,10 +655,12 @@ class Music(commands.Cog):
             self.listening_history[user_id_str] = []
         if not isinstance(self.listening_history[user_id_str], list):
              self.listening_history[user_id_str] = []
-        self.listening_history[user_id_str].insert(0, song_info)
+        song_info_copy = song_info.copy()
+        song_info_copy['timestamp'] = datetime.now().isoformat()
+        self.listening_history[user_id_str].insert(0, song_info_copy)
         if len(self.listening_history[user_id_str]) > 50:
             self.listening_history[user_id_str] = self.listening_history[user_id_str][:50]
-        save_listening_history(self.listening_history)
+        save_json_file(LISTENING_HISTORY_FILE, self.listening_history)
 
     def add_liked_song(self, user_id, song_info):
         user_id_str = str(user_id)
@@ -535,7 +678,7 @@ class Music(commands.Cog):
             self.user_preferences[user_id_str]['liked_songs'].insert(0, song_info)
             if len(self.user_preferences[user_id_str]['liked_songs']) > 25:
                 self.user_preferences[user_id_str]['liked_songs'] = self.user_preferences[user_id_str]['liked_songs'][:25]
-        save_user_preferences(self.user_preferences)
+        save_json_file(USER_PREFERENCES_FILE, self.user_preferences)
 
     def add_disliked_song(self, user_id, song_info):
         user_id_str = str(user_id)
@@ -553,7 +696,7 @@ class Music(commands.Cog):
             self.user_preferences[user_id_str]['disliked_songs'].insert(0, song_info)
             if len(self.user_preferences[user_id_str]['disliked_songs']) > 100:
                 self.user_preferences[user_id_str]['disliked_songs'] = self.user_preferences[user_id_str]['disliked_songs'][:100]
-        save_user_preferences(self.user_preferences)
+        save_json_file(USER_PREFERENCES_FILE, self.user_preferences)
 
     async def get_song_info_from_url(self, url):
         try:
@@ -668,7 +811,10 @@ class Music(commands.Cog):
         if not queue:
             vc = ctx.voice_client
             if vc and vc.is_connected():
-                await vc.disconnect()
+                if guild_id in self.active_tasks:
+                    await ctx.guild.change_voice_state(channel=vc.channel, self_deaf=False)
+                else:
+                    await vc.disconnect()
             if guild_id in self.current_music_message_info:
                 message_info = self.current_music_message_info.pop(guild_id)
                 try:
@@ -678,8 +824,12 @@ class Music(commands.Cog):
                         await old_message.delete()
                 except (discord.NotFound, discord.HTTPException):
                     pass
-            await ctx.send("Antrean kosong. Bot akan keluar dari voice channel jika tidak ada pengguna lain.", ephemeral=True)
+            await ctx.send("Antrean kosong.", ephemeral=True)
             return
+            
+        if ctx.voice_client and not ctx.guild.me.voice.deaf:
+            await ctx.guild.change_voice_state(channel=ctx.voice_client.channel, self_deaf=True)
+            
         url = queue.pop(0)
         try:
             song_info_from_ytdl = await self.get_song_info_from_url(url)
@@ -763,7 +913,7 @@ class Music(commands.Cog):
         user_id_str = str(ctx.author.id)
         if not isinstance(self.user_preferences, dict):
             self.user_preferences = {}
-            save_user_preferences(self.user_preferences)
+            save_json_file(USER_PREFERENCES_FILE, self.user_preferences)
         user_preferences = self.user_preferences.get(user_id_str, {'liked_songs': [], 'disliked_songs': []})
         disliked_urls = {s.get('webpage_url') for s in user_preferences.get('disliked_songs', [])}
         new_urls = []
@@ -871,7 +1021,7 @@ class Music(commands.Cog):
             if not user:
                 continue
 
-            songs_in_week = [s for s in history if datetime.fromisoformat(s.get('timestamp')) > last_week]
+            songs_in_week = [s for s in history if 'timestamp' in s and datetime.fromisoformat(s.get('timestamp')) > last_week]
             if not songs_in_week:
                 continue
             
@@ -901,6 +1051,38 @@ class Music(commands.Cog):
                 await user.send(embed=embed)
             except discord.Forbidden:
                 pass
+                
+    @commands.command(name="aijoin")
+    async def ai_live_join(self, ctx):
+        if not ctx.author.voice:
+            await ctx.send("Masuk voice dulu bos!")
+            return
+
+        channel = ctx.author.voice.channel
+        if ctx.voice_client:
+            await ctx.voice_client.disconnect(force=True)
+            await asyncio.sleep(1)
+
+        try:
+            vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=20.0, reconnect=False)
+            await ctx.send("Gue udah standby. Sapa gue!")
+        except Exception:
+            return
+
+        persona_text = self.build_live_persona(ctx.author.id)
+        task = asyncio.create_task(self.live_session_manager(ctx, vc, persona_text))
+        self.active_tasks[ctx.guild.id] = task
+
+    @commands.command(name="aistop")
+    async def ai_live_leave(self, ctx):
+        if ctx.guild.id in self.active_tasks:
+            self.active_tasks[ctx.guild.id].cancel()
+            del self.active_tasks[ctx.guild.id]
+        if ctx.voice_client:
+            if hasattr(ctx.voice_client, 'is_listening') and ctx.voice_client.is_listening():
+                ctx.voice_client.stop_listening()
+            await ctx.voice_client.disconnect(force=True)
+            await ctx.send("Gue cabut.")
     
     @commands.command(name="rtmjoin", aliases=["join", "j"])
     async def join(self, ctx):
@@ -909,8 +1091,8 @@ class Music(commands.Cog):
                 return await ctx.send("Bot sudah berada di voice channel lain. Harap keluarkan dulu.")
             return
         if ctx.author.voice:
-            await ctx.author.voice.channel.connect(self_deaf=True)
-            await ctx.send(f"Joined **{ctx.author.voice.channel.name}** and deafened.")
+            await ctx.author.voice.channel.connect(cls=voice_recv.VoiceRecvClient, self_deaf=True)
+            await ctx.send(f"Joined **{ctx.author.voice.channel.name}**")
         else:
             await ctx.send("Kamu harus berada di voice channel dulu.")
 
@@ -920,6 +1102,8 @@ class Music(commands.Cog):
             await ctx.invoke(self.join)
             if not ctx.voice_client:
                 return await ctx.send("Gagal bergabung ke voice channel.")
+        if ctx.voice_client and not ctx.guild.me.voice.deaf:
+            await ctx.guild.change_voice_state(channel=ctx.voice_client.channel, self_deaf=True)
         await ctx.defer()
         urls = []
         is_spotify_request = False
@@ -1075,8 +1259,12 @@ class Music(commands.Cog):
             self.is_muted[ctx.guild.id] = False
             self.old_volume.pop(ctx.guild.id, None)
             self.now_playing_info.pop(ctx.guild.id, None)
-            await ctx.voice_client.disconnect()
-            await ctx.send("⏹️ Stop dan keluar dari voice.", ephemeral=True)
+            
+            if ctx.guild.id in self.active_tasks:
+                await ctx.guild.change_voice_state(channel=ctx.voice_client.channel, self_deaf=False)
+            else:
+                await ctx.voice_client.disconnect()
+            await ctx.send("⏹️ Musik stop.", ephemeral=True)
         else:
             await ctx.send("Bot tidak ada di voice channel.", ephemeral=True)
 
@@ -1163,12 +1351,14 @@ class Music(commands.Cog):
             await ctx.invoke(self.join)
             if not ctx.voice_client:
                 return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
+        if ctx.voice_client and not ctx.guild.me.voice.deaf:
+            await ctx.guild.change_voice_state(channel=ctx.voice_client.channel, self_deaf=True)
         await ctx.defer()
         if not isinstance(self.user_preferences, dict):
-            self.user_preferences = load_user_preferences()
+            self.user_preferences = load_json_file(USER_PREFERENCES_FILE)
             if not isinstance(self.user_preferences, dict):
                 self.user_preferences = {}
-                save_user_preferences(self.user_preferences)
+                save_json_file(USER_PREFERENCES_FILE, self.user_preferences)
         is_spotify_request = False
         if urls and self.spotify and ("open.spotify.com" in urls[0] or "spotify:" in urls[0]):
             is_spotify_request = True
@@ -1225,16 +1415,18 @@ class Music(commands.Cog):
             await ctx.invoke(self.join)
             if not ctx.voice_client:
                 return await ctx.send("Gagal bergabung ke voice channel.", ephemeral=True)
+        if ctx.voice_client and not ctx.guild.me.voice.deaf:
+            await ctx.guild.change_voice_state(channel=ctx.voice_client.channel, self_deaf=True)
         user_id_str = str(ctx.author.id)
         if not isinstance(self.user_preferences, dict):
-            self.user_preferences = load_user_preferences()
+            self.user_preferences = load_json_file(USER_PREFERENCES_FILE)
             if not isinstance(self.user_preferences, dict):
                 self.user_preferences = {}
-                save_user_preferences(self.user_preferences)
+                save_json_file(USER_PREFERENCES_FILE, self.user_preferences)
         user_preferences = self.user_preferences.get(user_id_str, {})
         liked_songs = user_preferences.get('liked_songs', [])
         if not isinstance(liked_songs, list) or not liked_songs:
-            return await ctx.send("❌ Anda belum memiliki lagu yang disukai (gunakan `👍` pada pesan musik yang sedang diputar).", ephemeral=True)
+            return await ctx.send("❌ Anda belum memiliki lagu yang disukai.", ephemeral=True)
         await ctx.defer()
         liked_urls = [song['webpage_url'] for song in liked_songs]
         random.shuffle(liked_urls)
@@ -1301,4 +1493,4 @@ async def setup(bot):
         ]
         with open(donation_file_path, 'w', encoding='utf-8') as f:
             json.dump(default_data, f, indent=4)
-    await bot.add_cog(Music(bot))
+    await bot.add_cog(MusicAndLiveCog(bot))
