@@ -56,13 +56,12 @@ WEEKLY_STATS_FILE = 'data/weekly_stats.json'
 
 ytdl_opts = {
     'format': 'bestaudio/best',
-    'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
     'extractor_args': {
-        'youtube': ['player_client=android', 'player_skip=web']
+        'youtube': ['player_client=tv_downgraded,android_vr', 'player_skip=webpage,configs,js']
     },
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
@@ -70,6 +69,7 @@ ytdl_opts = {
         'preferredquality': '128',
     }],
 }
+
 
 
 FFMPEG_OPTIONS = {
