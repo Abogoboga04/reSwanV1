@@ -54,14 +54,20 @@ LISTENING_HISTORY_FILE = 'data/listening_history.json'
 USER_PREFERENCES_FILE = 'data/user_preferences.json'
 WEEKLY_STATS_FILE = 'data/weekly_stats.json'
 
+youtube_cookies_raw = os.getenv("YOUTUBE_COOKIES")
+if youtube_cookies_raw:
+    with open('cookies.txt', 'w', encoding='utf-8') as f:
+        f.write(youtube_cookies_raw)
+
 ytdl_opts = {
     'format': 'bestaudio/best',
+    'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
     'extractor_args': {
-        'youtube': ['player_client=tv_downgraded,android_vr', 'player_skip=webpage,configs,js']
+        'youtube': ['player_skip=webpage,configs', 'player_client=tv_downgraded,android_vr']
     },
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
@@ -69,8 +75,6 @@ ytdl_opts = {
         'preferredquality': '128',
     }],
 }
-
-
 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
