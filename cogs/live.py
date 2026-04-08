@@ -3,6 +3,8 @@ from discord.ext import commands, voice_recv
 import asyncio
 import os
 import json
+import ctypes
+import ctypes.util
 from google import genai
 from google.genai import types
 
@@ -65,6 +67,14 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         STATUS INTERAKSI KHUSUS SAAT INI: {interaction_status}
         """
 
+        if not discord.opus.is_loaded():
+            opus_lib = ctypes.util.find_library('opus')
+            if opus_lib:
+                try:
+                    discord.opus.load_opus(opus_lib)
+                except Exception:
+                    pass
+
     def build_live_persona(self, user_id):
         learned = load_json_file_live('data/jarkasih_learned.json', {"summary": ""})
         auto_config = load_json_file_live('data/jarkasih_auto.json', {"obedient_users": {}, "sulking_users": {}})
@@ -112,7 +122,7 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         except Exception as e:
             await ctx.send(f"Koneksi live otak gue terputus: {e}")
         finally:
-            if vc.is_listening():
+            if vc and vc.is_listening():
                 vc.stop_listening()
 
     @commands.command(name="aijoin")
@@ -122,13 +132,18 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             return
 
         channel = ctx.author.voice.channel
+        
+        if ctx.voice_client:
+            await ctx.voice_client.disconnect(force=True)
+            await asyncio.sleep(1)
+
         try:
-            vc = await channel.connect(cls=voice_recv.VoiceRecvClient)
+            vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=20.0, reconnect=False)
             await ctx.send("Gue udah standby di tongkrongan voice. Coba ajak ngomong!")
-        except discord.ClientException:
-            vc = ctx.voice_client
         except Exception as e:
-            await ctx.send(f"Gagal masuk: {e}")
+            await ctx.send(f"Gagal masuk atau nyangkut: {e}")
+            if ctx.voice_client:
+                await ctx.voice_client.disconnect(force=True)
             return
 
         persona_text = self.build_live_persona(ctx.author.id)
@@ -143,9 +158,9 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             del self.active_tasks[ctx.guild.id]
             
         if ctx.voice_client:
-            if ctx.voice_client.is_listening():
+            if hasattr(ctx.voice_client, 'is_listening') and ctx.voice_client.is_listening():
                 ctx.voice_client.stop_listening()
-            await ctx.voice_client.disconnect()
+            await ctx.voice_client.disconnect(force=True)
             await ctx.send("Gue cabut dulu dari voice.")
         else:
             await ctx.send("Gue aja lagi ga di dalem voice.")
