@@ -1,5 +1,6 @@
 discord.py[voice]
 discord.py
+git+https://github.com/imayhaveborkedit/discord-ext-voice-recv.git
 Flask
 aiohttp
 Pillow
@@ -20,5 +21,4 @@ google-auth-httplib2
 google.generativeai
 google.genai
 apscheduler
-discord-ext-voice-recv
 ffmpeg
