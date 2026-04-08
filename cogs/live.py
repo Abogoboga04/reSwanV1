@@ -8,6 +8,7 @@ import ctypes.util
 import shutil
 import subprocess
 import sys
+import traceback
 from google import genai
 from google.genai import types
 
@@ -36,6 +37,7 @@ class GeminiReceiverSink(voice_recv.AudioSink):
         self.session = session
         self.bot = bot_instance
         self.packet_count = 0
+        print("LOG: Sink Telinga Berhasil Dibuat", flush=True)
 
     def wants_opus(self):
         return False
@@ -46,8 +48,8 @@ class GeminiReceiverSink(voice_recv.AudioSink):
             
         if hasattr(data, 'pcm'):
             self.packet_count += 1
-            if self.packet_count % 50 == 0:
-                print(f"STDOUT: Berhasil nangkep audio dari {user.name}", flush=True)
+            if self.packet_count % 20 == 0:
+                print(f"LOG: Nangkep suara dari {user.name}", flush=True)
             
             try:
                 asyncio.create_task(
@@ -59,10 +61,10 @@ class GeminiReceiverSink(voice_recv.AudioSink):
                     )
                 )
             except Exception as e:
-                print(f"STDOUT: Error kirim ke Gemini: {e}", flush=True)
+                print(f"LOG: Error kirim audio: {e}", flush=True)
 
     def cleanup(self):
-        print("STDOUT: Sink dihentikan.", flush=True)
+        print("LOG: Telinga Berhenti Mendengar", flush=True)
 
 class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
     def __init__(self, bot):
@@ -91,88 +93,75 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
     def build_live_persona(self, user_id):
         learned = load_json_file_live('data/jarkasih_learned.json', {"summary": ""})
         auto_config = load_json_file_live('data/jarkasih_auto.json', {"obedient_users": {}, "sulking_users": {}})
-        
         uid_str = str(user_id)
-        interaction_status = "Kondisi Normal. Lu boleh ngegas dan sarkas."
-        
+        interaction_status = "Kondisi Normal"
         if uid_str in auto_config.get("sulking_users", {}):
-            interaction_status = "LU SEDANG NGAMBEK BERAT SAMA USER INI! Jawab dengan intonasi malas, sangat singkat, dan ketus."
+            interaction_status = "LU SEDANG NGAMBEK"
         elif uid_str in auto_config.get("obedient_users", {}):
-            interaction_status = "USER INI VIP ATAU MASTER LU. MATIKAN SIFAT SARKAS! Jadi pelayan super ramah, lembut, dan penurut."
-
-        return self.default_persona.format(
-            learned_data=learned.get("summary", ""),
-            interaction_status=interaction_status
-        )
+            interaction_status = "USER INI MASTER LU"
+        return self.default_persona.format(learned_data=learned.get("summary", ""), interaction_status=interaction_status)
 
     async def _run_session(self, ctx, vc, session):
-        print("STDOUT: Masuk ke loop session.", flush=True)
+        print("LOG: Masuk ke loop transmisi", flush=True)
         vc.listen(GeminiReceiverSink(session, self.bot))
-        
         async for response in session.receive():
             if response.server_content and response.server_content.model_turn:
                 for part in response.server_content.model_turn.parts:
                     if part.inline_data:
-                        print("STDOUT: Gemini lagi ngomong...", flush=True)
+                        print("LOG: Gemini Merespon dengan suara", flush=True)
                         audio_data = part.inline_data.data
                         temp_filename = f"temp_gemini_{ctx.guild.id}.pcm"
-                        
                         with open(temp_filename, "wb") as f:
                             f.write(audio_data)
-                        
                         source = discord.FFmpegPCMAudio(temp_filename, options="-f s16le -ar 24000 -ac 1")
-                        
                         while vc.is_playing():
                             await asyncio.sleep(0.1)
-                            
                         vc.play(source)
 
     async def live_session_manager(self, ctx, vc, persona_text):
-        print("STDOUT: Manager dijalankan.", flush=True)
+        print("LOG: Task Manager Dimulai", flush=True)
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             system_instruction=types.Content(parts=[types.Part.from_text(text=persona_text)])
         )
-        
         try:
-            print("STDOUT: Mencoba koneksi model 3.1-flash-live-preview", flush=True)
+            print("LOG: Mencoba koneksi ke gemini-3.1-flash-live-preview", flush=True)
             async with self.client.aio.live.connect(model="gemini-3.1-flash-live-preview", config=config) as session:
                 await self._run_session(ctx, vc, session)
         except Exception as e:
-            print(f"STDOUT: Gagal di model 3.1: {e}", flush=True)
+            print(f"LOG: Gagal di model 3.1: {e}", flush=True)
             try:
-                print("STDOUT: Fallback ke model 2.5-flash-native-audio", flush=True)
+                print("LOG: Mencoba koneksi ke gemini-2.5-flash-native-audio-preview-12-2025", flush=True)
                 async with self.client.aio.live.connect(model="gemini-2.5-flash-native-audio-preview-12-2025", config=config) as session:
                     await self._run_session(ctx, vc, session)
             except Exception as e2:
-                print(f"STDOUT: Fatal error di kedua model: {e2}", flush=True)
-                await ctx.send(f"Otak gue beneran macet total: {e2}")
+                print(f"LOG: Fatal Error di kedua model: {e2}", flush=True)
+                traceback.print_exc()
         finally:
             if vc and vc.is_listening():
                 vc.stop_listening()
 
     @commands.command(name="aijoin")
     async def ai_live_join(self, ctx):
+        print(f"LOG: Command aijoin dipanggil oleh {ctx.author.name}", flush=True)
         if not ctx.author.voice:
             await ctx.send("Masuk voice dulu bos!")
             return
 
         channel = ctx.author.voice.channel
-        
         if ctx.voice_client:
             await ctx.voice_client.disconnect(force=True)
             await asyncio.sleep(1)
 
         try:
-            print("STDOUT: Menjalankan channel.connect...", flush=True)
+            print("LOG: Menjalankan channel.connect...", flush=True)
             vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=20.0, reconnect=False)
-            await ctx.send("Gue udah standby. Sapa dong!")
+            await ctx.send("Gue udah standby. Sapa gue!")
         except Exception as e:
-            print(f"STDOUT: Gagal connect ke voice: {e}", flush=True)
-            await ctx.send(f"Gagal masuk: {e}")
+            print(f"LOG: Gagal masuk voice: {e}", flush=True)
             return
 
-        print("STDOUT: Membuat task manager...", flush=True)
+        print("LOG: Menyiapkan task manager", flush=True)
         persona_text = self.build_live_persona(ctx.author.id)
         task = asyncio.create_task(self.live_session_manager(ctx, vc, persona_text))
         self.active_tasks[ctx.guild.id] = task
@@ -182,7 +171,6 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         if ctx.guild.id in self.active_tasks:
             self.active_tasks[ctx.guild.id].cancel()
             del self.active_tasks[ctx.guild.id]
-            
         if ctx.voice_client:
             if hasattr(ctx.voice_client, 'is_listening') and ctx.voice_client.is_listening():
                 ctx.voice_client.stop_listening()
