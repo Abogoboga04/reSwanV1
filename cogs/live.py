@@ -5,6 +5,8 @@ import os
 import json
 import ctypes
 import ctypes.util
+import shutil
+import subprocess
 from google import genai
 from google.genai import types
 
@@ -68,10 +70,11 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         """
 
         if not discord.opus.is_loaded():
-            opus_lib = ctypes.util.find_library('opus')
-            if opus_lib:
+            try:
+                discord.opus.load_opus('libopus.so.0')
+            except Exception:
                 try:
-                    discord.opus.load_opus(opus_lib)
+                    discord.opus.load_opus('libopus.so')
                 except Exception:
                     pass
 
@@ -124,6 +127,31 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         finally:
             if vc and vc.is_listening():
                 vc.stop_listening()
+
+    @commands.command(name="aicek")
+    async def check_voice_env(self, ctx):
+        embed = discord.Embed(title="Log Pengetesan Lingkungan Voice", color=discord.Color.blue())
+        
+        ffmpeg_path = shutil.which("ffmpeg")
+        if ffmpeg_path:
+            try:
+                ffmpeg_version = subprocess.check_output(["ffmpeg", "-version"]).decode("utf-8").split("\n")[0]
+                embed.add_field(name="FFmpeg", value=f"Terdeteksi di: {ffmpeg_path}\nVersi: {ffmpeg_version}", inline=False)
+            except Exception as e:
+                embed.add_field(name="FFmpeg", value=f"Terdeteksi di {ffmpeg_path} tapi error saat dicek: {e}", inline=False)
+        else:
+            embed.add_field(name="FFmpeg", value="TIDAK TERDETEKSI! Sistem belum menginstal FFmpeg.", inline=False)
+        
+        opus_status = discord.opus.is_loaded()
+        embed.add_field(name="LibOpus", value=f"{'BERHASIL DIMUAT' if opus_status else 'GAGAL DIMUAT! Error kompresi audio dipastikan dari sini.'}", inline=False)
+        
+        try:
+            import nacl
+            embed.add_field(name="PyNaCl (Sodium)", value="Terinstal dan siap digunakan untuk enkripsi Discord.", inline=False)
+        except ImportError:
+            embed.add_field(name="PyNaCl (Sodium)", value="TIDAK TERINSTAL! Bot tidak akan bisa connect.", inline=False)
+
+        await ctx.send(embed=embed)
 
     @commands.command(name="aijoin")
     async def ai_live_join(self, ctx):
