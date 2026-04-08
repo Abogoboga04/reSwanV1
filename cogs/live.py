@@ -59,6 +59,11 @@ if youtube_cookies_raw:
     with open('cookies.txt', 'w', encoding='utf-8') as f:
         f.write(youtube_cookies_raw)
 
+youtube_cookies_raw = os.getenv("YOUTUBE_COOKIES")
+if youtube_cookies_raw:
+    with open('cookies.txt', 'w', encoding='utf-8') as f:
+        f.write(youtube_cookies_raw)
+
 ytdl_opts = {
     'format': 'bestaudio/best',
     'cookiefile': 'cookies.txt',
@@ -67,7 +72,11 @@ ytdl_opts = {
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
     'extractor_args': {
-        'youtube': ['player_skip=webpage,configs', 'player_client=tv_downgraded,android_vr']
+        'youtube': [
+            'player_client=ios,android',
+            'player_skip=webpage,configs,js',
+            'visitor_data=true'
+        ]
     },
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
@@ -75,6 +84,7 @@ ytdl_opts = {
         'preferredquality': '128',
     }],
 }
+
 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
