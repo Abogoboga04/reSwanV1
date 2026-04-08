@@ -32,10 +32,11 @@ def load_json_file_live(file_path, default_data=None):
         return default_data
 
 class GeminiReceiverSink(voice_recv.AudioSink):
-    def __init__(self, session, bot_instance):
+    def __init__(self, session, bot_instance, loop):
         super().__init__()
         self.session = session
         self.bot = bot_instance
+        self.loop = loop
         self.packet_count = 0
         print("LOG: Sink Telinga Berhasil Dibuat", flush=True)
 
@@ -52,14 +53,13 @@ class GeminiReceiverSink(voice_recv.AudioSink):
                 print(f"LOG: Nangkep suara dari {user.name}", flush=True)
             
             try:
-                asyncio.create_task(
-                    self.session.send_realtime_input(
-                        audio=types.Blob(
-                            data=data.pcm,
-                            mime_type="audio/pcm;rate=48000"
-                        )
+                coro = self.session.send_realtime_input(
+                    audio=types.Blob(
+                        data=data.pcm,
+                        mime_type="audio/pcm;rate=48000"
                     )
                 )
+                asyncio.run_coroutine_threadsafe(coro, self.loop)
             except Exception as e:
                 print(f"LOG: Error kirim audio: {e}", flush=True)
 
@@ -103,7 +103,8 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
 
     async def _run_session(self, ctx, vc, session):
         print("LOG: Masuk ke loop transmisi", flush=True)
-        vc.listen(GeminiReceiverSink(session, self.bot))
+        loop = asyncio.get_running_loop()
+        vc.listen(GeminiReceiverSink(session, self.bot, loop))
         async for response in session.receive():
             if response.server_content and response.server_content.model_turn:
                 for part in response.server_content.model_turn.parts:
