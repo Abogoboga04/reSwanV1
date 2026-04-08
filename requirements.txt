@@ -1,5 +1,5 @@
-discord.py==2.5.2
-discord.py[voice]==2.5.2
+git
+git+https://github.com/Rapptz/discord.py.git
 Flask
 aiohttp
 Pillow
