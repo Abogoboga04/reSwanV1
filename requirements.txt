@@ -1,4 +1,5 @@
 discord.py==2.5.2
+discord.py[voice]==2.5.2
 Flask
 aiohttp
 Pillow
@@ -20,3 +21,4 @@ google.generativeai
 google.genai
 apscheduler
 discord-ext-voice-recv
+ffmpeg
