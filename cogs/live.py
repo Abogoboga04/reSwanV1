@@ -4,11 +4,7 @@ from discord.ext import commands, voice_recv
 import asyncio
 import os
 import json
-import ctypes
-import ctypes.util
-import shutil
-import subprocess
-import sys
+import uuid
 import traceback
 from google import genai
 from google.genai import types
@@ -65,9 +61,10 @@ class GeminiReceiverSink(voice_recv.AudioSink):
                 print(f"LOG: Nangkep suara dari {user.name}", flush=True)
             
             try:
+                mono_pcm = memoryview(data.pcm).cast('h')[0::2].tobytes()
                 coro = self.session.send_realtime_input(
                     audio=types.Blob(
-                        data=data.pcm,
+                        data=mono_pcm,
                         mime_type="audio/pcm;rate=48000"
                     )
                 )
@@ -113,23 +110,61 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             interaction_status = "USER INI MASTER LU"
         return self.default_persona.format(learned_data=learned.get("summary", ""), interaction_status=interaction_status)
 
+    async def _playback_task(self, ctx, vc, queue):
+        while True:
+            file_path = await queue.get()
+            if file_path is None:
+                break
+            try:
+                source = discord.FFmpegPCMAudio(file_path, options="-f s16le -ar 24000 -ac 1")
+                vc.play(source, after=lambda e, f=file_path: os.remove(f) if os.path.exists(f) else None)
+                while vc.is_playing():
+                    await asyncio.sleep(0.1)
+            except Exception as e:
+                print(f"LOG: Error di playback: {e}", flush=True)
+
     async def _run_session(self, ctx, vc, session):
         print("LOG: Masuk ke loop transmisi", flush=True)
         loop = asyncio.get_running_loop()
         vc.listen(GeminiReceiverSink(session, self.bot, loop))
-        async for response in session.receive():
-            if response.server_content and response.server_content.model_turn:
-                for part in response.server_content.model_turn.parts:
-                    if part.inline_data:
-                        print("LOG: Gemini Merespon dengan suara", flush=True)
-                        audio_data = part.inline_data.data
-                        temp_filename = f"temp_gemini_{ctx.guild.id}.pcm"
-                        with open(temp_filename, "wb") as f:
-                            f.write(audio_data)
-                        source = discord.FFmpegPCMAudio(temp_filename, options="-f s16le -ar 24000 -ac 1")
-                        while vc.is_playing():
-                            await asyncio.sleep(0.1)
-                        vc.play(source)
+        
+        playback_queue = asyncio.Queue()
+        playback_task = asyncio.create_task(self._playback_task(ctx, vc, playback_queue))
+        temp_audio_buffer = bytearray()
+
+        try:
+            async for response in session.receive():
+                if response.server_content:
+                    if response.server_content.interrupted:
+                        print("LOG: Interupsi suara terdeteksi", flush=True)
+                        if vc.is_playing():
+                            vc.stop()
+                        while not playback_queue.empty():
+                            try:
+                                old_file = playback_queue.get_nowait()
+                                if old_file and os.path.exists(old_file):
+                                    os.remove(old_file)
+                            except Exception:
+                                pass
+                        temp_audio_buffer.clear()
+
+                    if response.server_content.model_turn:
+                        for part in response.server_content.model_turn.parts:
+                            if part.inline_data:
+                                temp_audio_buffer.extend(part.inline_data.data)
+
+                    if response.server_content.turn_complete:
+                        if len(temp_audio_buffer) > 0:
+                            print("LOG: Gemini Merespon dengan suara", flush=True)
+                            unique_id = uuid.uuid4().hex
+                            file_path = f"temp_gemini_{ctx.guild.id}_{unique_id}.pcm"
+                            with open(file_path, "wb") as f:
+                                f.write(temp_audio_buffer)
+                            temp_audio_buffer.clear()
+                            await playback_queue.put(file_path)
+        finally:
+            await playback_queue.put(None)
+            playback_task.cancel()
 
     async def live_session_manager(self, ctx, vc, persona_text):
         print("LOG: Task Manager Dimulai", flush=True)
