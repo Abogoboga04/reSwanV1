@@ -30,15 +30,21 @@ def load_json_file_live(file_path, default_data=None):
         return default_data
 
 class GeminiReceiverSink(voice_recv.AudioSink):
-    def __init__(self, session):
+    def __init__(self, session, bot_instance):
         super().__init__()
         self.session = session
+        self.bot = bot_instance
+        self.packet_count = 0
 
     def wants_opus(self):
         return False
 
     def write(self, user, data):
         if hasattr(data, 'pcm'):
+            self.packet_count += 1
+            if self.packet_count % 100 == 0:
+                print(f"DEBUG: Menerima paket suara dari {user.name}")
+            
             try:
                 asyncio.create_task(
                     self.session.send_realtime_input(
@@ -48,11 +54,11 @@ class GeminiReceiverSink(voice_recv.AudioSink):
                         )
                     )
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"DEBUG: Gagal kirim audio ke Gemini: {e}")
 
     def cleanup(self):
-        pass
+        print("DEBUG: Pendengaran dihentikan.")
 
 class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
     def __init__(self, bot):
@@ -62,6 +68,8 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         self.default_persona = """
         Nama lu JARKASIH. Lu adalah AI Generalist Expert dan asisten bot RTM.
         GAYA BAHASA: Sarkas, logat Jakarta, sumbu pendek.
+        
+        ATURAN PENANGANAN CURHAT: Jika dari nada suara atau omongan user terdengar sedih, stres, depresi, atau putus asa, MATIKAN 100% SIFAT SARKAS LU! Berubahlah menjadi sosok psikolog atau sahabat yang sangat empati, penuh kehangatan, dan memvalidasi perasaannya secara lisan.
         
         [DATA HASIL BELAJAR MEMORI]: {learned_data}
         STATUS INTERAKSI KHUSUS SAAT INI: {interaction_status}
@@ -101,7 +109,8 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         
         try:
             async with self.client.aio.live.connect(model="gemini-3.1-flash-live-preview", config=config) as session:
-                vc.listen(GeminiReceiverSink(session))
+                print("DEBUG: Terhubung ke Gemini Live API")
+                vc.listen(GeminiReceiverSink(session, self.bot))
                 
                 async for response in session.receive():
                     if response.server_content and response.server_content.model_turn:
@@ -126,31 +135,6 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             if vc and vc.is_listening():
                 vc.stop_listening()
 
-    @commands.command(name="aicek")
-    async def check_voice_env(self, ctx):
-        embed = discord.Embed(title="Log Pengetesan Lingkungan Voice", color=discord.Color.blue())
-        
-        ffmpeg_path = shutil.which("ffmpeg")
-        if ffmpeg_path:
-            try:
-                ffmpeg_version = subprocess.check_output(["ffmpeg", "-version"]).decode("utf-8").split("\n")[0]
-                embed.add_field(name="FFmpeg", value=f"Terdeteksi di: {ffmpeg_path}\nVersi: {ffmpeg_version}", inline=False)
-            except Exception as e:
-                embed.add_field(name="FFmpeg", value=f"Terdeteksi di {ffmpeg_path} tapi error saat dicek: {e}", inline=False)
-        else:
-            embed.add_field(name="FFmpeg", value="TIDAK TERDETEKSI! Sistem belum menginstal FFmpeg.", inline=False)
-        
-        opus_status = discord.opus.is_loaded()
-        embed.add_field(name="LibOpus", value=f"{'BERHASIL DIMUAT' if opus_status else 'GAGAL DIMUAT! Error kompresi audio dipastikan dari sini.'}", inline=False)
-        
-        try:
-            import nacl
-            embed.add_field(name="PyNaCl (Sodium)", value="Terinstal dan siap digunakan untuk enkripsi Discord.", inline=False)
-        except ImportError:
-            embed.add_field(name="PyNaCl (Sodium)", value="TIDAK TERINSTAL! Bot tidak akan bisa connect.", inline=False)
-
-        await ctx.send(embed=embed)
-
     @commands.command(name="aijoin")
     async def ai_live_join(self, ctx):
         if not ctx.author.voice:
@@ -164,23 +148,10 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             await asyncio.sleep(1)
 
         try:
-            vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=15.0, reconnect=False)
-            await ctx.send("Gue udah standby di tongkrongan voice pakai mode Live (Bisa Dengar).")
-        except discord.errors.ConnectionClosed as e:
-            if e.code == 4006:
-                await ctx.send("Kena error 4006 pas masuk pakai mode Receiver. Otomatis gue alihkan ke mode Standar (Bisu) buat ngetes...")
-                try:
-                    vc = await channel.connect(timeout=15.0, reconnect=False)
-                    await ctx.send("Sip, pakai mode Standar lolos! Ini fix banget library voice_recv lu yang bentrok sama jaringan atau environment Railway.")
-                    return
-                except Exception as ex:
-                    await ctx.send(f"Mampus, mode Standar juga ditendang bos: {ex}")
-                    return
-            else:
-                await ctx.send(f"Jabat tangan terputus dengan kode error: {e.code}")
-                return
+            vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=20.0, reconnect=False)
+            await ctx.send("Gue udah standby di tongkrongan voice. Coba ajak ngomong!")
         except Exception as e:
-            await ctx.send(f"Gagal masuk sepenuhnya: {e}")
+            await ctx.send(f"Gagal masuk atau nyangkut: {e}")
             if ctx.voice_client:
                 await ctx.voice_client.disconnect(force=True)
             return
