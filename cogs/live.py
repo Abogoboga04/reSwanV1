@@ -62,7 +62,7 @@ ytdl_opts = {
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
     'extractor_args': {
-        'youtube': ['client=android']
+        'youtube': ['player_client=android', 'player_skip=web']
     },
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
