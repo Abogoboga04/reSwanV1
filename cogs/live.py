@@ -520,7 +520,7 @@ class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
             except Exception:
                 pass
 
-        async def _send_audio_task(self, session, input_queue):
+    async def _send_audio_task(self, session, input_queue):
         buffer = bytearray()
         while True:
             try:
