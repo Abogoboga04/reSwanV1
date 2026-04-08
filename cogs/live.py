@@ -1334,7 +1334,7 @@ class MusicAndLiveCog(commands.Cog, name="Jarkasih Music & Live"):
         else:
             await ctx.send("Antrean terlalu pendek untuk diacak.", ephemeral=True)
 
-    @commands.command(name="rtmclear", aliases=["clear", "c"])
+    @commands.command(name="rtmclear", aliases=["c"])
     async def clear_queue_cmd(self, ctx):
         queue = self.get_queue(ctx.guild.id)
         if queue:
