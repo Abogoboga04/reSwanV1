@@ -40,6 +40,9 @@ class GeminiReceiverSink(voice_recv.AudioSink):
         return False
 
     def write(self, user, data):
+        if user == self.bot.user:
+            return
+            
         if hasattr(data, 'pcm'):
             self.packet_count += 1
             if self.packet_count % 100 == 0:
@@ -55,10 +58,10 @@ class GeminiReceiverSink(voice_recv.AudioSink):
                     )
                 )
             except Exception as e:
-                print(f"DEBUG: Gagal kirim audio ke Gemini: {e}")
+                print(f"DEBUG: Gagal kirim ke Gemini: {e}")
 
     def cleanup(self):
-        print("DEBUG: Pendengaran dihentikan.")
+        print("DEBUG: Stop mendengarkan.")
 
 class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
     def __init__(self, bot):
@@ -101,6 +104,28 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             interaction_status=interaction_status
         )
 
+    async def _run_session(self, ctx, vc, session):
+        print("DEBUG: Sesi Gemini Live aktif.")
+        vc.listen(GeminiReceiverSink(session, self.bot))
+        
+        async for response in session.receive():
+            if response.server_content and response.server_content.model_turn:
+                for part in response.server_content.model_turn.parts:
+                    if part.inline_data:
+                        print("DEBUG: Respons audio diterima dari Gemini.")
+                        audio_data = part.inline_data.data
+                        temp_filename = f"temp_gemini_{ctx.guild.id}.pcm"
+                        
+                        with open(temp_filename, "wb") as f:
+                            f.write(audio_data)
+                        
+                        source = discord.FFmpegPCMAudio(temp_filename, options="-f s16le -ar 24000 -ac 1")
+                        
+                        while vc.is_playing():
+                            await asyncio.sleep(0.1)
+                            
+                        vc.play(source)
+
     async def live_session_manager(self, ctx, vc, persona_text):
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
@@ -109,28 +134,17 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
         
         try:
             async with self.client.aio.live.connect(model="gemini-3.1-flash-live-preview", config=config) as session:
-                print("DEBUG: Terhubung ke Gemini Live API")
-                vc.listen(GeminiReceiverSink(session, self.bot))
-                
-                async for response in session.receive():
-                    if response.server_content and response.server_content.model_turn:
-                        for part in response.server_content.model_turn.parts:
-                            if part.inline_data:
-                                audio_data = part.inline_data.data
-                                temp_filename = f"temp_gemini_{ctx.guild.id}.pcm"
-                                
-                                with open(temp_filename, "wb") as f:
-                                    f.write(audio_data)
-                                
-                                source = discord.FFmpegPCMAudio(temp_filename, options="-f s16le -ar 24000 -ac 1")
-                                
-                                while vc.is_playing():
-                                    await asyncio.sleep(0.1)
-                                    
-                                vc.play(source)
-                                
+                print("DEBUG: Mencoba masuk pakai model utama (3.1)")
+                await self._run_session(ctx, vc, session)
         except Exception as e:
-            await ctx.send(f"Koneksi live otak gue terputus: {e}")
+            print(f"DEBUG: Model utama (3.1) gagal: {e}. Beralih ke model cadangan (2.5)...")
+            try:
+                async with self.client.aio.live.connect(model="gemini-2.5-flash-native-audio-preview-12-2025", config=config) as session:
+                    print("DEBUG: Mencoba masuk pakai model cadangan (2.5)")
+                    await self._run_session(ctx, vc, session)
+            except Exception as e2:
+                print(f"DEBUG: Kedua model gagal. Error terakhir: {e2}")
+                await ctx.send(f"Otak gue konslet dua-duanya bos: {e2}")
         finally:
             if vc and vc.is_listening():
                 vc.stop_listening()
@@ -138,7 +152,7 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
     @commands.command(name="aijoin")
     async def ai_live_join(self, ctx):
         if not ctx.author.voice:
-            await ctx.send("Lu masuk voice channel dulu dong!")
+            await ctx.send("Masuk voice dulu lah bos!")
             return
 
         channel = ctx.author.voice.channel
@@ -149,15 +163,12 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
 
         try:
             vc = await channel.connect(cls=voice_recv.VoiceRecvClient, timeout=20.0, reconnect=False)
-            await ctx.send("Gue udah standby di tongkrongan voice. Coba ajak ngomong!")
+            await ctx.send("Gue udah standby. Sapa gue dong!")
         except Exception as e:
-            await ctx.send(f"Gagal masuk atau nyangkut: {e}")
-            if ctx.voice_client:
-                await ctx.voice_client.disconnect(force=True)
+            await ctx.send(f"Gagal masuk: {e}")
             return
 
         persona_text = self.build_live_persona(ctx.author.id)
-        
         task = asyncio.create_task(self.live_session_manager(ctx, vc, persona_text))
         self.active_tasks[ctx.guild.id] = task
 
@@ -171,9 +182,7 @@ class GeminiLiveVoice(commands.Cog, name="Jarkasih Live Voice"):
             if hasattr(ctx.voice_client, 'is_listening') and ctx.voice_client.is_listening():
                 ctx.voice_client.stop_listening()
             await ctx.voice_client.disconnect(force=True)
-            await ctx.send("Gue cabut dulu dari voice.")
-        else:
-            await ctx.send("Gue aja lagi ga di dalem voice.")
+            await ctx.send("Gue cabut dulu.")
 
 async def setup(bot):
     await bot.add_cog(GeminiLiveVoice(bot))
