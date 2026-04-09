@@ -65,18 +65,16 @@ if youtube_cookies_raw:
         f.write(youtube_cookies_raw)
 
 ytdl_opts = {
-    'format': 'bestaudio/best',
+    'format': 'ba/b',
     'cookiefile': 'cookies.txt',
     'quiet': True,
     'default_search': 'ytsearch',
     'outtmpl': 'downloads/%(title)s.%(ext)s',
     'noplaylist': True,
     'extractor_args': {
-        'youtube': [
-            'player_client=ios,android',
-            'player_skip=webpage,configs,js',
-            'visitor_data=true'
-        ]
+        'youtube': {
+            'player_client': ['android', 'ios']
+        }
     },
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
